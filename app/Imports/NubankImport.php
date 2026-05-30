@@ -15,10 +15,13 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
  *   2024-01-15,Restaurantes,IFOOD,45.90
  *
  * A coluna `category` é ignorada — a IA reclassifica por nós.
+ * O parâmetro $source ('payer1' ou 'payer2') identifica de qual cartão vieram as despesas.
  */
 class NubankImport implements ToCollection, WithHeadingRow
 {
     private array $importedIds = [];
+
+    public function __construct(private readonly string $source = 'payer1') {}
 
     public function collection(Collection $rows): void
     {
@@ -28,7 +31,9 @@ class NubankImport implements ToCollection, WithHeadingRow
                 continue;
             }
 
-            $hash = md5($row['date'] . '|' . $row['title'] . '|' . $row['amount']);
+            // O source entra no hash para que Reni e Lua possam ter despesas idênticas
+            // (mesma data/loja/valor) sem conflito de duplicata.
+            $hash = md5($this->source . '|' . $row['date'] . '|' . $row['title'] . '|' . $row['amount']);
 
             $expense = Expense::firstOrCreate(
                 ['import_hash' => $hash],
@@ -36,6 +41,7 @@ class NubankImport implements ToCollection, WithHeadingRow
                     'description' => (string) $row['title'],
                     'amount'      => (float) $row['amount'],
                     'date'        => Carbon::parse($row['date'])->toDateString(),
+                    'source'      => $this->source,
                     'ownership'   => 'both',
                     'status'      => 'pending',
                 ]
@@ -46,7 +52,6 @@ class NubankImport implements ToCollection, WithHeadingRow
             }
         }
 
-        // Dispara o job de categorização apenas para as despesas recém-criadas.
         if (!empty($this->importedIds)) {
             CategorizeExpensesJob::dispatch($this->importedIds);
         }

@@ -31,10 +31,9 @@ function buildCategoryGroups(rows) {
 // ─── Modal de adição manual ───────────────────────────────────────────────────
 const EMPTY_FORM = { description: '', amount: '', date: '', category_id: '', ownership: 'both' };
 
-function AddExpenseModal({ categories, currentMonth, onAdded, onClose }) {
+function AddExpenseModal({ categories, currentMonth, source, ownerName, onAdded, onClose }) {
     const [form, setForm] = useState(() => ({
         ...EMPTY_FORM,
-        // Pré-preenche a data com o primeiro dia do mês atual da tabela.
         date: currentMonth ? `${currentMonth}-01` : new Date().toISOString().slice(0, 10),
     }));
     const [errors, setErrors] = useState({});
@@ -66,11 +65,11 @@ function AddExpenseModal({ categories, currentMonth, onAdded, onClose }) {
                 date:        form.date,
                 category_id: form.category_id || null,
                 ownership:   form.ownership,
+                source,
             });
             onAdded(data);
             onClose();
         } catch (err) {
-            // Erros de validação do Laravel (422)
             if (err.response?.status === 422) {
                 const serverErrors = {};
                 Object.entries(err.response.data.errors).forEach(([k, msgs]) => {
@@ -83,7 +82,6 @@ function AddExpenseModal({ categories, currentMonth, onAdded, onClose }) {
         }
     };
 
-    // Fecha com ESC
     useEffect(() => {
         const handler = (e) => { if (e.key === 'Escape') onClose(); };
         window.addEventListener('keydown', handler);
@@ -93,9 +91,11 @@ function AddExpenseModal({ categories, currentMonth, onAdded, onClose }) {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
             <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
-                {/* Header */}
                 <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-                    <h2 className="text-base font-semibold text-gray-800">Adicionar Despesa</h2>
+                    <div>
+                        <h2 className="text-base font-semibold text-gray-800">Adicionar Despesa</h2>
+                        <p className="text-xs text-gray-400">Extrato de <strong>{ownerName}</strong></p>
+                    </div>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
                         <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -103,9 +103,7 @@ function AddExpenseModal({ categories, currentMonth, onAdded, onClose }) {
                     </button>
                 </div>
 
-                {/* Formulário */}
                 <form onSubmit={submit} className="space-y-4 px-6 py-5">
-                    {/* Descrição */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Descrição *</label>
                         <input
@@ -119,7 +117,6 @@ function AddExpenseModal({ categories, currentMonth, onAdded, onClose }) {
                         {errors.description && <p className="mt-1 text-xs text-red-500">{errors.description}</p>}
                     </div>
 
-                    {/* Valor + Data em linha */}
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="block text-sm font-medium text-gray-700">Valor (R$) *</label>
@@ -146,7 +143,6 @@ function AddExpenseModal({ categories, currentMonth, onAdded, onClose }) {
                         </div>
                     </div>
 
-                    {/* Categoria */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Categoria</label>
                         <select
@@ -161,7 +157,6 @@ function AddExpenseModal({ categories, currentMonth, onAdded, onClose }) {
                         </select>
                     </div>
 
-                    {/* De quem é? */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700">De quem é o gasto?</label>
                         <div className="mt-2 flex gap-2">
@@ -182,20 +177,11 @@ function AddExpenseModal({ categories, currentMonth, onAdded, onClose }) {
                         </div>
                     </div>
 
-                    {/* Ações */}
                     <div className="flex justify-end gap-3 pt-1">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
-                        >
+                        <button type="button" onClick={onClose} className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">
                             Cancelar
                         </button>
-                        <button
-                            type="submit"
-                            disabled={submitting}
-                            className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-                        >
+                        <button type="submit" disabled={submitting} className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60">
                             {submitting ? 'Salvando...' : 'Adicionar'}
                         </button>
                     </div>
@@ -205,53 +191,192 @@ function AddExpenseModal({ categories, currentMonth, onAdded, onClose }) {
     );
 }
 
+// ─── Tabela de despesas (reutilizada nas duas abas) ───────────────────────────
+function ExpenseTable({ rows, categories, onUpdate, onBatchOwnership, onDelete }) {
+    const categoryGroups = buildCategoryGroups(rows);
+
+    if (rows.length === 0) return null;
+
+    return (
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                    <thead className="bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500">
+                        <tr>
+                            <th className="px-4 py-3 text-left">Data</th>
+                            <th className="px-4 py-3 text-left">Descrição</th>
+                            <th className="px-4 py-3 text-left">Categoria</th>
+                            <th className="px-4 py-3 text-right">Valor</th>
+                            <th className="px-4 py-3 text-left">De quem é?</th>
+                            <th className="px-4 py-3" />
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        {Object.entries(categoryGroups).map(([cat, ids]) => (
+                            <tr key={`group-${cat}`} className="bg-gray-50/60">
+                                <td colSpan={2} className="px-4 py-2 text-xs font-semibold text-gray-600">
+                                    {cat} ({ids.length})
+                                </td>
+                                <td />
+                                <td />
+                                <td className="px-4 py-2">
+                                    <div className="flex gap-1">
+                                        {OWNERSHIP_OPTIONS.map((opt) => (
+                                            <button
+                                                key={opt.value}
+                                                onClick={() => onBatchOwnership(cat, opt.value)}
+                                                className="rounded border border-gray-300 bg-white px-2 py-0.5 text-xs text-gray-600 hover:border-indigo-300 hover:bg-indigo-50"
+                                            >
+                                                Todos: {opt.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </td>
+                                <td />
+                            </tr>
+                        ))}
+
+                        {rows.map((row) => (
+                            <tr key={row.id} className="hover:bg-gray-50">
+                                <td className="whitespace-nowrap px-4 py-3 text-gray-500">
+                                    {new Date(row.date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                </td>
+                                <td className="px-4 py-3">
+                                    <span className={row.status === 'pending' ? 'italic text-gray-400' : 'text-gray-800'}>
+                                        {row.description}
+                                    </span>
+                                    {row.status === 'pending' && (
+                                        <span className="ml-2 text-xs text-indigo-400">(categorizando...)</span>
+                                    )}
+                                </td>
+                                <td className="px-4 py-3">
+                                    <select
+                                        value={row.category_id ?? ''}
+                                        onChange={(e) =>
+                                            onUpdate(row.id, 'category_id', e.target.value ? Number(e.target.value) : null)
+                                        }
+                                        className="rounded border border-gray-300 bg-white px-2 py-1 text-xs focus:border-indigo-400 focus:outline-none"
+                                    >
+                                        <option value="">— Sem categoria —</option>
+                                        {categories.map((c) => (
+                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                        ))}
+                                    </select>
+                                </td>
+                                <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-gray-800">
+                                    {fmt(row.amount)}
+                                </td>
+                                <td className="px-4 py-3">
+                                    <div className="flex gap-1">
+                                        {OWNERSHIP_OPTIONS.map((opt) => (
+                                            <button
+                                                key={opt.value}
+                                                onClick={() => onUpdate(row.id, 'ownership', opt.value)}
+                                                className={`rounded-full px-2 py-0.5 text-xs font-medium transition-colors ${
+                                                    row.ownership === opt.value
+                                                        ? OWNERSHIP_BADGE[opt.value]
+                                                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                                }`}
+                                            >
+                                                {opt.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </td>
+                                <td className="px-4 py-3">
+                                    <button
+                                        onClick={() => {
+                                            if (!confirm('Remover esta despesa?')) return;
+                                            onDelete(row.id);
+                                        }}
+                                        className="text-xs text-red-400 hover:text-red-600"
+                                    >
+                                        Remover
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}
+
 // ─── Página principal ─────────────────────────────────────────────────────────
-export default function Expenses({ expenses: initialExpenses, categories, month, hasPending }) {
+export default function Expenses({
+    payer1Expenses: initialP1,
+    payer2Expenses: initialP2,
+    categories,
+    month,
+    activeTab: initialTab,
+    hasPending,
+    settings,
+}) {
     const { flash } = usePage().props;
 
-    const [rows, setRows] = useState(initialExpenses);
-    const [dirty, setDirty] = useState(false);
+    // Estado separado por aba. Cada aba tem seus próprios rows e dirty flag.
+    const [rows, setRows] = useState({ payer1: initialP1, payer2: initialP2 });
+    const [dirty, setDirty] = useState({ payer1: false, payer2: false });
     const [saving, setSaving] = useState(false);
     const [saveMsg, setSaveMsg] = useState(null);
+    const [activeTab, setActiveTab] = useState(initialTab);
     const [showModal, setShowModal] = useState(false);
 
-    // Polling enquanto houver despesas pendentes de categorização.
+    const currentRows = rows[activeTab];
+    const isDirty = dirty[activeTab];
+
+    const tabNames = { payer1: settings.payer1_name, payer2: settings.payer2_name };
+    const tabColors = {
+        payer1: { active: 'border-emerald-500 text-emerald-700', count: 'bg-emerald-100 text-emerald-600' },
+        payer2: { active: 'border-rose-500 text-rose-700',       count: 'bg-rose-100 text-rose-600' },
+    };
+
+    // Polling enquanto houver categorização pendente.
     const pollRef = useRef(null);
     useEffect(() => {
         if (!hasPending) return;
         pollRef.current = setInterval(() => {
-            router.reload({ only: ['expenses', 'hasPending'] });
+            router.reload({ only: ['payer1Expenses', 'payer2Expenses', 'hasPending'] });
         }, 5000);
         return () => clearInterval(pollRef.current);
     }, [hasPending]);
 
-    useEffect(() => {
-        setRows(initialExpenses);
-    }, [initialExpenses]);
+    // Sincroniza state local quando Inertia recarrega (ex: polling, delete).
+    useEffect(() => { setRows({ payer1: initialP1, payer2: initialP2 }); }, [initialP1, initialP2]);
 
     const updateRow = (id, field, value) => {
-        setRows((prev) => prev.map((r) => (r.id === id ? { ...r, [field]: value } : r)));
-        setDirty(true);
+        setRows((prev) => ({
+            ...prev,
+            [activeTab]: prev[activeTab].map((r) => (r.id === id ? { ...r, [field]: value } : r)),
+        }));
+        setDirty((prev) => ({ ...prev, [activeTab]: true }));
     };
 
     const batchOwnership = (categoryName, ownership) => {
-        setRows((prev) =>
-            prev.map((r) =>
+        setRows((prev) => ({
+            ...prev,
+            [activeTab]: prev[activeTab].map((r) =>
                 (r.category ?? 'Sem categoria') === categoryName ? { ...r, ownership } : r
-            )
-        );
-        setDirty(true);
+            ),
+        }));
+        setDirty((prev) => ({ ...prev, [activeTab]: true }));
     };
 
-    // Callback quando o modal adiciona uma nova despesa com sucesso.
+    const handleDelete = (id) => {
+        router.delete(route('expenses.destroy', id), {
+            preserveScroll: true,
+        });
+    };
+
     const handleAdded = (newExpense) => {
-        // Insere no topo apenas se o mês da despesa bate com o filtro atual.
-        const expMonth = newExpense.date.slice(0, 7);
-        if (expMonth === month) {
-            setRows((prev) => [newExpense, ...prev]);
-            setDirty(true); // a nova já está no BD, mas force save caso o usuário edite outras
+        if (newExpense.date.slice(0, 7) === month) {
+            setRows((prev) => ({
+                ...prev,
+                [activeTab]: [newExpense, ...prev[activeTab]],
+            }));
         }
-        setSaveMsg('Despesa adicionada com sucesso!');
+        setSaveMsg('Despesa adicionada!');
         setTimeout(() => setSaveMsg(null), 3000);
     };
 
@@ -260,13 +385,13 @@ export default function Expenses({ expenses: initialExpenses, categories, month,
         setSaveMsg(null);
         try {
             await axios.post(route('expenses.batch'), {
-                expenses: rows.map((r) => ({
+                expenses: currentRows.map((r) => ({
                     id:          r.id,
                     category_id: r.category_id,
                     ownership:   r.ownership,
                 })),
             });
-            setDirty(false);
+            setDirty((prev) => ({ ...prev, [activeTab]: false }));
             setSaveMsg('Despesas salvas com sucesso!');
         } catch {
             setSaveMsg('Erro ao salvar. Tente novamente.');
@@ -275,9 +400,13 @@ export default function Expenses({ expenses: initialExpenses, categories, month,
         }
     };
 
-    const changeMonth = (e) => router.get(route('expenses.index'), { month: e.target.value });
+    const changeMonth = (e) =>
+        router.get(route('expenses.index'), { month: e.target.value, tab: activeTab });
 
-    const categoryGroups = buildCategoryGroups(rows);
+    const switchTab = (tab) => {
+        setActiveTab(tab);
+        router.get(route('expenses.index'), { month, tab }, { preserveState: true, replace: true });
+    };
 
     return (
         <AuthenticatedLayout header={<h2 className="text-xl font-semibold text-gray-800">Revisão de Despesas</h2>}>
@@ -287,6 +416,8 @@ export default function Expenses({ expenses: initialExpenses, categories, month,
                 <AddExpenseModal
                     categories={categories}
                     currentMonth={month}
+                    source={activeTab}
+                    ownerName={tabNames[activeTab]}
                     onAdded={handleAdded}
                     onClose={() => setShowModal(false)}
                 />
@@ -308,7 +439,7 @@ export default function Expenses({ expenses: initialExpenses, categories, month,
                 </div>
             )}
 
-            {/* Toolbar */}
+            {/* Toolbar: mês + ações */}
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                     <label className="text-sm font-medium text-gray-600">Mês:</label>
@@ -318,15 +449,14 @@ export default function Expenses({ expenses: initialExpenses, categories, month,
                         onChange={changeMonth}
                         className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none"
                     />
-                    <span className="text-sm text-gray-500">{rows.length} despesa(s)</span>
                 </div>
                 <div className="flex items-center gap-3">
                     {saveMsg && (
-                        <span className={`text-sm ${saveMsg.includes('sucesso') ? 'text-green-600' : 'text-red-500'}`}>
+                        <span className={`text-sm ${saveMsg.includes('sucesso') || saveMsg === 'Despesa adicionada!' ? 'text-green-600' : 'text-red-500'}`}>
                             {saveMsg}
                         </span>
                     )}
-                    {dirty && (
+                    {isDirty && (
                         <button
                             onClick={saveAll}
                             disabled={saving}
@@ -335,7 +465,6 @@ export default function Expenses({ expenses: initialExpenses, categories, month,
                             {saving ? 'Salvando...' : 'Salvar Alterações'}
                         </button>
                     )}
-                    {/* Botão principal de adição manual */}
                     <button
                         onClick={() => setShowModal(true)}
                         className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
@@ -348,9 +477,41 @@ export default function Expenses({ expenses: initialExpenses, categories, month,
                 </div>
             </div>
 
-            {rows.length === 0 ? (
+            {/* Abas Reni / Lua */}
+            <div className="mb-4 flex border-b border-gray-200">
+                {(['payer1', 'payer2']).map((tab) => {
+                    const isActive = activeTab === tab;
+                    const count = rows[tab].length;
+                    const colors = tabColors[tab];
+                    return (
+                        <button
+                            key={tab}
+                            onClick={() => switchTab(tab)}
+                            className={`flex items-center gap-2 border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
+                                isActive
+                                    ? colors.active
+                                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                            }`}
+                        >
+                            {tabNames[tab]}
+                            <span className={`rounded-full px-1.5 py-0.5 text-xs font-semibold ${isActive ? colors.count : 'bg-gray-100 text-gray-500'}`}>
+                                {count}
+                            </span>
+                            {/* Indicador de alterações não salvas */}
+                            {dirty[tab] && (
+                                <span className="h-1.5 w-1.5 rounded-full bg-amber-400" title="Há alterações não salvas" />
+                            )}
+                        </button>
+                    );
+                })}
+            </div>
+
+            {/* Conteúdo da aba ativa */}
+            {currentRows.length === 0 ? (
                 <div className="rounded-xl border border-gray-200 bg-white py-16 text-center shadow-sm">
-                    <p className="text-gray-400">Nenhuma despesa neste mês.</p>
+                    <p className="text-gray-400">
+                        Nenhuma despesa de <strong>{tabNames[activeTab]}</strong> neste mês.
+                    </p>
                     <div className="mt-3 flex justify-center gap-4">
                         <a href={route('import.show')} className="text-sm text-indigo-500 underline">
                             Importar CSV
@@ -362,109 +523,19 @@ export default function Expenses({ expenses: initialExpenses, categories, month,
                     </div>
                 </div>
             ) : (
-                <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead className="bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500">
-                                <tr>
-                                    <th className="px-4 py-3 text-left">Data</th>
-                                    <th className="px-4 py-3 text-left">Descrição</th>
-                                    <th className="px-4 py-3 text-left">Categoria</th>
-                                    <th className="px-4 py-3 text-right">Valor</th>
-                                    <th className="px-4 py-3 text-left">De quem é?</th>
-                                    <th className="px-4 py-3" />
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {/* Sub-header de batch por categoria */}
-                                {Object.entries(categoryGroups).map(([cat, ids]) => (
-                                    <tr key={`group-${cat}`} className="bg-gray-50/60">
-                                        <td colSpan={2} className="px-4 py-2 text-xs font-semibold text-gray-600">
-                                            {cat} ({ids.length})
-                                        </td>
-                                        <td />
-                                        <td />
-                                        <td className="px-4 py-2">
-                                            <div className="flex gap-1">
-                                                {OWNERSHIP_OPTIONS.map((opt) => (
-                                                    <button
-                                                        key={opt.value}
-                                                        onClick={() => batchOwnership(cat, opt.value)}
-                                                        className="rounded border border-gray-300 bg-white px-2 py-0.5 text-xs text-gray-600 hover:bg-indigo-50 hover:border-indigo-300"
-                                                    >
-                                                        Todos: {opt.label}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </td>
-                                        <td />
-                                    </tr>
-                                ))}
-
-                                {rows.map((row) => (
-                                    <tr key={row.id} className="hover:bg-gray-50">
-                                        <td className="whitespace-nowrap px-4 py-3 text-gray-500">
-                                            {new Date(row.date + 'T00:00:00').toLocaleDateString('pt-BR')}
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <span className={row.status === 'pending' ? 'text-gray-400 italic' : 'text-gray-800'}>
-                                                {row.description}
-                                            </span>
-                                            {row.status === 'pending' && (
-                                                <span className="ml-2 text-xs text-indigo-400">(categorizando...)</span>
-                                            )}
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <select
-                                                value={row.category_id ?? ''}
-                                                onChange={(e) =>
-                                                    updateRow(row.id, 'category_id', e.target.value ? Number(e.target.value) : null)
-                                                }
-                                                className="rounded border border-gray-300 bg-white px-2 py-1 text-xs focus:border-indigo-400 focus:outline-none"
-                                            >
-                                                <option value="">— Sem categoria —</option>
-                                                {categories.map((c) => (
-                                                    <option key={c.id} value={c.id}>{c.name}</option>
-                                                ))}
-                                            </select>
-                                        </td>
-                                        <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-gray-800">
-                                            {fmt(row.amount)}
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <div className="flex gap-1">
-                                                {OWNERSHIP_OPTIONS.map((opt) => (
-                                                    <button
-                                                        key={opt.value}
-                                                        onClick={() => updateRow(row.id, 'ownership', opt.value)}
-                                                        className={`rounded-full px-2 py-0.5 text-xs font-medium transition-colors ${
-                                                            row.ownership === opt.value
-                                                                ? OWNERSHIP_BADGE[opt.value]
-                                                                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                                                        }`}
-                                                    >
-                                                        {opt.label}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <button
-                                                onClick={() => {
-                                                    if (!confirm('Remover esta despesa?')) return;
-                                                    router.delete(route('expenses.destroy', row.id));
-                                                }}
-                                                className="text-xs text-red-400 hover:text-red-600"
-                                            >
-                                                Remover
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                <>
+                    <div className="mb-2 text-right text-xs text-gray-400">
+                        {currentRows.length} despesa(s) · Total:{' '}
+                        <strong>{fmt(currentRows.reduce((s, r) => s + r.amount, 0))}</strong>
                     </div>
-                </div>
+                    <ExpenseTable
+                        rows={currentRows}
+                        categories={categories}
+                        onUpdate={updateRow}
+                        onBatchOwnership={batchOwnership}
+                        onDelete={handleDelete}
+                    />
+                </>
             )}
         </AuthenticatedLayout>
     );

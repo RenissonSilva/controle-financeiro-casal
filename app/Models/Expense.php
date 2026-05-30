@@ -14,6 +14,7 @@ class Expense extends Model
         'category_id',
         'ownership',
         'status',
+        'source',
         'import_hash',
     ];
 
