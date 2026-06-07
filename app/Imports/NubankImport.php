@@ -19,7 +19,8 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
  */
 class NubankImport implements ToCollection, WithHeadingRow
 {
-    private array $importedIds = [];
+    private array $importedIds   = [];
+    private array $importedMonths = [];
 
     public function __construct(private readonly string $source = 'payer1') {}
 
@@ -48,7 +49,9 @@ class NubankImport implements ToCollection, WithHeadingRow
             );
 
             if ($expense->wasRecentlyCreated) {
-                $this->importedIds[] = $expense->id;
+                $this->importedIds[]    = $expense->id;
+                $month = Carbon::parse($row['date'])->format('Y-m');
+                $this->importedMonths[] = $month;
             }
         }
 
@@ -60,5 +63,18 @@ class NubankImport implements ToCollection, WithHeadingRow
     public function getImportedCount(): int
     {
         return count($this->importedIds);
+    }
+
+    /** Retorna o mês (Y-m) com mais despesas importadas, ou o mês atual. */
+    public function getMostCommonMonth(): string
+    {
+        if (empty($this->importedMonths)) {
+            return now()->format('Y-m');
+        }
+
+        $counts = array_count_values($this->importedMonths);
+        arsort($counts);
+
+        return array_key_first($counts);
     }
 }

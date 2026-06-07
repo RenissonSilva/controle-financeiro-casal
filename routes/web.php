@@ -18,6 +18,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/expenses', [ExpenseController::class, 'store'])->name('expenses.store');
     Route::post('/expenses/batch', [ExpenseController::class, 'batchUpdate'])->name('expenses.batch');
     Route::delete('/expenses/{expense}', [ExpenseController::class, 'destroy'])->name('expenses.destroy');
+    Route::delete('/expenses-month/{month}/{source}', [ExpenseController::class, 'destroyByMonth'])->name('expenses.destroyByMonth');
 
     // Importação
     Route::get('/import', [ImportController::class, 'show'])->name('import.show');

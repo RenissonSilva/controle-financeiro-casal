@@ -33,9 +33,10 @@ class ImportController extends Controller
         Excel::import($import, $request->file('file'));
 
         $count = $import->getImportedCount();
+        $month = $import->getMostCommonMonth();
 
-        // Redireciona para a aba correta na tela de despesas.
-        return redirect()->route('expenses.index', ['tab' => $request->source])->with(
+        // Redireciona para a aba e o mês corretos.
+        return redirect()->route('expenses.index', ['tab' => $request->source, 'month' => $month])->with(
             'success',
             $count > 0
                 ? "{$count} despesa(s) importada(s). A categorização por IA está sendo processada em background."

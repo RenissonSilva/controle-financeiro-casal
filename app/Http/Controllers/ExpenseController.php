@@ -112,4 +112,18 @@ class ExpenseController extends Controller
         $expense->delete();
         return back()->with('success', 'Despesa removida.');
     }
+
+    public function destroyByMonth(string $month, string $source): RedirectResponse
+    {
+        if (!preg_match('/^\d{4}-\d{2}$/', $month) || !in_array($source, ['payer1', 'payer2'])) {
+            abort(422);
+        }
+
+        Expense::whereYear('date', substr($month, 0, 4))
+            ->whereMonth('date', substr($month, 5, 2))
+            ->where('source', $source)
+            ->delete();
+
+        return back()->with('success', 'Todos os registros do mês foram removidos.');
+    }
 }
