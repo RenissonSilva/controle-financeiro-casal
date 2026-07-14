@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Category;
 use App\Models\Expense;
 use App\Models\Setting;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -18,6 +20,12 @@ class ExpenseController extends Controller
         $month    = $request->get('month', now()->format('Y-m'));
         $activeTab = $request->get('tab', 'payer1');
         $settings  = Setting::current();
+
+        $availableMonths = Expense::orderBy('date', 'desc')
+            ->pluck('date')
+            ->map(fn ($date) => $date->format('Y-m'))
+            ->unique()
+            ->values();
 
         $serialize = fn ($e) => [
             'id'          => $e->id,
@@ -50,6 +58,7 @@ class ExpenseController extends Controller
             'month'          => $month,
             'activeTab'      => in_array($activeTab, ['payer1', 'payer2']) ? $activeTab : 'payer1',
             'hasPending'     => $hasPending,
+            'availableMonths' => $availableMonths,
             'settings'       => [
                 'payer1_name' => $settings->payer1_name,
                 'payer2_name' => $settings->payer2_name,
@@ -125,5 +134,61 @@ class ExpenseController extends Controller
             ->delete();
 
         return back()->with('success', 'Todos os registros do mês foram removidos.');
+    }
+
+    /**
+     * Exporta as despesas selecionadas em PDF, uma página por mês.
+     * Payload: { months: ['2026-06', ...], ownerships: ['payer1', 'both', ...] }
+     */
+    public function exportPdf(Request $request): HttpResponse
+    {
+        $data = $request->validate([
+            'months'        => ['required', 'array', 'min:1'],
+            'months.*'      => ['required', 'regex:/^\d{4}-\d{2}$/'],
+            'ownerships'    => ['required', 'array', 'min:1'],
+            'ownerships.*'  => ['required', 'in:payer1,payer2,both'],
+        ]);
+
+        $settings = Setting::current();
+        $allOwnerships = ['payer1', 'payer2', 'both'];
+        $ownerships = array_values(array_unique($data['ownerships']));
+        $isFiltered = count($ownerships) < count($allOwnerships);
+
+        $ownershipLabels = [
+            'payer1' => $settings->payer1_name,
+            'payer2' => $settings->payer2_name,
+            'both'   => 'Compartilhado',
+        ];
+
+        $months = collect($data['months'])->sort()->values();
+
+        $pages = $months->map(function (string $month) use ($ownerships) {
+            $rows = Expense::with('category')
+                ->whereYear('date', substr($month, 0, 4))
+                ->whereMonth('date', substr($month, 5, 2))
+                ->whereIn('ownership', $ownerships)
+                ->orderBy('date')
+                ->get();
+
+            return [
+                'month' => $month,
+                'label' => ucfirst(\Carbon\Carbon::createFromFormat('Y-m', $month)->locale('pt_BR')->translatedFormat('F \d\e Y')),
+                'rows'  => $rows,
+                'total' => $rows->sum('amount'),
+            ];
+        });
+
+        $scopeLabel = $isFiltered
+            ? collect($ownerships)->map(fn ($o) => $ownershipLabels[$o])->join(' + ')
+            : "Total ({$settings->payer1_name} + {$settings->payer2_name})";
+
+        $pdf = Pdf::loadView('pdf.expenses', [
+            'pages'           => $pages,
+            'scopeLabel'      => $scopeLabel,
+            'ownershipLabels' => $ownershipLabels,
+            'generatedAt'     => now()->format('d/m/Y H:i'),
+        ]);
+
+        return $pdf->download('despesas.pdf');
     }
 }

@@ -18,6 +18,18 @@ const OWNERSHIP_BADGE = {
 const fmt = (v) =>
     Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+const monthLabel = (m) => {
+    const label = new Date(`${m}-01T00:00:00`).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    return label.charAt(0).toUpperCase() + label.slice(1);
+};
+
+const SCOPE_OPTIONS = (settings) => [
+    { value: 'payer1', label: settings.payer1_name },
+    { value: 'payer2', label: settings.payer2_name },
+    { value: 'both',   label: 'Compartilhado' },
+];
+const ALL_OWNERSHIPS = ['payer1', 'payer2', 'both'];
+
 function buildCategoryGroups(rows) {
     const map = {};
     for (const r of rows) {
@@ -191,6 +203,154 @@ function AddExpenseModal({ categories, currentMonth, source, ownerName, onAdded,
     );
 }
 
+// ─── Modal de exportação em PDF ───────────────────────────────────────────────
+function ExportPdfModal({ availableMonths, currentMonth, settings, onClose }) {
+    const [selectedMonths, setSelectedMonths] = useState(() =>
+        availableMonths.includes(currentMonth) ? [currentMonth] : availableMonths.slice(0, 1)
+    );
+    const [ownerships, setOwnerships] = useState(ALL_OWNERSHIPS);
+    const [exporting, setExporting] = useState(false);
+    const [error, setError] = useState(null);
+
+    const scopeOptions = SCOPE_OPTIONS(settings);
+    const isTotal = ownerships.length === ALL_OWNERSHIPS.length;
+
+    const toggleMonth = (m) => {
+        setSelectedMonths((prev) =>
+            prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]
+        );
+    };
+
+    const toggleOwnership = (value) => {
+        setOwnerships((prev) =>
+            prev.includes(value) ? prev.filter((x) => x !== value) : [...prev, value]
+        );
+    };
+
+    const submit = async (e) => {
+        e.preventDefault();
+        if (selectedMonths.length === 0) {
+            setError('Selecione ao menos um mês.');
+            return;
+        }
+        if (ownerships.length === 0) {
+            setError('Selecione ao menos uma opção em "O que exportar?".');
+            return;
+        }
+        setError(null);
+        setExporting(true);
+        try {
+            const response = await axios.post(
+                route('expenses.exportPdf'),
+                { months: selectedMonths, ownerships },
+                { responseType: 'blob' }
+            );
+            const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'despesas.pdf';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            onClose();
+        } catch {
+            setError('Erro ao gerar o PDF. Tente novamente.');
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    useEffect(() => {
+        const handler = (e) => { if (e.key === 'Escape') onClose(); };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, [onClose]);
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+            <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
+                <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+                    <h2 className="text-base font-semibold text-gray-800">Exportar PDF</h2>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <form onSubmit={submit} className="space-y-4 px-6 py-5">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">Meses</label>
+                        <p className="mb-2 text-xs text-gray-400">
+                            Se mais de um mês for selecionado, cada um sai em uma página separada.
+                        </p>
+                        <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-gray-200 p-2">
+                            {availableMonths.length === 0 && (
+                                <p className="px-1 py-1 text-xs text-gray-400">Nenhum mês com despesas cadastradas.</p>
+                            )}
+                            {availableMonths.map((m) => (
+                                <label key={m} className="flex items-center gap-2 rounded px-1 py-1 text-sm text-gray-700 hover:bg-gray-50">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedMonths.includes(m)}
+                                        onChange={() => toggleMonth(m)}
+                                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                    />
+                                    {monthLabel(m)}
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">O que exportar?</label>
+                        <p className="mb-2 text-xs text-gray-400">Pode marcar mais de uma opção.</p>
+                        <div className="grid grid-cols-2 gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setOwnerships(isTotal ? [] : ALL_OWNERSHIPS)}
+                                className={`col-span-2 rounded-lg border py-2 text-xs font-medium transition-colors ${
+                                    isTotal
+                                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                                        : 'border-gray-300 text-gray-500 hover:bg-gray-50'
+                                }`}
+                            >
+                                Total (todos)
+                            </button>
+                            {scopeOptions.map((opt) => (
+                                <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={() => toggleOwnership(opt.value)}
+                                    className={`rounded-lg border py-2 text-xs font-medium transition-colors ${
+                                        ownerships.includes(opt.value)
+                                            ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                                            : 'border-gray-300 text-gray-500 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {error && <p className="text-xs text-red-500">{error}</p>}
+
+                    <div className="flex justify-end gap-3 pt-1">
+                        <button type="button" onClick={onClose} className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">
+                            Cancelar
+                        </button>
+                        <button type="submit" disabled={exporting} className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60">
+                            {exporting ? 'Gerando...' : 'Exportar'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
 // ─── Tabela de despesas (reutilizada nas duas abas) ───────────────────────────
 function ExpenseTable({ rows, categories, onUpdate, onBatchOwnership, onDelete }) {
     const categoryGroups = buildCategoryGroups(rows);
@@ -312,6 +472,7 @@ export default function Expenses({
     activeTab: initialTab,
     hasPending,
     settings,
+    availableMonths,
 }) {
     const { flash } = usePage().props;
 
@@ -322,6 +483,7 @@ export default function Expenses({
     const [saveMsg, setSaveMsg] = useState(null);
     const [activeTab, setActiveTab] = useState(initialTab);
     const [showModal, setShowModal] = useState(false);
+    const [showExportModal, setShowExportModal] = useState(false);
 
     const currentRows = rows[activeTab];
     const isDirty = dirty[activeTab];
@@ -431,6 +593,15 @@ export default function Expenses({
                 />
             )}
 
+            {showExportModal && (
+                <ExportPdfModal
+                    availableMonths={availableMonths}
+                    currentMonth={month}
+                    settings={settings}
+                    onClose={() => setShowExportModal(false)}
+                />
+            )}
+
             {flash?.success && (
                 <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
                     {flash.success}
@@ -484,6 +655,15 @@ export default function Expenses({
                             Limpar mês
                         </button>
                     )}
+                    <button
+                        onClick={() => setShowExportModal(true)}
+                        className="flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                    >
+                        <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H8a2 2 0 01-2-2V5a2 2 0 012-2h6l6 6v11a2 2 0 01-2 2z" />
+                        </svg>
+                        Exportar PDF
+                    </button>
                     <button
                         onClick={() => setShowModal(true)}
                         className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
