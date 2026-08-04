@@ -80,7 +80,7 @@ export default function Orbita() {
                     background:
                         'radial-gradient(1100px 520px at 78% -8%, #222440 0%, transparent 60%), var(--color-bg)',
                     fontFamily: 'var(--font-body)',
-                    padding: '20px clamp(16px,3vw,40px) 48px',
+                    padding: '20px clamp(280px,3vw,40px) 48px',
                 }}
             >
                 {/* Header */}
