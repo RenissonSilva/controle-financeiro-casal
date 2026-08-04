@@ -10,6 +10,7 @@ export default function AuthenticatedLayout({ header, children }) {
 
     const navItems = [
         { href: route('dashboard'),      label: 'Dashboard',     routeKey: 'dashboard' },
+        { href: route('orbita'),         label: 'Órbita (preview)', routeKey: 'orbita' },
         { href: route('expenses.index'), label: 'Despesas',      routeKey: 'expenses.index' },
         { href: route('import.show'),    label: 'Importar CSV',  routeKey: 'import.show' },
         { href: route('categories.index'), label: 'Categorias', routeKey: 'categories.index' },
