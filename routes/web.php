@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CategorizationRuleController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\ImportController;
@@ -25,6 +26,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Importação
     Route::get('/import', [ImportController::class, 'show'])->name('import.show');
     Route::post('/import', [ImportController::class, 'store'])->name('import.store');
+
+    // Regras de categorização automática
+    Route::get('/categorization-rules', [CategorizationRuleController::class, 'index'])->name('categorizationRules.index');
+    Route::post('/categorization-rules', [CategorizationRuleController::class, 'store'])->name('categorizationRules.store');
+    Route::put('/categorization-rules/{categorizationRule}', [CategorizationRuleController::class, 'update'])->name('categorizationRules.update');
+    Route::delete('/categorization-rules/{categorizationRule}', [CategorizationRuleController::class, 'destroy'])->name('categorizationRules.destroy');
+    Route::post('/categorization-rules/apply', [CategorizationRuleController::class, 'apply'])->name('categorizationRules.apply');
 
     // Configurações
     Route::get('/settings', [SettingController::class, 'show'])->name('settings.show');

@@ -12,6 +12,7 @@ export default function AuthenticatedLayout({ header, children }) {
         { href: route('dashboard'),      label: 'Dashboard',     routeKey: 'dashboard' },
         { href: route('expenses.index'), label: 'Despesas',      routeKey: 'expenses.index' },
         { href: route('import.show'),    label: 'Importar CSV',  routeKey: 'import.show' },
+        { href: route('categorizationRules.index'), label: 'Regras', routeKey: 'categorizationRules.index' },
         { href: route('settings.show'),  label: 'Configurações', routeKey: 'settings.show' },
     ];
 

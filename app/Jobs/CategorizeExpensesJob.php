@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Category;
+use App\Models\CategorizationRule;
 use App\Models\Expense;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -26,6 +27,28 @@ class CategorizeExpensesJob implements ShouldQueue
         $expenses = Expense::whereIn('id', $this->expenseIds)
             ->where('status', 'pending')
             ->get();
+
+        if ($expenses->isEmpty()) {
+            return;
+        }
+
+        // Regras manuais têm prioridade sobre a IA: aplica as que baterem e só manda
+        // pra IA o que sobrar, economizando tokens.
+        $expenses = $expenses->reject(function (Expense $expense) {
+            $rule = CategorizationRule::matchFor($expense->description, $expense->amount);
+
+            if (!$rule) {
+                return false;
+            }
+
+            $expense->update([
+                'category_id' => $rule->category_id,
+                'ownership'   => $rule->ownership,
+                'status'      => 'categorized',
+            ]);
+
+            return true;
+        })->values();
 
         if ($expenses->isEmpty()) {
             return;
