@@ -20,6 +20,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/expenses/{expense}', [ExpenseController::class, 'destroy'])->name('expenses.destroy');
     Route::delete('/expenses-month/{month}/{source}', [ExpenseController::class, 'destroyByMonth'])->name('expenses.destroyByMonth');
     Route::post('/expenses/export-pdf', [ExpenseController::class, 'exportPdf'])->name('expenses.exportPdf');
+    Route::post('/expenses/categorize', [ExpenseController::class, 'categorize'])->name('expenses.categorize');
 
     // Importação
     Route::get('/import', [ImportController::class, 'show'])->name('import.show');

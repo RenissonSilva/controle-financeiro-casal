@@ -9,8 +9,8 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use OpenAI\Laravel\Facades\OpenAI;
 
 class CategorizeExpensesJob implements ShouldQueue
 {
@@ -50,16 +50,18 @@ Transações:
 PROMPT;
 
         try {
-            $response = OpenAI::chat()->create([
-                'model'       => 'gpt-4o-mini',
-                'temperature' => 0,
-                'messages'    => [
-                    ['role' => 'system', 'content' => 'Você retorna apenas JSON válido, sem markdown, sem explicações.'],
-                    ['role' => 'user',   'content' => $prompt],
-                ],
-            ]);
+            $response = Http::withToken(config('groq.api_key'))
+                ->post('https://api.groq.com/openai/v1/chat/completions', [
+                    'model'           => config('groq.model'),
+                    'temperature'     => 0,
+                    'response_format' => ['type' => 'json_object'],
+                    'messages'        => [
+                        ['role' => 'system', 'content' => 'Você retorna apenas JSON válido, sem markdown, sem explicações.'],
+                        ['role' => 'user',   'content' => $prompt],
+                    ],
+                ])->throw();
 
-            $content = $response->choices[0]->message->content;
+            $content = $response->json('choices.0.message.content');
             $data    = json_decode($content, true);
 
             if (!isset($data['results'])) {

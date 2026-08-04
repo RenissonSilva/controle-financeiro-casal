@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\CategorizeExpensesJob;
 use App\Models\Category;
 use App\Models\Expense;
 use App\Models\Setting;
@@ -115,6 +116,24 @@ class ExpenseController extends Controller
         }
 
         return response()->json(['message' => 'Despesas atualizadas com sucesso.']);
+    }
+
+    /**
+     * Dispara a categorização por IA para as despesas selecionadas.
+     * Payload: { ids: [1, 2, 3] }
+     */
+    public function categorize(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'ids'   => ['required', 'array', 'min:1'],
+            'ids.*' => ['required', 'integer', 'exists:expenses,id'],
+        ]);
+
+        Expense::whereIn('id', $data['ids'])->update(['status' => 'pending']);
+
+        CategorizeExpensesJob::dispatch($data['ids']);
+
+        return response()->json(['message' => 'Categorização por IA iniciada.']);
     }
 
     public function destroy(Expense $expense): RedirectResponse

@@ -352,10 +352,12 @@ function ExportPdfModal({ availableMonths, currentMonth, settings, onClose }) {
 }
 
 // ─── Tabela de despesas (reutilizada nas duas abas) ───────────────────────────
-function ExpenseTable({ rows, categories, onUpdate, onBatchOwnership, onDelete }) {
+function ExpenseTable({ rows, categories, selectedIds, onToggleSelect, onToggleSelectAll, onUpdate, onBatchOwnership, onDelete }) {
     const categoryGroups = buildCategoryGroups(rows);
 
     if (rows.length === 0) return null;
+
+    const allSelected = rows.length > 0 && rows.every((r) => selectedIds.includes(r.id));
 
     return (
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -363,6 +365,14 @@ function ExpenseTable({ rows, categories, onUpdate, onBatchOwnership, onDelete }
                 <table className="w-full text-sm">
                     <thead className="bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500">
                         <tr>
+                            <th className="w-8 px-4 py-3 text-left">
+                                <input
+                                    type="checkbox"
+                                    checked={allSelected}
+                                    onChange={() => onToggleSelectAll(rows.map((r) => r.id))}
+                                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                />
+                            </th>
                             <th className="px-4 py-3 text-left">Data</th>
                             <th className="px-4 py-3 text-left">Descrição</th>
                             <th className="px-4 py-3 text-left">Categoria</th>
@@ -374,6 +384,7 @@ function ExpenseTable({ rows, categories, onUpdate, onBatchOwnership, onDelete }
                     <tbody className="divide-y divide-gray-100">
                         {Object.entries(categoryGroups).map(([cat, ids]) => (
                             <tr key={`group-${cat}`} className="bg-gray-50/60">
+                                <td />
                                 <td colSpan={2} className="px-4 py-2 text-xs font-semibold text-gray-600">
                                     {cat} ({ids.length})
                                 </td>
@@ -398,6 +409,14 @@ function ExpenseTable({ rows, categories, onUpdate, onBatchOwnership, onDelete }
 
                         {rows.map((row) => (
                             <tr key={row.id} className="hover:bg-gray-50">
+                                <td className="px-4 py-3">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedIds.includes(row.id)}
+                                        onChange={() => onToggleSelect(row.id)}
+                                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                    />
+                                </td>
                                 <td className="whitespace-nowrap px-4 py-3 text-gray-500">
                                     {new Date(row.date + 'T00:00:00').toLocaleDateString('pt-BR')}
                                 </td>
@@ -484,9 +503,12 @@ export default function Expenses({
     const [activeTab, setActiveTab] = useState(initialTab);
     const [showModal, setShowModal] = useState(false);
     const [showExportModal, setShowExportModal] = useState(false);
+    const [selectedIds, setSelectedIds] = useState({ payer1: [], payer2: [] });
+    const [categorizing, setCategorizing] = useState(false);
 
     const currentRows = rows[activeTab];
     const isDirty = dirty[activeTab];
+    const currentSelected = selectedIds[activeTab];
 
     const tabNames = { payer1: settings.payer1_name, payer2: settings.payer2_name };
     const tabColors = {
@@ -506,6 +528,46 @@ export default function Expenses({
 
     // Sincroniza state local quando Inertia recarrega (ex: polling, delete).
     useEffect(() => { setRows({ payer1: initialP1, payer2: initialP2 }); }, [initialP1, initialP2]);
+
+    // Remove da seleção ids que não existem mais na aba (ex: removidos ou fora do mês).
+    useEffect(() => {
+        setSelectedIds((prev) => ({
+            payer1: prev.payer1.filter((id) => initialP1.some((r) => r.id === id)),
+            payer2: prev.payer2.filter((id) => initialP2.some((r) => r.id === id)),
+        }));
+    }, [initialP1, initialP2]);
+
+    const toggleSelect = (id) => {
+        setSelectedIds((prev) => ({
+            ...prev,
+            [activeTab]: prev[activeTab].includes(id)
+                ? prev[activeTab].filter((x) => x !== id)
+                : [...prev[activeTab], id],
+        }));
+    };
+
+    const toggleSelectAll = (ids) => {
+        setSelectedIds((prev) => ({
+            ...prev,
+            [activeTab]: ids.every((id) => prev[activeTab].includes(id)) ? [] : ids,
+        }));
+    };
+
+    const handleCategorize = async () => {
+        if (currentSelected.length === 0) return;
+        setCategorizing(true);
+        try {
+            await axios.post(route('expenses.categorize'), { ids: currentSelected });
+            setSelectedIds((prev) => ({ ...prev, [activeTab]: [] }));
+            setSaveMsg('Categorização por IA iniciada!');
+            setTimeout(() => setSaveMsg(null), 3000);
+            router.reload({ only: ['payer1Expenses', 'payer2Expenses', 'hasPending'] });
+        } catch {
+            setSaveMsg('Erro ao iniciar categorização. Tente novamente.');
+        } finally {
+            setCategorizing(false);
+        }
+    };
 
     const updateRow = (id, field, value) => {
         setRows((prev) => ({
@@ -664,6 +726,18 @@ export default function Expenses({
                         </svg>
                         Exportar PDF
                     </button>
+                    {currentSelected.length > 0 && (
+                        <button
+                            onClick={handleCategorize}
+                            disabled={categorizing}
+                            className="flex items-center gap-1.5 rounded-lg border border-indigo-300 bg-white px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-60"
+                        >
+                            <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                            </svg>
+                            {categorizing ? 'Categorizando...' : `Categorizar com IA (${currentSelected.length})`}
+                        </button>
+                    )}
                     <button
                         onClick={() => setShowModal(true)}
                         className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
@@ -730,6 +804,9 @@ export default function Expenses({
                     <ExpenseTable
                         rows={currentRows}
                         categories={categories}
+                        selectedIds={currentSelected}
+                        onToggleSelect={toggleSelect}
+                        onToggleSelectAll={toggleSelectAll}
                         onUpdate={updateRow}
                         onBatchOwnership={batchOwnership}
                         onDelete={handleDelete}
