@@ -92,17 +92,21 @@ PROMPT;
             }
 
             // Cache de categorias para evitar N+1 em cada iteração.
-            $categoryMap = Category::pluck('id', 'name');
+            $categories = Category::all()->keyBy('name');
 
             foreach ($data['results'] as $result) {
-                $categoryId = $categoryMap[$result['category']]
-                    ?? $categoryMap['Outros']
-                    ?? null;
+                $category = $categories[$result['category']] ?? $categories['Outros'] ?? null;
 
-                Expense::where('id', $result['id'])->update([
-                    'category_id' => $categoryId,
+                $update = [
+                    'category_id' => $category?->id,
                     'status'      => 'categorized',
-                ]);
+                ];
+
+                if ($category) {
+                    $update['ownership'] = $category->default_ownership;
+                }
+
+                Expense::where('id', $result['id'])->update($update);
             }
         } catch (\Throwable $e) {
             Log::error('CategorizeExpensesJob falhou', [
