@@ -16,12 +16,13 @@ class SettingController extends Controller
 
         return Inertia::render('Settings', [
             'settings' => [
-                'payer1_name'    => $settings->payer1_name,
-                'payer2_name'    => $settings->payer2_name,
-                'payer1_salary'  => $settings->payer1_salary,
-                'payer2_salary'  => $settings->payer2_salary,
-                'payer1_percent' => $settings->payer1_percent,
-                'payer2_percent' => $settings->payer2_percent,
+                'payer1_name'      => $settings->payer1_name,
+                'payer2_name'      => $settings->payer2_name,
+                'payer1_salary'    => $settings->payer1_salary,
+                'payer2_salary'    => $settings->payer2_salary,
+                'payer1_percent'   => $settings->payer1_percent,
+                'payer2_percent'   => $settings->payer2_percent,
+                'card_closing_day' => $settings->card_closing_day,
             ],
         ]);
     }
@@ -29,10 +30,11 @@ class SettingController extends Controller
     public function update(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'payer1_name'   => ['required', 'string', 'max:100'],
-            'payer2_name'   => ['required', 'string', 'max:100'],
-            'payer1_salary' => ['required', 'numeric', 'min:0'],
-            'payer2_salary' => ['required', 'numeric', 'min:0'],
+            'payer1_name'      => ['required', 'string', 'max:100'],
+            'payer2_name'      => ['required', 'string', 'max:100'],
+            'payer1_salary'    => ['required', 'numeric', 'min:0'],
+            'payer2_salary'    => ['required', 'numeric', 'min:0'],
+            'card_closing_day' => ['required', 'integer', 'min:1', 'max:28'],
         ]);
 
         Setting::current()->update($data);

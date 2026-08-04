@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Expense;
 use App\Models\Setting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -13,15 +14,13 @@ class DashboardController extends Controller
     public function index(Request $request): Response
     {
         $month    = $request->get('month', now()->format('Y-m'));
-        $year     = (int) substr($month, 0, 4);
-        $monthNum = (int) substr($month, 5, 2);
-
         $settings = Setting::current();
 
-        // Busca todas as despesas do mês com categoria.
+        [$rangeStart, $rangeEnd] = $settings->billingCycleRange($month);
+
+        // Busca todas as despesas do ciclo de fatura com categoria.
         $expenses = Expense::with('category')
-            ->whereYear('date', $year)
-            ->whereMonth('date', $monthNum)
+            ->whereBetween('date', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
             ->get();
 
         // --- Totais por dono ---
@@ -56,15 +55,17 @@ class DashboardController extends Controller
             })
             ->values();
 
-        // --- Evolução mensal dos últimos 6 meses (para o gráfico de linha) ---
-        $monthlyEvolution = collect(range(5, 0))->map(function ($offset) use ($year, $monthNum) {
-            $date  = now()->setYear($year)->setMonth($monthNum)->subMonths($offset);
-            $total = Expense::whereYear('date', $date->year)
-                ->whereMonth('date', $date->month)
+        // --- Evolução mensal dos últimos 6 ciclos de fatura (para o gráfico de linha) ---
+        $monthlyEvolution = collect(range(5, 0))->map(function ($offset) use ($month, $settings) {
+            $cycleMonth = Carbon::createFromFormat('Y-m-d', "{$month}-01")->subMonths($offset);
+
+            [$cycleStart, $cycleEnd] = $settings->billingCycleRange($cycleMonth->format('Y-m'));
+
+            $total = Expense::whereBetween('date', [$cycleStart->toDateString(), $cycleEnd->toDateString()])
                 ->sum('amount');
 
             return [
-                'month' => $date->format('M/y'),
+                'month' => $cycleMonth->format('M/y'),
                 'total' => round((float) $total, 2),
             ];
         });

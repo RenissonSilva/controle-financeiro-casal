@@ -23,7 +23,7 @@ class ExpenseController extends Controller
 
         $availableMonths = Expense::orderBy('date', 'desc')
             ->pluck('date')
-            ->map(fn ($date) => $date->format('Y-m'))
+            ->map(fn ($date) => $settings->billingCycleForDate($date))
             ->unique()
             ->values();
 
@@ -39,9 +39,10 @@ class ExpenseController extends Controller
             'category'    => $e->category?->name,
         ];
 
+        [$rangeStart, $rangeEnd] = $settings->billingCycleRange($month);
+
         $query = Expense::with('category')
-            ->whereYear('date', substr($month, 0, 4))
-            ->whereMonth('date', substr($month, 5, 2))
+            ->whereBetween('date', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
             ->orderBy('date', 'desc');
 
         // Duas coleções separadas por source para alimentar as abas.
@@ -128,8 +129,9 @@ class ExpenseController extends Controller
             abort(422);
         }
 
-        Expense::whereYear('date', substr($month, 0, 4))
-            ->whereMonth('date', substr($month, 5, 2))
+        [$rangeStart, $rangeEnd] = Setting::current()->billingCycleRange($month);
+
+        Expense::whereBetween('date', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
             ->where('source', $source)
             ->delete();
 
@@ -162,10 +164,11 @@ class ExpenseController extends Controller
 
         $months = collect($data['months'])->sort()->values();
 
-        $pages = $months->map(function (string $month) use ($ownerships) {
+        $pages = $months->map(function (string $month) use ($ownerships, $settings) {
+            [$rangeStart, $rangeEnd] = $settings->billingCycleRange($month);
+
             $rows = Expense::with('category')
-                ->whereYear('date', substr($month, 0, 4))
-                ->whereMonth('date', substr($month, 5, 2))
+                ->whereBetween('date', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
                 ->whereIn('ownership', $ownerships)
                 ->orderBy('date')
                 ->get();

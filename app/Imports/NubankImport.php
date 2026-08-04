@@ -4,6 +4,7 @@ namespace App\Imports;
 
 use App\Jobs\CategorizeExpensesJob;
 use App\Models\Expense;
+use App\Models\Setting;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
@@ -26,6 +27,8 @@ class NubankImport implements ToCollection, WithHeadingRow
 
     public function collection(Collection $rows): void
     {
+        $settings = Setting::current();
+
         foreach ($rows as $row) {
             // Pagamentos de fatura geram valor negativo no extrato; ignoramos para não duplicar.
             if ((float) $row['amount'] <= 0) {
@@ -50,7 +53,7 @@ class NubankImport implements ToCollection, WithHeadingRow
 
             if ($expense->wasRecentlyCreated) {
                 $this->importedIds[]    = $expense->id;
-                $month = Carbon::parse($row['date'])->format('Y-m');
+                $month = $settings->billingCycleForDate($row['date']);
                 $this->importedMonths[] = $month;
             }
         }
@@ -65,11 +68,11 @@ class NubankImport implements ToCollection, WithHeadingRow
         return count($this->importedIds);
     }
 
-    /** Retorna o mês (Y-m) com mais despesas importadas, ou o mês atual. */
+    /** Retorna a competência (Y-m) com mais despesas importadas, ou a competência atual. */
     public function getMostCommonMonth(): string
     {
         if (empty($this->importedMonths)) {
-            return now()->format('Y-m');
+            return Setting::current()->billingCycleForDate(now());
         }
 
         $counts = array_count_values($this->importedMonths);
