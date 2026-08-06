@@ -15,6 +15,8 @@ export default function AuthenticatedLayout({ header, children }) {
         { href: route('import.show'),    label: 'Importar CSV',  routeKey: 'import.show' },
         { href: route('categories.index'), label: 'Categorias', routeKey: 'categories.index' },
         { href: route('categorizationRules.index'), label: 'Regras', routeKey: 'categorizationRules.index' },
+        { href: route('fixedExpenses.index'), label: 'Despesas Fixas', routeKey: 'fixedExpenses.index' },
+        { href: route('openFinance.index'), label: 'Open Finance', routeKey: 'openFinance.index' },
         { href: route('settings.show'),  label: 'Configurações', routeKey: 'settings.show' },
     ];
 

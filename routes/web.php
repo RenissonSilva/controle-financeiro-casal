@@ -4,7 +4,9 @@ use App\Http\Controllers\CategorizationRuleController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\FixedExpenseController;
 use App\Http\Controllers\ImportController;
+use App\Http\Controllers\OpenFinanceController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingController;
 use Illuminate\Support\Facades\Route;
@@ -43,6 +45,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('/categorization-rules/{categorizationRule}', [CategorizationRuleController::class, 'update'])->name('categorizationRules.update');
     Route::delete('/categorization-rules/{categorizationRule}', [CategorizationRuleController::class, 'destroy'])->name('categorizationRules.destroy');
     Route::post('/categorization-rules/apply', [CategorizationRuleController::class, 'apply'])->name('categorizationRules.apply');
+
+    // Despesas fixas
+    Route::get('/fixed-expenses', [FixedExpenseController::class, 'index'])->name('fixedExpenses.index');
+    Route::post('/fixed-expenses', [FixedExpenseController::class, 'store'])->name('fixedExpenses.store');
+    Route::put('/fixed-expenses/{fixedExpense}', [FixedExpenseController::class, 'update'])->name('fixedExpenses.update');
+    Route::delete('/fixed-expenses/{fixedExpense}', [FixedExpenseController::class, 'destroy'])->name('fixedExpenses.destroy');
+
+    // Open Finance (Pluggy)
+    Route::get('/open-finance', [OpenFinanceController::class, 'index'])->name('openFinance.index');
+    Route::post('/open-finance/connect-token', [OpenFinanceController::class, 'connectToken'])->name('openFinance.connectToken');
+    Route::post('/open-finance/items', [OpenFinanceController::class, 'store'])->name('openFinance.items.store');
+    Route::get('/open-finance/items/{openFinanceItem}', [OpenFinanceController::class, 'show'])->name('openFinance.items.show');
+    Route::put('/open-finance/items/{openFinanceItem}', [OpenFinanceController::class, 'update'])->name('openFinance.items.update');
+    Route::post('/open-finance/items/{openFinanceItem}/sync', [OpenFinanceController::class, 'sync'])->name('openFinance.items.sync');
+    Route::delete('/open-finance/items/{openFinanceItem}', [OpenFinanceController::class, 'destroy'])->name('openFinance.items.destroy');
 
     // Configurações
     Route::get('/settings', [SettingController::class, 'show'])->name('settings.show');

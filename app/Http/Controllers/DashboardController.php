@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Expense;
+use App\Models\FixedExpense;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -70,6 +71,9 @@ class DashboardController extends Controller
             ];
         });
 
+        // --- Despesas fixas esperadas no ciclo de fatura selecionado ---
+        $fixedExpensesProjection = $this->fixedExpensesForCycle($rangeStart, $rangeEnd);
+
         return Inertia::render('Dashboard', [
             'month'    => $month,
             'settings' => [
@@ -90,6 +94,54 @@ class DashboardController extends Controller
             ],
             'byCategory'       => $byCategory,
             'monthlyEvolution' => $monthlyEvolution,
+            'fixedExpenses'    => [
+                'total' => round($fixedExpensesProjection->sum('amount'), 2),
+                'items' => $fixedExpensesProjection->values(),
+            ],
         ]);
+    }
+
+    /**
+     * Projeta as despesas fixas ativas para dentro do ciclo de fatura informado,
+     * calculando a data de cobrança de cada uma e se ela ainda está por vir.
+     */
+    private function fixedExpensesForCycle(Carbon $rangeStart, Carbon $rangeEnd)
+    {
+        $today  = Carbon::today();
+        $months = collect([$rangeStart, $rangeEnd])->map(fn (Carbon $d) => $d->format('Y-m'))->unique();
+
+        return FixedExpense::with('category')
+            ->where('active', true)
+            ->get()
+            ->map(function (FixedExpense $fixedExpense) use ($months, $rangeStart, $rangeEnd, $today) {
+                $dueDate = null;
+
+                foreach ($months as $yearMonth) {
+                    [$year, $month] = explode('-', $yearMonth);
+                    $candidate = $fixedExpense->dueDateFor((int) $year, (int) $month);
+
+                    if ($candidate->between($rangeStart, $rangeEnd)) {
+                        $dueDate = $candidate;
+                        break;
+                    }
+                }
+
+                if (! $dueDate) {
+                    return null;
+                }
+
+                return [
+                    'id'          => $fixedExpense->id,
+                    'description' => $fixedExpense->description,
+                    'amount'      => $fixedExpense->amount,
+                    'category'    => $fixedExpense->category?->name,
+                    'color'       => $fixedExpense->category?->color ?? '#94a3b8',
+                    'ownership'   => $fixedExpense->ownership,
+                    'due_date'    => $dueDate->toDateString(),
+                    'is_upcoming' => $dueDate->greaterThanOrEqualTo($today),
+                ];
+            })
+            ->filter()
+            ->sortBy('due_date');
     }
 }
