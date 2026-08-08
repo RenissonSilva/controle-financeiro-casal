@@ -91,7 +91,10 @@ export default function OpenFinance({ items, useSandbox }) {
     };
 
     return (
-        <AuthenticatedLayout header={<h2 className="text-xl font-semibold text-gray-800">Open Finance</h2>}>
+        <AuthenticatedLayout
+            header={<h2 className="text-xl font-semibold text-gray-800">Open Finance</h2>}
+            breadcrumbs={[{ label: 'Open Finance' }]}
+        >
             <Head title="Open Finance" />
 
             {flash?.success && (

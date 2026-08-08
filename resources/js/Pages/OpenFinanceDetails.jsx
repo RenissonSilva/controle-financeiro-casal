@@ -1,5 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { useState } from 'react';
 
 const OWNER_LABEL = {
@@ -99,13 +99,12 @@ export default function OpenFinanceDetails({ item, accounts }) {
     return (
         <AuthenticatedLayout
             header={
-                <div className="flex items-center gap-3">
-                    <Link href={route('openFinance.index')} className="text-sm text-gray-400 hover:text-gray-600">
-                        ← Open Finance
-                    </Link>
-                    <h2 className="text-xl font-semibold text-gray-800">{item.connector_name ?? 'Conexão'}</h2>
-                </div>
+                <h2 className="text-xl font-semibold text-gray-800">{item.connector_name ?? 'Conexão'}</h2>
             }
+            breadcrumbs={[
+                { label: 'Open Finance', href: route('openFinance.index') },
+                { label: item.connector_name ?? 'Conexão' },
+            ]}
         >
             <Head title={item.connector_name ?? 'Open Finance'} />
 

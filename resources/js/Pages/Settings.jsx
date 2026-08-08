@@ -25,7 +25,10 @@ export default function Settings({ settings }) {
     };
 
     return (
-        <AuthenticatedLayout header={<h2 className="text-xl font-semibold text-gray-800">Configurações</h2>}>
+        <AuthenticatedLayout
+            header={<h2 className="text-xl font-semibold text-gray-800">Configurações</h2>}
+            breadcrumbs={[{ label: 'Configurações' }]}
+        >
             <Head title="Configurações" />
 
             {flash?.success && (

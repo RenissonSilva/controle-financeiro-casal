@@ -190,7 +190,10 @@ export default function FixedExpenses({ fixedExpenses, categories }) {
     const total = fixedExpenses.filter((e) => e.active).reduce((sum, e) => sum + Number(e.amount), 0);
 
     return (
-        <AuthenticatedLayout header={<h2 className="text-xl font-semibold text-gray-800">Despesas Fixas</h2>}>
+        <AuthenticatedLayout
+            header={<h2 className="text-xl font-semibold text-gray-800">Despesas Fixas</h2>}
+            breadcrumbs={[{ label: 'Despesas Fixas' }]}
+        >
             <Head title="Despesas Fixas" />
 
             {showModal && (

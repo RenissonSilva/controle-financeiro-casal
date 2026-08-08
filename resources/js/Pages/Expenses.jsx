@@ -641,7 +641,10 @@ export default function Expenses({
     };
 
     return (
-        <AuthenticatedLayout header={<h2 className="text-xl font-semibold text-gray-800">Revisão de Despesas</h2>}>
+        <AuthenticatedLayout
+            header={<h2 className="text-xl font-semibold text-gray-800">Revisão de Despesas</h2>}
+            breadcrumbs={[{ label: 'Despesas' }]}
+        >
             <Head title="Despesas" />
 
             {showModal && (

@@ -174,7 +174,10 @@ export default function CategorizationRules({ rules, categories }) {
     };
 
     return (
-        <AuthenticatedLayout header={<h2 className="text-xl font-semibold text-gray-800">Regras de Categorização</h2>}>
+        <AuthenticatedLayout
+            header={<h2 className="text-xl font-semibold text-gray-800">Regras de Categorização</h2>}
+            breadcrumbs={[{ label: 'Regras' }]}
+        >
             <Head title="Regras de Categorização" />
 
             {showModal && (

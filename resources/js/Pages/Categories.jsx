@@ -153,7 +153,10 @@ export default function Categories({ categories }) {
     };
 
     return (
-        <AuthenticatedLayout header={<h2 className="text-xl font-semibold text-gray-800">Categorias</h2>}>
+        <AuthenticatedLayout
+            header={<h2 className="text-xl font-semibold text-gray-800">Categorias</h2>}
+            breadcrumbs={[{ label: 'Categorias' }]}
+        >
             <Head title="Categorias" />
 
             {showModal && (

@@ -35,7 +35,10 @@ export default function Import({ payer1Name, payer2Name }) {
     const activePayer = source === 'payer1' ? payer1Name : payer2Name;
 
     return (
-        <AuthenticatedLayout header={<h2 className="text-xl font-semibold text-gray-800">Importar CSV do Nubank</h2>}>
+        <AuthenticatedLayout
+            header={<h2 className="text-xl font-semibold text-gray-800">Importar CSV do Nubank</h2>}
+            breadcrumbs={[{ label: 'Importar CSV' }]}
+        >
             <Head title="Importar CSV" />
 
             {flash?.success && (
