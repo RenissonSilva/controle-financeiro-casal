@@ -51,6 +51,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/fixed-expenses', [FixedExpenseController::class, 'store'])->name('fixedExpenses.store');
     Route::put('/fixed-expenses/{fixedExpense}', [FixedExpenseController::class, 'update'])->name('fixedExpenses.update');
     Route::delete('/fixed-expenses/{fixedExpense}', [FixedExpenseController::class, 'destroy'])->name('fixedExpenses.destroy');
+    Route::put('/fixed-expenses/{fixedExpense}/occurrence', [FixedExpenseController::class, 'updateOccurrence'])->name('fixedExpenses.occurrence.update');
+    Route::delete('/fixed-expenses/occurrence/{occurrence}', [FixedExpenseController::class, 'destroyOccurrence'])->name('fixedExpenses.occurrence.destroy');
 
     // Open Finance (Pluggy)
     Route::get('/open-finance', [OpenFinanceController::class, 'index'])->name('openFinance.index');
@@ -71,4 +73,4 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-require __DIR__ . '/auth.php';
+require __DIR__.'/auth.php';

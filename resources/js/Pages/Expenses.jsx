@@ -1,3 +1,4 @@
+import FixedExpensesPanel from '@/Components/FixedExpensesPanel';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router, usePage } from '@inertiajs/react';
 import axios from 'axios';
@@ -492,6 +493,7 @@ export default function Expenses({
     hasPending,
     settings,
     availableMonths,
+    fixedExpenses,
 }) {
     const { flash } = usePage().props;
 
@@ -752,6 +754,9 @@ export default function Expenses({
                     </button>
                 </div>
             </div>
+
+            {/* Despesas fixas do mês */}
+            <FixedExpensesPanel fixedExpenses={fixedExpenses} className="mb-6" />
 
             {/* Abas Reni / Lua */}
             <div className="mb-4 flex border-b border-gray-200">

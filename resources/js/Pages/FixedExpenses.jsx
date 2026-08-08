@@ -17,7 +17,7 @@ const OWNERSHIP_BADGE = {
 const fmt = (v) =>
     Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-const EMPTY_FORM = { description: '', amount: '', due_day: '', category_id: '', ownership: 'both', active: true };
+const EMPTY_FORM = { description: '', amount: '', variable_amount: false, due_day: '', start_date: '', end_date: '', category_id: '', ownership: 'both', active: true };
 
 // ─── Modal de criação/edição de despesa fixa ──────────────────────────────────
 function FixedExpenseFormModal({ categories, fixedExpense, onClose }) {
@@ -25,12 +25,15 @@ function FixedExpenseFormModal({ categories, fixedExpense, onClose }) {
     const { data, setData, post, put, processing, errors, reset } = useForm(
         fixedExpense
             ? {
-                  description: fixedExpense.description,
-                  amount:      fixedExpense.amount,
-                  due_day:     fixedExpense.due_day,
-                  category_id: fixedExpense.category_id ?? '',
-                  ownership:   fixedExpense.ownership,
-                  active:      fixedExpense.active,
+                  description:     fixedExpense.description,
+                  amount:          fixedExpense.amount,
+                  variable_amount: fixedExpense.variable_amount,
+                  due_day:         fixedExpense.due_day,
+                  start_date:      fixedExpense.start_date ?? '',
+                  end_date:        fixedExpense.end_date ?? '',
+                  category_id:     fixedExpense.category_id ?? '',
+                  ownership:       fixedExpense.ownership,
+                  active:          fixedExpense.active,
               }
             : EMPTY_FORM
     );
@@ -85,7 +88,9 @@ function FixedExpenseFormModal({ categories, fixedExpense, onClose }) {
 
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Valor (R$) *</label>
+                            <label className="block text-sm font-medium text-gray-700">
+                                {data.variable_amount ? 'Valor estimado (R$) *' : 'Valor (R$) *'}
+                            </label>
                             <input
                                 type="number"
                                 min="0.01"
@@ -111,6 +116,48 @@ function FixedExpenseFormModal({ categories, fixedExpense, onClose }) {
                             {errors.due_day && <p className="mt-1 text-xs text-red-500">{errors.due_day}</p>}
                         </div>
                     </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Início da cobrança</label>
+                            <input
+                                type="date"
+                                value={data.start_date}
+                                onChange={(e) => setData('start_date', e.target.value)}
+                                className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none ${errors.start_date ? 'border-red-400' : 'border-gray-300'}`}
+                            />
+                            {errors.start_date && <p className="mt-1 text-xs text-red-500">{errors.start_date}</p>}
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Fim da cobrança</label>
+                            <input
+                                type="date"
+                                value={data.end_date}
+                                onChange={(e) => setData('end_date', e.target.value)}
+                                className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none ${errors.end_date ? 'border-red-400' : 'border-gray-300'}`}
+                            />
+                            {errors.end_date && <p className="mt-1 text-xs text-red-500">{errors.end_date}</p>}
+                        </div>
+                    </div>
+                    <p className="-mt-2 text-xs text-gray-400">
+                        Opcional. Use para financiamentos ou assinaturas com prazo definido — fora do período, a cobrança some das próximas previsões.
+                    </p>
+
+                    <label className="flex items-start gap-2 text-sm text-gray-700">
+                        <input
+                            type="checkbox"
+                            checked={data.variable_amount}
+                            onChange={(e) => setData('variable_amount', e.target.checked)}
+                            className="mt-0.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span>
+                            Valor variável (ex: conta de luz, água)
+                            <span className="block text-xs text-gray-400">
+                                O valor acima vira uma estimativa. No Dashboard você poderá ajustar o valor real de cada mês.
+                            </span>
+                        </span>
+                    </label>
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Categoria</label>
@@ -252,7 +299,10 @@ export default function FixedExpenses({ fixedExpenses, categories }) {
                                 {fixedExpenses.map((expense) => (
                                     <tr key={expense.id} className={`hover:bg-gray-50 ${!expense.active ? 'opacity-50' : ''}`}>
                                         <td className="px-4 py-3 font-medium text-gray-800">{expense.description}</td>
-                                        <td className="whitespace-nowrap px-4 py-3 text-right text-gray-600">{fmt(expense.amount)}</td>
+                                        <td className="whitespace-nowrap px-4 py-3 text-right text-gray-600">
+                                            {expense.variable_amount && <span title="Valor estimado, pode variar mês a mês" className="mr-1 text-gray-400">≈</span>}
+                                            {fmt(expense.amount)}
+                                        </td>
                                         <td className="px-4 py-3 text-center text-gray-600">{expense.due_day}</td>
                                         <td className="px-4 py-3 text-gray-700">{expense.category ?? <span className="text-gray-400">—</span>}</td>
                                         <td className="px-4 py-3">

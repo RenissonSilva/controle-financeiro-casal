@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Jobs\CategorizeExpensesJob;
 use App\Models\Category;
 use App\Models\Expense;
+use App\Models\FixedExpense;
 use App\Models\Setting;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
@@ -53,6 +54,9 @@ class ExpenseController extends Controller
         $hasPending = $payer1Expenses->contains('status', 'pending')
                    || $payer2Expenses->contains('status', 'pending');
 
+        // --- Despesas fixas esperadas no ciclo de fatura selecionado ---
+        $fixedExpensesProjection = FixedExpense::projectForCycle($rangeStart, $rangeEnd);
+
         return Inertia::render('Expenses', [
             'payer1Expenses' => $payer1Expenses,
             'payer2Expenses' => $payer2Expenses,
@@ -64,6 +68,10 @@ class ExpenseController extends Controller
             'settings'       => [
                 'payer1_name' => $settings->payer1_name,
                 'payer2_name' => $settings->payer2_name,
+            ],
+            'fixedExpenses' => [
+                'total' => round($fixedExpensesProjection->sum('amount'), 2),
+                'items' => $fixedExpensesProjection,
             ],
         ]);
     }

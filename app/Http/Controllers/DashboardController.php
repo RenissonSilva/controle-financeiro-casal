@@ -14,7 +14,7 @@ class DashboardController extends Controller
 {
     public function index(Request $request): Response
     {
-        $month    = $request->get('month', now()->format('Y-m'));
+        $month = $request->get('month', now()->format('Y-m'));
         $settings = Setting::current();
 
         [$rangeStart, $rangeEnd] = $settings->billingCycleRange($month);
@@ -48,8 +48,9 @@ class DashboardController extends Controller
             ->groupBy('category_id')
             ->map(function ($group) {
                 $first = $group->first();
+
                 return [
-                    'name'  => $first->category?->name ?? 'Sem categoria',
+                    'name' => $first->category?->name ?? 'Sem categoria',
                     'color' => $first->category?->color ?? '#94a3b8',
                     'value' => round($group->sum('amount'), 2),
                 ];
@@ -72,76 +73,32 @@ class DashboardController extends Controller
         });
 
         // --- Despesas fixas esperadas no ciclo de fatura selecionado ---
-        $fixedExpensesProjection = $this->fixedExpensesForCycle($rangeStart, $rangeEnd);
+        $fixedExpensesProjection = FixedExpense::projectForCycle($rangeStart, $rangeEnd);
 
         return Inertia::render('Dashboard', [
-            'month'    => $month,
+            'month' => $month,
             'settings' => [
-                'payer1_name'    => $settings->payer1_name,
-                'payer2_name'    => $settings->payer2_name,
+                'payer1_name' => $settings->payer1_name,
+                'payer2_name' => $settings->payer2_name,
                 'payer1_percent' => $settings->payer1_percent,
                 'payer2_percent' => $settings->payer2_percent,
             ],
             'summary' => [
-                'total'             => round($expenses->sum('amount'), 2),
+                'total' => round($expenses->sum('amount'), 2),
                 'payer1_individual' => round($totalPayer1, 2),
                 'payer2_individual' => round($totalPayer2, 2),
-                'shared_total'      => round($totalShared, 2),
-                'payer1_shared'     => $sharedForPayer1,
-                'payer2_shared'     => $sharedForPayer2,
-                'payer1_grand'      => $grandTotalPayer1,
-                'payer2_grand'      => $grandTotalPayer2,
+                'shared_total' => round($totalShared, 2),
+                'payer1_shared' => $sharedForPayer1,
+                'payer2_shared' => $sharedForPayer2,
+                'payer1_grand' => $grandTotalPayer1,
+                'payer2_grand' => $grandTotalPayer2,
             ],
-            'byCategory'       => $byCategory,
+            'byCategory' => $byCategory,
             'monthlyEvolution' => $monthlyEvolution,
-            'fixedExpenses'    => [
+            'fixedExpenses' => [
                 'total' => round($fixedExpensesProjection->sum('amount'), 2),
-                'items' => $fixedExpensesProjection->values(),
+                'items' => $fixedExpensesProjection,
             ],
         ]);
-    }
-
-    /**
-     * Projeta as despesas fixas ativas para dentro do ciclo de fatura informado,
-     * calculando a data de cobrança de cada uma e se ela ainda está por vir.
-     */
-    private function fixedExpensesForCycle(Carbon $rangeStart, Carbon $rangeEnd)
-    {
-        $today  = Carbon::today();
-        $months = collect([$rangeStart, $rangeEnd])->map(fn (Carbon $d) => $d->format('Y-m'))->unique();
-
-        return FixedExpense::with('category')
-            ->where('active', true)
-            ->get()
-            ->map(function (FixedExpense $fixedExpense) use ($months, $rangeStart, $rangeEnd, $today) {
-                $dueDate = null;
-
-                foreach ($months as $yearMonth) {
-                    [$year, $month] = explode('-', $yearMonth);
-                    $candidate = $fixedExpense->dueDateFor((int) $year, (int) $month);
-
-                    if ($candidate->between($rangeStart, $rangeEnd)) {
-                        $dueDate = $candidate;
-                        break;
-                    }
-                }
-
-                if (! $dueDate) {
-                    return null;
-                }
-
-                return [
-                    'id'          => $fixedExpense->id,
-                    'description' => $fixedExpense->description,
-                    'amount'      => $fixedExpense->amount,
-                    'category'    => $fixedExpense->category?->name,
-                    'color'       => $fixedExpense->category?->color ?? '#94a3b8',
-                    'ownership'   => $fixedExpense->ownership,
-                    'due_date'    => $dueDate->toDateString(),
-                    'is_upcoming' => $dueDate->greaterThanOrEqualTo($today),
-                ];
-            })
-            ->filter()
-            ->sortBy('due_date');
     }
 }
