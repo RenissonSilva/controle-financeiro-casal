@@ -1,6 +1,7 @@
 # PLANNING.md — Controle Financeiro Casal
 
-> Documento de referência para o MVP. Última atualização: 2026-08-08.
+> Documento de referência para o MVP. Última atualização: 2026-08-08 (fluxo principal
+> de uso e vigência de despesas fixas).
 
 ## 1. Objetivo
 
@@ -35,8 +36,9 @@ outras famílias/casais neste momento — a aplicação é single-tenant por des
     processado, para categorizar apenas o que é novo a cada sync.
 - **Rateio automático**: cada despesa tem `ownership` (payer1 / payer2 / both) e o
   valor "both" é dividido pela % de renda de cada um.
-- **Despesas fixas/recorrentes**: cadastro com dia de vencimento, para prever contas
-  do mês (`FixedExpense`).
+- **Despesas fixas/recorrentes**: cadastro com dia de vencimento e vigência opcional
+  (data inicial e final — se não informadas, vale a partir do mês atual e sem fim),
+  para prever contas do mês (`FixedExpense`).
 - **Dashboard** (baseado no mockup Órbita): saldo, receitas x despesas do mês,
   próximas despesas (fixas) a vencer, despesas por categoria, histórico recente.
 - **Exportação em PDF** das despesas de um período (já existe em `ExpenseController::exportPdf`).
@@ -49,7 +51,6 @@ outras famílias/casais neste momento — a aplicação é single-tenant por des
 - **"Saúde financeira" com score/gauge** (presente no mockup Órbita) — depende de uma
   fórmula ainda não definida (reserva, endividamento, regularidade). Fica pra depois
   do MVP; o card aparece no Dashboard como placeholder "Em breve".
-- Multi-tenancy / abrir para outros casais.
 - Investimentos (carteira, rentabilidade).
 - App mobile nativo.
 - Notificações (push/e-mail) de vencimento de contas.
@@ -63,7 +64,8 @@ outras famílias/casais neste momento — a aplicação é single-tenant por des
 
 ### Dashboard (`/dashboard`, baseado no mockup Órbita)
 - **Objetivo**: visão geral do mês corrente — "como estão nossas finanças agora".
-- **Vê**: saldo total, receitas do mês, despesas do mês (com % da renda), despesas
+- **Vê**: saldo total, receitas do mês, despesas do mês, quanto cada pagador paga no
+  total (individual + rateio compartilhado, já convertido pela % de renda), despesas
   por categoria (gráfico de rosca), próximas despesas fixas a vencer, histórico
   recente de lançamentos.
 - **Pode fazer**: navegar para Despesas/Categorias/Configurações, criar um
@@ -106,9 +108,11 @@ outras famílias/casais neste momento — a aplicação é single-tenant por des
 ### Despesas Fixas (`/fixed-expenses`)
 - **Objetivo**: cadastrar contas recorrentes (aluguel, assinaturas) para
   previsibilidade no dashboard.
-- **Vê**: lista de despesas fixas com dia de vencimento, categoria, ownership,
-  status ativo/inativo.
-- **Pode fazer**: criar, editar, apagar, ativar/desativar.
+- **Vê**: lista de despesas fixas com dia de vencimento, vigência (data inicial/final,
+  quando informadas), categoria, ownership, status ativo/inativo.
+- **Pode fazer**: criar, editar, apagar, ativar/desativar. Data inicial e final são
+  opcionais no formulário: sem data inicial, a despesa vale a partir do mês atual;
+  sem data final, não expira.
 
 ### Configurações (`/settings`)
 - **Objetivo**: definir os parâmetros do casal usados no rateio.
@@ -122,6 +126,25 @@ outras famílias/casais neste momento — a aplicação é single-tenant por des
 
 ## 5. Fluxo de navegação
 
+### Fluxo principal (uso típico)
+1. Login.
+2. Conecta a conta bancária via Open Finance (Pluggy Connect).
+3. Sincroniza — as transações são importadas para o banco de dados local como
+   `Expense` (`source=open_finance`).
+4. Categorização automática, nessa ordem: 1) tenta bater com uma Regra de
+   Categorização (`CategorizationRule`, por padrão de texto); 2) se nenhuma regra
+   bater, categoriza por IA.
+5. Revisa a lista de Despesas: pode editar descrição, categoria e quem paga
+   (ownership) de qualquer lançamento.
+6. Cadastra as Despesas Fixas (aluguel, assinaturas etc.) com dia de vencimento e,
+   opcionalmente, vigência (data inicial/final).
+7. Em Configurações, define nome e renda de cada pagador e o dia de fechamento do
+   cartão — isso define a % de rateio dos gastos compartilhados.
+8. No Dashboard, a qualquer momento (tipicamente no fim do mês), vê automaticamente
+   todas as despesas do período, quanto cada pagador deve individualmente + rateio,
+   e o total que cada um paga.
+
+### Árvore de navegação (todas as telas)
 ```
 Login
   └─→ Dashboard (home após login)
@@ -136,9 +159,7 @@ Login
         └─→ Configurações → edita rateio/fechamento → afeta cálculos em todo o site
 ```
 
-Pontos que precisam de decisão explícita antes de implementar (ver seção 8):
-- Não há link "voltar" consistente: cada tela depende só do menu de navegação
-  superior. Ok para MVP, mas vale confirmar que não precisa de breadcrumb.
+- Navegação "voltar" resolvida com breadcrumb (ver seção 8).
 
 ## 6. Modelo de dados (alto nível)
 
@@ -161,8 +182,11 @@ Expense
   N ── 1 Category
 
 FixedExpense
-  description, amount, due_day, category_id (nullable), ownership, active
+  description, amount, due_day, start_date (nullable), end_date (nullable),
+  category_id (nullable), ownership, active
   N ── 1 Category
+  → sem start_date, considerada vigente desde o mês atual; sem end_date, vigente
+    indefinidamente
 
 CategorizationRule
   pattern, amount (nullable), category_id, ownership
@@ -222,6 +246,16 @@ mudasse de direção para multi-tenant/SaaS ou app mobile nativo — não é o c
   junto com as demais funcionalidades fora do MVP (ex: Metas).
 - **Retenção/consistência de `OpenFinanceItem.owner`**: decidido que não terá
   validação — cada pessoa é responsável por conectar suas próprias contas.
+- **Breadcrumb**: adicionado abaixo do menu superior em todas as telas autenticadas
+  (`Dashboard / Tela atual`, ou `Dashboard / Open Finance / Conexão` em telas
+  aninhadas como o detalhe de uma conexão Open Finance). Resolve a falta de link
+  "voltar" consistente sem duplicar a navegação do menu.
+- **Vigência de despesas fixas**: o modal de Despesas Fixas ganha campos opcionais
+  de data inicial e final. Sem data inicial, a despesa passa a valer a partir do mês
+  atual; sem data final, não expira. Objetivo: permitir cadastrar uma despesa fixa
+  que só passa a valer num mês futuro (ex: novo contrato) ou que tem prazo definido
+  (ex: financiamento com parcelas). Ainda não implementado — schema de
+  `FixedExpense` precisa ganhar `start_date`/`end_date`.
 
 ### Em aberto
 - **Banco de dados de produção**: usuário ainda vai decidir. Recomendação segue
