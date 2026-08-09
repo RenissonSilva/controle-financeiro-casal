@@ -162,7 +162,7 @@ export default function Orbita() {
                     </div>
                 </header>
 
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'clamp(16px,2vw,24px)', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'clamp(16px,2vw,24px)', alignItems: 'stretch' }}>
                     {/* Main column */}
                     <main
                         style={{
@@ -200,80 +200,11 @@ export default function Orbita() {
                         </section>
 
                         {/* Stat cards */}
-                        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(210px,1fr))', gap: 'clamp(12px,1.4vw,18px)' }}>
-                            <div style={{ padding: 20, borderRadius: 14, background: 'linear-gradient(155deg,#2b2741 0%,#232532 65%)', boxShadow: 'inset 0 0 0 1px rgba(145,132,217,.28)' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'rgba(233,233,237,.6)' }}>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b5abfc" strokeWidth={1.8}>
-                                        <rect x="2.5" y="5.5" width="19" height="13" rx="2.5" />
-                                        <path d="M2.5 10h19" />
-                                    </svg>
-                                    Saldo total
-                                </div>
-                                <div style={{ marginTop: 12, fontFamily: 'var(--font-heading)', fontWeight: 500, fontSize: 'clamp(30px,3.4vw,40px)', letterSpacing: '-.03em', lineHeight: 1, color: '#f3f5fe' }}>
-                                    R$ 18.420<span style={{ fontSize: '.55em', color: 'rgba(233,233,237,.5)' }}>,90</span>
-                                </div>
-                                <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: '#d2cefd' }}>
-                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 6, background: 'rgba(145,132,217,.2)' }}>
-                                        ▲ 4,8%
-                                    </span>
-                                    <span style={{ color: 'rgba(233,233,237,.45)' }}>vs. julho</span>
-                                </div>
-                                <svg viewBox="0 0 220 44" preserveAspectRatio="none" style={{ width: '100%', height: 40, marginTop: 14, overflow: 'visible' }}>
-                                    <defs>
-                                        <linearGradient id="spk" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0" stopColor="#9184d9" stopOpacity=".45" />
-                                            <stop offset="1" stopColor="#9184d9" stopOpacity="0" />
-                                        </linearGradient>
-                                    </defs>
-                                    <path d="M0 34 L24 30 L48 33 L72 22 L96 26 L120 15 L144 19 L168 12 L192 16 L220 6 L220 44 L0 44Z" fill="url(#spk)" />
-                                    <path
-                                        d="M0 34 L24 30 L48 33 L72 22 L96 26 L120 15 L144 19 L168 12 L192 16 L220 6"
-                                        fill="none"
-                                        stroke="#b5abfc"
-                                        strokeWidth={2}
-                                        strokeLinejoin="round"
-                                        strokeLinecap="round"
-                                    />
-                                    <circle cx="220" cy="6" r="3.4" fill="#b5abfc" />
-                                </svg>
-                            </div>
 
-                            <div style={card}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'rgba(233,233,237,.6)' }}>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b5abfc" strokeWidth={1.8}>
-                                        <path d="M12 19V5M12 5l-6 6M12 5l6 6" />
-                                    </svg>
-                                    Receitas
-                                </div>
-                                <div style={{ marginTop: 12, fontFamily: 'var(--font-heading)', fontWeight: 500, fontSize: 'clamp(24px,2.4vw,30px)', letterSpacing: '-.02em', lineHeight: 1 }}>
-                                    R$ 9.850<span style={{ fontSize: '.6em', color: 'rgba(233,233,237,.5)' }}>,00</span>
-                                </div>
-                                <div style={{ marginTop: 8, fontSize: 12.5, color: 'rgba(233,233,237,.5)' }}>3 fontes · última em 02/08</div>
-                                <div style={{ marginTop: 16, height: 6, borderRadius: 999, background: 'rgba(233,233,237,.08)', overflow: 'hidden' }}>
-                                    <div style={{ height: '100%', width: '78%', borderRadius: 999, background: 'linear-gradient(90deg,#5d5294,#b5abfc)', transformOrigin: 'left', animation: 'riseBar .9s cubic-bezier(.2,.8,.2,1)' }} />
-                                </div>
-                            </div>
-
-                            <div style={card}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'rgba(233,233,237,.6)' }}>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9397ab" strokeWidth={1.8}>
-                                        <path d="M12 5v14M12 19l6-6M12 19l-6-6" />
-                                    </svg>
-                                    Despesas
-                                </div>
-                                <div style={{ marginTop: 12, fontFamily: 'var(--font-heading)', fontWeight: 500, fontSize: 'clamp(24px,2.4vw,30px)', letterSpacing: '-.02em', lineHeight: 1, color: '#cfd3e5' }}>
-                                    R$ 6.312<span style={{ fontSize: '.6em', color: 'rgba(233,233,237,.45)' }}>,40</span>
-                                </div>
-                                <div style={{ marginTop: 8, fontSize: 12.5, color: 'rgba(233,233,237,.5)' }}>64% da renda do mês</div>
-                                <div style={{ marginTop: 16, height: 6, borderRadius: 999, background: 'rgba(233,233,237,.08)', overflow: 'hidden' }}>
-                                    <div style={{ height: '100%', width: '64%', borderRadius: 999, background: 'linear-gradient(90deg,#3f424d,#9397ab)', transformOrigin: 'left', animation: 'riseBar .9s .1s backwards cubic-bezier(.2,.8,.2,1)' }} />
-                                </div>
-                            </div>
-                        </section>
 
                         {/* Próximas despesas + categorias */}
-                        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 'clamp(12px,1.4vw,18px)', alignItems: 'start' }}>
-                            <div style={card}>
+                        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 'clamp(12px,1.4vw,18px)', alignItems: 'stretch', marginTop: 'auto' }}>
+                            <div style={{ ...card, display: 'flex', flexDirection: 'column' }}>
                                 <div style={{ ...cardHeader, marginBottom: 16 }}>
                                     <h2 style={{ fontSize: 16 }}>Próximas despesas</h2>
                                     <span style={muted}>7 dias</span>
@@ -293,17 +224,17 @@ export default function Orbita() {
                                         </label>
                                     ))}
                                 </div>
-                                <button className="btn btn-ghost" style={{ alignSelf: 'center', marginTop: 10, fontSize: 12.5 }}>
+                                <button className="btn btn-ghost" style={{ alignSelf: 'center', marginTop: 'auto', paddingTop: 10, fontSize: 12.5 }}>
                                     Ver todas ⌄
                                 </button>
                             </div>
 
-                            <div style={card}>
+                            <div style={{ ...card, display: 'flex', flexDirection: 'column' }}>
                                 <div style={cardHeader}>
                                     <h2 style={{ fontSize: 16 }}>Despesas por categoria</h2>
                                     <span style={muted}>agosto</span>
                                 </div>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 20, marginTop: 8 }}>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 20, marginTop: 8, marginBottom: 'auto' }}>
                                     <div style={{ position: 'relative', flex: '0 0 auto', width: 176, height: 176 }}>
                                         <svg viewBox="0 0 160 160" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
                                             <circle cx="80" cy="80" r="70" fill="none" stroke="rgba(233,233,237,.06)" strokeWidth={16} />
@@ -328,10 +259,10 @@ export default function Orbita() {
                                                 <span style={{ fontSize: 13.5, fontVariantNumeric: 'tabular-nums', color: 'rgba(233,233,237,.7)' }}>{c.pct}</span>
                                             </div>
                                         ))}
-                                        <div style={{ marginTop: 4, paddingTop: 12, fontSize: 12, color: 'rgba(233,233,237,.45)', background: 'linear-gradient(to right,rgba(233,233,237,.12),transparent) no-repeat top/100% 1px' }}>
-                                            Moradia subiu R$ 240 em relação a julho.
-                                        </div>
                                     </div>
+                                </div>
+                                <div style={{ paddingTop: 12, fontSize: 12, color: 'rgba(233,233,237,.45)', background: 'linear-gradient(to right,rgba(233,233,237,.12),transparent) no-repeat top/100% 1px' }}>
+                                    Moradia subiu R$ 240 em relação a julho.
                                 </div>
                             </div>
                         </section>
