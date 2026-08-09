@@ -187,7 +187,7 @@ const THEMES = {
 };
 
 const DEFAULT_THEME = 'nebulosa';
-const THEME_STORAGE_KEY = 'orbita-theme';
+const THEME_STORAGE_KEY = 'sovinna-theme';
 
 function ThemeSwitcher({ themeKey, onChange, theme }) {
     return (
@@ -235,7 +235,7 @@ function ThemeSwitcher({ themeKey, onChange, theme }) {
     );
 }
 
-export default function Orbita() {
+export default function Sovinna() {
     const [themeKey, setThemeKey] = useState(() => {
         if (typeof window === 'undefined') return DEFAULT_THEME;
         return localStorage.getItem(THEME_STORAGE_KEY) || DEFAULT_THEME;

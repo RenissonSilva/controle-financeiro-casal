@@ -11,7 +11,7 @@ export default function AuthenticatedLayout({ header, breadcrumbs = [], children
 
     const navItems = [
         { href: route('dashboard'),      label: 'Dashboard',     routeKey: 'dashboard' },
-        // { href: route('orbita'),         label: 'Órbita (preview)', routeKey: 'orbita' },
+        // { href: route('sovinna'),        label: 'Sovinna (preview)', routeKey: 'sovinna' },
         { href: route('expenses.index'), label: 'Despesas',      routeKey: 'expenses.index' },
         { href: route('import.show'),    label: 'Importar CSV',  routeKey: 'import.show' },
         { href: route('categories.index'), label: 'Categorias', routeKey: 'categories.index' },

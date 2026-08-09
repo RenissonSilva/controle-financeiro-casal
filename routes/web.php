@@ -18,7 +18,7 @@ Route::redirect('/', '/dashboard');
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    Route::get('/orbita', fn () => Inertia::render('Orbita'))->name('orbita');
+    Route::get('/sovinna', fn () => Inertia::render('Sovinna'))->name('sovinna');
 
     // Despesas
     Route::get('/expenses', [ExpenseController::class, 'index'])->name('expenses.index');

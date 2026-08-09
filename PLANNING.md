@@ -39,16 +39,16 @@ outras famílias/casais neste momento — a aplicação é single-tenant por des
 - **Despesas fixas/recorrentes**: cadastro com dia de vencimento e vigência opcional
   (data inicial e final — se não informadas, vale a partir do mês atual e sem fim),
   para prever contas do mês (`FixedExpense`).
-- **Dashboard** (baseado no mockup Órbita): saldo, receitas x despesas do mês,
+- **Dashboard** (baseado no mockup Sovinna): saldo, receitas x despesas do mês,
   próximas despesas (fixas) a vencer, despesas por categoria, histórico recente.
 - **Exportação em PDF** das despesas de um período (já existe em `ExpenseController::exportPdf`).
 
 ## 3. Fora do escopo (v2+)
 
-- **Metas financeiras** (ex: "Meta · Investimentos" do mockup Órbita) — exige modelar
+- **Metas financeiras** (ex: "Meta · Investimentos" do mockup Sovinna) — exige modelar
   `Goal` (valor alvo, prazo, progresso) e tela de acompanhamento. Adiado por decisão
   explícita do usuário.
-- **"Saúde financeira" com score/gauge** (presente no mockup Órbita) — depende de uma
+- **"Saúde financeira" com score/gauge** (presente no mockup Sovinna) — depende de uma
   fórmula ainda não definida (reserva, endividamento, regularidade). Fica pra depois
   do MVP; o card aparece no Dashboard como placeholder "Em breve".
 - Investimentos (carteira, rentabilidade).
@@ -62,7 +62,7 @@ outras famílias/casais neste momento — a aplicação é single-tenant por des
 - **Vê**: formulário de e-mail/senha (Breeze padrão).
 - **Pode fazer**: entrar, recuperar senha.
 
-### Dashboard (`/dashboard`, baseado no mockup Órbita)
+### Dashboard (`/dashboard`, baseado no mockup Sovinna)
 - **Objetivo**: visão geral do mês corrente — "como estão nossas finanças agora".
 - **Vê**: saldo total, receitas do mês, despesas do mês, quanto cada pagador paga no
   total (individual + rateio compartilhado, já convertido pela % de renda), despesas
