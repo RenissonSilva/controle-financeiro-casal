@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
-import logo from '@/assets/logo.jpg';
 import ThemeStyles from '@/Components/ThemeStyles';
 import { mareTheme, cardStyle, cardHeaderStyle, mutedStyle } from '@/theme/mare';
 
@@ -280,6 +279,7 @@ const THEMES = {
         ambientGlow: '#213A32',
     },
     mare: mareTheme,
+    floresta: mareTheme,
 };
 
 const DEFAULT_THEME = 'mare';
@@ -318,8 +318,46 @@ export default function Sovinna() {
                     fontFamily: 'var(--font-body)',
                     padding: '20px clamp(280px,3vw,40px) 48px',
                     transition: 'background .2s',
+                    position: 'relative',
+                    isolation: 'isolate',
                 }}
             >
+                {theme.bgImage && (
+                    <div
+                        aria-hidden="true"
+                        style={{
+                            position: 'fixed',
+                            inset: 0,
+                            zIndex: -1,
+                            pointerEvents: 'none',
+                            overflow: 'hidden',
+                        }}
+                    >
+                        <img
+                            src={theme.bgImage}
+                            alt=""
+                            style={{
+                                position: 'absolute',
+                                inset: 0,
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover',
+                                objectPosition: theme.bgImagePosition || 'center',
+                                opacity: 0.7,
+                                filter: 'brightness(.9)',
+                            }}
+                        />
+                        <div style={{ position: 'absolute', inset: 0, background: theme.accent, mixBlendMode: 'color', opacity: 0.6 }} />
+                        <div
+                            style={{
+                                position: 'absolute',
+                                inset: 0,
+                                background: 'linear-gradient(180deg,rgba(0,0,0,.5) 0%,rgba(0,0,0,.28) 24%,var(--color-bg) 76%)',
+                            }}
+                        />
+                    </div>
+                )}
+
                 {/* Header */}
                 <header
                     style={{

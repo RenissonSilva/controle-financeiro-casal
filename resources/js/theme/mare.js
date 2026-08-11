@@ -1,5 +1,9 @@
+import bgFloresta from '@/assets/bg-floresta.jpeg';
+
 export const mareTheme = {
     label: 'Maré',
+    bgImage: bgFloresta,
+    bgImagePosition: 'center 22%',
     bg: '#0e1c28',
     surface: '#152a38',
     text: '#eef7f8',
