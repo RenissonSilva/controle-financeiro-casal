@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import logo from '@/assets/logo.jpg';
+import ThemeStyles from '@/Components/ThemeStyles';
+import { mareTheme, cardStyle, cardHeaderStyle, mutedStyle } from '@/theme/mare';
 
 const NOME = 'Reni';
 const SCORE = 62;
@@ -277,29 +279,7 @@ const THEMES = {
         valueColor: '#C24959',
         ambientGlow: '#213A32',
     },
-    mare: {
-        label: 'Maré',
-        bg: '#0e1c28',
-        surface: '#152a38',
-        text: '#eef7f8',
-        textRgb: '223,238,240',
-        accent: '#43a9ab',
-        accentRgb: '67,169,171',
-        avatarBg: '#2a7daa',
-        softText: '#dcee8e',
-        strongAccent: '#8fd79b',
-        strongAccentGlowRgb: '143,215,155',
-        chartLight: '#dcee8e',
-        chartMid: '#43a9ab',
-        chartDeep: '#3f7fb8',
-        gaugeStart: '#22517e',
-        healthCardGradStart: '#14304a',
-        progressGradStart: '#22517e',
-        progressGradEnd: '#43a9ab',
-        progressText: '#eef7f8',
-        valueColor: '#c3dbe0',
-        ambientGlow: '#16344a',
-    },
+    mare: mareTheme,
 };
 
 const DEFAULT_THEME = 'mare';
@@ -316,21 +296,9 @@ export default function Sovinna() {
         localStorage.setItem(THEME_STORAGE_KEY, themeKey);
     }, [themeKey]);
 
-    const card = {
-        padding: 20,
-        borderRadius: 14,
-        background: 'var(--color-surface)',
-        boxShadow: `inset 0 0 0 1px rgba(${theme.textRgb},.08)`,
-    };
-
-    const cardHeader = {
-        display: 'flex',
-        alignItems: 'baseline',
-        justifyContent: 'space-between',
-        gap: 12,
-    };
-
-    const muted = { fontSize: 11.5, color: `rgba(${theme.textRgb},.45)` };
+    const card = cardStyle(theme);
+    const cardHeader = cardHeaderStyle();
+    const muted = mutedStyle(theme);
 
     return (
         <>
@@ -339,38 +307,7 @@ export default function Sovinna() {
                 <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet" />
             </Head>
 
-            <style>{`
-                :root {
-                    --color-bg: ${theme.bg};
-                    --color-surface: ${theme.surface};
-                    --color-text: ${theme.text};
-                    --color-text-rgb: ${theme.textRgb};
-                    --color-accent: ${theme.accent};
-                    --color-accent-rgb: ${theme.accentRgb};
-                    --font-heading: "Inter", system-ui, sans-serif;
-                    --font-body: "Inter", system-ui, sans-serif;
-                }
-                @keyframes drawArc { from { stroke-dashoffset: 283; } }
-                @keyframes drawRing { from { stroke-dasharray: 0 440; } }
-                @keyframes riseBar { from { transform: scaleX(0); } }
-                .orb { background: var(--color-bg); color: var(--color-text); }
-                .orb h1, .orb h2 { font-family: var(--font-heading); font-weight: 500; margin: 0; }
-                .orb .btn {
-                    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-                    cursor: pointer; text-decoration: none;
-                    font-family: var(--font-heading); font-weight: 500;
-                    font-size: 14px; line-height: 1.2; color: var(--color-text);
-                    background: transparent; border: 1px solid transparent;
-                }
-                .orb .btn-secondary { border-color: rgba(var(--color-text-rgb),.16); }
-                .orb .btn-secondary:hover { background: rgba(var(--color-text-rgb),.07); }
-                .orb .btn-ghost { color: var(--color-accent); }
-                .orb .btn-ghost:hover { background: rgba(var(--color-accent-rgb),.1); }
-                .orb .nav-link { transition: background .12s, color .12s; }
-                .orb .nav-link:hover { color: var(--color-text); background: rgba(var(--color-text-rgb),.06); }
-                .orb .row-hover:hover { background: rgba(var(--color-text-rgb),.045); }
-                .orb a { color: var(--color-accent); text-decoration: none; }
-            `}</style>
+            <ThemeStyles theme={theme} />
 
             <div
                 className="orb"
