@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
+import logo from '@/assets/logo.jpg';
 
 const NOME = 'Reni';
 const SCORE = 62;
@@ -184,59 +185,128 @@ const THEMES = {
         valueColor: '#C7CE9F',
         ambientGlow: '#3A2029',
     },
+    lilas: {
+        label: 'Lilás',
+        bg: '#1A1330',
+        surface: '#332759',
+        text: '#F3E7F0',
+        textRgb: '243,231,240',
+        accent: '#BC9AC8',
+        accentRgb: '188,154,200',
+        avatarBg: '#5C5591',
+        softText: '#F0D9E8',
+        strongAccent: '#E4B7D0',
+        strongAccentGlowRgb: '228,183,208',
+        chartLight: '#E4B7D0',
+        chartMid: '#9789C3',
+        chartDeep: '#5C5591',
+        gaugeStart: '#5C5591',
+        healthCardGradStart: '#1A1330',
+        progressGradStart: '#5C5591',
+        progressGradEnd: '#E4B7D0',
+        progressText: '#FBF2F8',
+        valueColor: '#9789C3',
+        ambientGlow: '#2E2350',
+    },
+    tropical: {
+        label: 'Tropical',
+        bg: '#16232E',
+        surface: '#28425A',
+        text: '#F4EFE0',
+        textRgb: '244,239,224',
+        accent: '#F98545',
+        accentRgb: '249,133,69',
+        avatarBg: '#5E9F8E',
+        softText: '#FDECB8',
+        strongAccent: '#FBCC5F',
+        strongAccentGlowRgb: '251,204,95',
+        chartLight: '#A2C280',
+        chartMid: '#5E9F8E',
+        chartDeep: '#28425A',
+        gaugeStart: '#5E9F8E',
+        healthCardGradStart: '#16232E',
+        progressGradStart: '#5E9F8E',
+        progressGradEnd: '#FBCC5F',
+        progressText: '#FCF8EC',
+        valueColor: '#F98545',
+        ambientGlow: '#1F3B45',
+    },
+    abissal: {
+        label: 'Abissal',
+        bg: '#061418',
+        surface: '#16424F',
+        text: '#EEF3E0',
+        textRgb: '238,243,224',
+        accent: '#5A8599',
+        accentRgb: '90,133,153',
+        avatarBg: '#16424F',
+        softText: '#B1C5AE',
+        strongAccent: '#7FAABE',
+        strongAccentGlowRgb: '127,170,190',
+        chartLight: '#EEF3E0',
+        chartMid: '#B1C5AE',
+        chartDeep: '#5A8599',
+        gaugeStart: '#5A8599',
+        healthCardGradStart: '#061418',
+        progressGradStart: '#16424F',
+        progressGradEnd: '#B1C5AE',
+        progressText: '#F5F9EC',
+        valueColor: '#B1C5AE',
+        ambientGlow: '#123640',
+    },
+    pomar: {
+        label: 'Pomar',
+        bg: '#182620',
+        surface: '#2C4A40',
+        text: '#F8F0C4',
+        textRgb: '248,240,196',
+        accent: '#8BB56A',
+        accentRgb: '139,181,106',
+        avatarBg: '#55907F',
+        softText: '#F1E68B',
+        strongAccent: '#C24959',
+        strongAccentGlowRgb: '194,73,89',
+        chartLight: '#F1E68B',
+        chartMid: '#EFA363',
+        chartDeep: '#C24959',
+        gaugeStart: '#55907F',
+        healthCardGradStart: '#182620',
+        progressGradStart: '#55907F',
+        progressGradEnd: '#8BB56A',
+        progressText: '#F5F9E8',
+        valueColor: '#C24959',
+        ambientGlow: '#213A32',
+    },
+    mare: {
+        label: 'Maré',
+        bg: '#0e1c28',
+        surface: '#152a38',
+        text: '#eef7f8',
+        textRgb: '223,238,240',
+        accent: '#43a9ab',
+        accentRgb: '67,169,171',
+        avatarBg: '#2a7daa',
+        softText: '#dcee8e',
+        strongAccent: '#8fd79b',
+        strongAccentGlowRgb: '143,215,155',
+        chartLight: '#dcee8e',
+        chartMid: '#43a9ab',
+        chartDeep: '#3f7fb8',
+        gaugeStart: '#22517e',
+        healthCardGradStart: '#14304a',
+        progressGradStart: '#22517e',
+        progressGradEnd: '#43a9ab',
+        progressText: '#eef7f8',
+        valueColor: '#c3dbe0',
+        ambientGlow: '#16344a',
+    },
 };
 
-const DEFAULT_THEME = 'nebulosa';
+const DEFAULT_THEME = 'mare';
 const THEME_STORAGE_KEY = 'sovinna-theme';
 
-function ThemeSwitcher({ themeKey, onChange, theme }) {
-    return (
-        <div
-            style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '4px 10px 4px 4px',
-                borderRadius: 999,
-                background: `rgba(${theme.textRgb},.05)`,
-                boxShadow: `inset 0 0 0 1px rgba(${theme.textRgb},.09)`,
-            }}
-        >
-            <div style={{ display: 'flex', gap: 5 }}>
-                {Object.entries(THEMES).map(([key, t]) => (
-                    <button
-                        key={key}
-                        type="button"
-                        onClick={() => onChange(key)}
-                        title={t.label}
-                        aria-label={`Tema ${t.label}`}
-                        aria-pressed={key === themeKey}
-                        style={{
-                            width: 22,
-                            height: 22,
-                            borderRadius: '50%',
-                            border: 'none',
-                            padding: 0,
-                            cursor: 'pointer',
-                            background: `linear-gradient(135deg, ${t.bg} 42%, ${t.accent} 100%)`,
-                            boxShadow:
-                                key === themeKey
-                                    ? `0 0 0 2px ${theme.surface}, 0 0 0 3.5px ${theme.text}`
-                                    : `0 0 0 1px rgba(${theme.textRgb},.3)`,
-                            transition: 'box-shadow .15s',
-                        }}
-                    />
-                ))}
-            </div>
-            <span style={{ fontSize: 11, letterSpacing: '.04em', color: `rgba(${theme.textRgb},.5)` }}>
-                {theme.label}
-            </span>
-        </div>
-    );
-}
-
 export default function Sovinna() {
-    const [themeKey, setThemeKey] = useState(() => {
+    const [themeKey] = useState(() => {
         if (typeof window === 'undefined') return DEFAULT_THEME;
         return localStorage.getItem(THEME_STORAGE_KEY) || DEFAULT_THEME;
     });
@@ -324,11 +394,8 @@ export default function Sovinna() {
                     }}
                 >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginRight: 'auto' }}>
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={theme.accent} strokeWidth={1.6}>
-                            <circle cx="12" cy="12" r="9" />
-                            <path d="M12 6.5v11M9.2 9.4h4.3a1.9 1.9 0 0 1 0 3.8h-3.4a1.9 1.9 0 0 0 0 3.8h4.7" />
-                        </svg>
-                        <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 500, fontSize: 17, letterSpacing: '-.01em' }}>
+                        {/* <img src={logo} alt="Sovinna" width={64} height={64} style={{ borderRadius: 7, objectFit: 'cover' }} /> */}
+                        <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 500, fontSize: 24, letterSpacing: '-.01em' }}>
                             Sovinna
                         </span>
                     </div>
@@ -370,7 +437,6 @@ export default function Sovinna() {
                     </nav>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
-                        <ThemeSwitcher themeKey={themeKey} onChange={setThemeKey} theme={theme} />
                         <button className="btn btn-secondary" style={{ borderRadius: 999, fontSize: 13, padding: '7px 14px' }}>
                             + Lançamento
                         </button>
