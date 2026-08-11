@@ -1,6 +1,23 @@
+import avalonAltFont from '@/assets/avallon-alt.ttf';
+import contrailOneFont from '@/assets/ContrailOne-Regular.ttf';
+
 export default function ThemeStyles({ theme }) {
     return (
         <style>{`
+            @font-face {
+                font-family: 'Avalon Alt';
+                src: url('${avalonAltFont}') format('truetype');
+                font-weight: 400;
+                font-style: normal;
+                font-display: swap;
+            }
+            @font-face {
+                font-family: 'Contrail One';
+                src: url('${contrailOneFont}') format('truetype');
+                font-weight: 400;
+                font-style: normal;
+                font-display: swap;
+            }
             :root {
                 --color-bg: ${theme.bg};
                 --color-surface: ${theme.surface};
@@ -8,14 +25,15 @@ export default function ThemeStyles({ theme }) {
                 --color-text-rgb: ${theme.textRgb};
                 --color-accent: ${theme.accent};
                 --color-accent-rgb: ${theme.accentRgb};
-                --font-heading: "Inter", system-ui, sans-serif;
-                --font-body: "Inter", system-ui, sans-serif;
+                --font-heading: "Poppins", system-ui, sans-serif;
+                --font-body: "Poppins", system-ui, sans-serif;
             }
             @keyframes drawArc { from { stroke-dashoffset: 283; } }
             @keyframes drawRing { from { stroke-dasharray: 0 440; } }
             @keyframes riseBar { from { transform: scaleX(0); } }
             .orb { background: var(--color-bg); color: var(--color-text); }
-            .orb h1, .orb h2 { font-family: var(--font-heading); font-weight: 500; margin: 0; }
+            .orb h1 { font-family: var(--font-heading); font-weight: 500; margin: 0; }
+            .orb h2 { font-family: var(--font-heading); font-weight: 600; margin: 0; }
             .orb .btn {
                 display: inline-flex; align-items: center; justify-content: center; gap: 6px;
                 cursor: pointer; text-decoration: none;
@@ -31,6 +49,19 @@ export default function ThemeStyles({ theme }) {
             .orb .nav-link:hover { color: var(--color-text); background: rgba(var(--color-text-rgb),.06); }
             .orb .row-hover:hover { background: rgba(var(--color-text-rgb),.045); }
             .orb a { color: var(--color-accent); text-decoration: none; }
+            .orb .scroll-thin {
+                scrollbar-width: thin;
+                scrollbar-color: rgba(var(--color-accent-rgb),.35) transparent;
+            }
+            .orb .scroll-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+            .orb .scroll-thin::-webkit-scrollbar-track { background: transparent; }
+            .orb .scroll-thin::-webkit-scrollbar-thumb {
+                background: rgba(var(--color-accent-rgb),.35);
+                border-radius: 999px;
+            }
+            .orb .scroll-thin::-webkit-scrollbar-thumb:hover {
+                background: rgba(var(--color-accent-rgb),.55);
+            }
         `}</style>
     );
 }

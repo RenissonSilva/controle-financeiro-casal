@@ -19,11 +19,16 @@ export const mareTheme = {
     chartDeep: '#3f7fb8',
     gaugeStart: '#22517e',
     healthCardGradStart: '#14304a',
+    heroCardGradStart: '#173548',
     progressGradStart: '#22517e',
     progressGradEnd: '#43a9ab',
     progressText: '#eef7f8',
     valueColor: '#c3dbe0',
     ambientGlow: '#16344a',
+    income: '#b5e38a',
+    incomeDeep: '#4b7a45',
+    expense: '#5ec1e0',
+    expenseDeep: '#1b5875',
 };
 
 export function cardStyle(theme) {

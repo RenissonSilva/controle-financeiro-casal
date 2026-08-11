@@ -12,6 +12,9 @@ const PROXIMAS = [
     { nome: 'Cartão Nubank', venc: '12/08', valor: 'R$ 1.284,30' },
     { nome: 'Energia · Enel', venc: '15/08', valor: 'R$ 187,40' },
     { nome: 'Internet · Vivo', venc: '18/08', valor: 'R$ 119,90' },
+    { nome: 'Internet · Vivo', venc: '18/08', valor: 'R$ 119,90' },
+    { nome: 'Internet · Vivo', venc: '18/08', valor: 'R$ 119,90' },
+    { nome: 'Internet · Vivo', venc: '18/08', valor: 'R$ 119,90' },
 ];
 
 const HISTORICO = [
@@ -300,11 +303,19 @@ export default function Sovinna() {
     const cardHeader = cardHeaderStyle();
     const muted = mutedStyle(theme);
 
+    const heroCardGradStart = theme.heroCardGradStart || theme.healthCardGradStart;
+    const income = theme.income || theme.chartLight;
+    const incomeDeep = theme.incomeDeep || theme.chartMid;
+    const expense = theme.expense || theme.chartDeep;
+    const expenseDeep = theme.expenseDeep || theme.chartDeep;
+
+
+
     return (
         <>
             <Head title="Sovinna">
                 <link rel="preconnect" href="https://fonts.bunny.net" />
-                <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet" />
+                <link href="https://fonts.bunny.net/css?family=poppins:400,500,600,700&display=swap" rel="stylesheet" />
             </Head>
 
             <ThemeStyles theme={theme} />
@@ -370,7 +381,7 @@ export default function Sovinna() {
                 >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginRight: 'auto' }}>
                         {/* <img src={logo} alt="Sovinna" width={64} height={64} style={{ borderRadius: 7, objectFit: 'cover' }} /> */}
-                        <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 500, fontSize: 24, letterSpacing: '-.01em' }}>
+                        <span style={{ fontFamily: '"Avalon Alt", var(--font-heading)', fontWeight: 500, fontSize: 50, letterSpacing: '-.01em' }}>
                             Sovinna
                         </span>
                     </div>
@@ -434,120 +445,35 @@ export default function Sovinna() {
                     </div>
                 </header>
 
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'clamp(16px,2vw,24px)', alignItems: 'stretch' }}>
-                    {/* Main column */}
-                    <main
-                        style={{
-                            flex: '1 1 560px',
-                            minWidth: 'min(100%,320px)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: 'clamp(16px,2vw,24px)',
-                        }}
-                    >
-                        {/* Hero */}
-                        <section style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-end', justifyContent: 'space-between' }}>
-                            <div>
-                                <div style={{ fontSize: 12, letterSpacing: '.12em', textTransform: 'uppercase', color: `rgba(${theme.textRgb},.45)`, marginBottom: 10 }}>
-                                    Agosto de 2026
-                                </div>
-                                <h1 style={{ margin: '0 0 12px', fontSize: 'clamp(34px,5vw,54px)', fontWeight: 500, letterSpacing: '-.03em', lineHeight: 1.02 }}>
-                                    Bem-vindo, <span style={{ color: theme.strongAccent }}>{NOME}</span>
-                                </h1>
-                                <div
-                                    style={{
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: 8,
-                                        padding: '5px 14px 5px 10px',
-                                        borderRadius: 999,
-                                        background: `rgba(${theme.accentRgb},.13)`,
-                                        boxShadow: `inset 0 0 0 1px rgba(${theme.accentRgb},.4)`,
-                                    }}
-                                >
-                                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: theme.strongAccent, boxShadow: `0 0 10px 2px rgba(${theme.strongAccentGlowRgb},.7)` }} />
-                                    <span style={{ fontSize: 13, color: theme.softText }}>Suas finanças estão saudáveis</span>
-                                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(20px,2.4vw,32px)' }}>
+                    {/* Hero Section */}
+                    <section style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div>
+                            <div style={{ fontSize: 12, letterSpacing: '.12em', textTransform: 'uppercase', color: `rgba(${theme.textRgb},.45)`, marginBottom: 10 }}>
+                                Agosto de 2026
                             </div>
-                        </section>
-
-                        {/* Stat cards */}
-
-
-                        {/* Próximas despesas + categorias */}
-                        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 'clamp(12px,1.4vw,18px)', alignItems: 'stretch', marginTop: 'auto' }}>
-                            <div style={{ ...card, display: 'flex', flexDirection: 'column' }}>
-                                <div style={{ ...cardHeader, marginBottom: 16 }}>
-                                    <h2 style={{ fontSize: 16 }}>Próximas despesas</h2>
-                                    <span style={muted}>7 dias</span>
-                                </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                    {PROXIMAS.map((d) => (
-                                        <label key={d.nome} className="row-hover" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 8px', borderRadius: 9, cursor: 'pointer' }}>
-                                            <input
-                                                type="checkbox"
-                                                style={{ appearance: 'none', width: 17, height: 17, flex: 'none', borderRadius: 5, background: 'transparent', boxShadow: `inset 0 0 0 1.5px rgba(${theme.textRgb},.28)`, cursor: 'pointer' }}
-                                            />
-                                            <span style={{ flex: 1, minWidth: 0 }}>
-                                                <span style={{ display: 'block', fontSize: 13.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.nome}</span>
-                                                <span style={{ display: 'block', fontSize: 11.5, color: `rgba(${theme.textRgb},.45)` }}>vence {d.venc}</span>
-                                            </span>
-                                            <span style={{ fontSize: 13.5, fontVariantNumeric: 'tabular-nums', color: theme.valueColor }}>{d.valor}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                                <button className="btn btn-ghost" style={{ alignSelf: 'center', marginTop: 'auto', paddingTop: 10, fontSize: 12.5 }}>
-                                    Ver todas ⌄
-                                </button>
+                            <h1 style={{ margin: '0 0 12px', fontSize: 'clamp(34px,5vw,54px)', fontWeight: 500, letterSpacing: '-.03em', lineHeight: 1.02 }}>
+                                Bem-vindo, <span style={{ color: theme.strongAccent }}>{NOME}</span>
+                            </h1>
+                            <div
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 8,
+                                    padding: '5px 14px 5px 10px',
+                                    borderRadius: 999,
+                                    background: `rgba(${theme.accentRgb},.13)`,
+                                    boxShadow: `inset 0 0 0 1px rgba(${theme.accentRgb},.4)`,
+                                }}
+                            >
+                                <span style={{ width: 7, height: 7, borderRadius: '50%', background: theme.strongAccent, boxShadow: `0 0 10px 2px rgba(${theme.strongAccentGlowRgb},.7)` }} />
+                                <span style={{ fontSize: 13, color: theme.softText }}>Suas finanças estão saudáveis</span>
                             </div>
+                        </div>
 
-                            <div style={{ ...card, display: 'flex', flexDirection: 'column' }}>
-                                <div style={cardHeader}>
-                                    <h2 style={{ fontSize: 16 }}>Despesas por categoria</h2>
-                                    <span style={muted}>agosto</span>
-                                </div>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 20, marginTop: 8, marginBottom: 'auto' }}>
-                                    <div style={{ position: 'relative', flex: '0 0 auto', width: 176, height: 176 }}>
-                                        <svg viewBox="0 0 160 160" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
-                                            <circle cx="80" cy="80" r="70" fill="none" stroke={`rgba(${theme.textRgb},.06)`} strokeWidth={16} />
-                                            <circle cx="80" cy="80" r="70" fill="none" stroke={theme.chartLight} strokeWidth={16} strokeDasharray="151 289" strokeDashoffset="0" style={{ animation: 'drawRing 1s cubic-bezier(.2,.8,.2,1)' }} />
-                                            <circle cx="80" cy="80" r="70" fill="none" stroke={theme.chartMid} strokeWidth={16} strokeDasharray="130 310" strokeDashoffset="-157" />
-                                            <circle cx="80" cy="80" r="70" fill="none" stroke={theme.chartDeep} strokeWidth={16} strokeDasharray="145 295" strokeDashoffset="-293" />
-                                        </svg>
-                                        <div style={{ position: 'absolute', inset: 0, display: 'grid', placeContent: 'center', textAlign: 'center' }}>
-                                            <div style={{ fontSize: 10.5, letterSpacing: '.1em', textTransform: 'uppercase', color: `rgba(${theme.textRgb},.45)` }}>Total</div>
-                                            <div style={{ fontFamily: 'var(--font-heading)', fontSize: 21, letterSpacing: '-.02em' }}>R$ 6.312</div>
-                                        </div>
-                                    </div>
-                                    <div style={{ flex: '1 1 150px', display: 'flex', flexDirection: 'column', gap: 12, minWidth: 150 }}>
-                                        {[
-                                            { cor: theme.chartLight, nome: 'Moradia', pct: '35%' },
-                                            { cor: theme.chartMid, nome: 'Alimentação', pct: '30%' },
-                                            { cor: theme.chartDeep, nome: 'Transporte', pct: '35%' },
-                                        ].map((c) => (
-                                            <div key={c.nome} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                                <span style={{ width: 9, height: 9, borderRadius: 3, background: c.cor, flex: 'none' }} />
-                                                <span style={{ flex: 1, fontSize: 13.5 }}>{c.nome}</span>
-                                                <span style={{ fontSize: 13.5, fontVariantNumeric: 'tabular-nums', color: `rgba(${theme.textRgb},.7)` }}>{c.pct}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div style={{ paddingTop: 12, fontSize: 12, color: `rgba(${theme.textRgb},.45)`, background: `linear-gradient(to right,rgba(${theme.textRgb},.12),transparent) no-repeat top/100% 1px` }}>
-                                    Moradia subiu R$ 240 em relação a julho.
-                                </div>
-                            </div>
-                        </section>
-                    </main>
-
-                    {/* Sidebar */}
-                    <aside style={{ flex: '1 1 300px', maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: 'clamp(12px,1.4vw,18px)' }}>
-                        <div style={{ padding: 20, borderRadius: 14, background: `linear-gradient(160deg,${theme.healthCardGradStart} 0%,${theme.surface} 70%)`, boxShadow: `inset 0 0 0 1px rgba(${theme.accentRgb},.25)` }}>
-                            <div style={cardHeader}>
-                                <h2 style={{ fontSize: 16 }}>Saúde financeira</h2>
-                                <span style={{ fontSize: 11.5, color: `rgba(${theme.textRgb},.5)` }}>30 dias</span>
-                            </div>
-                            <div style={{ position: 'relative', margin: '6px auto 0', width: 'min(260px,100%)' }}>
+                        {/* Saúde financeira */}
+                        <div style={{ ...card, padding: '14px 22px', display: 'flex', alignItems: 'center', gap: 18, background: `linear-gradient(160deg,${theme.healthCardGradStart} 0%,${theme.surface} 70%)` }}>
+                            <div style={{ position: 'relative', width: 90, height: 55 }}>
                                 <svg viewBox="0 0 220 124" style={{ width: '100%', display: 'block', overflow: 'visible' }}>
                                     <defs>
                                         <linearGradient id="gauge" x1="0" y1="0" x2="1" y2="0">
@@ -575,54 +501,200 @@ export default function Sovinna() {
                                         style={{ animation: 'drawArc 1.1s cubic-bezier(.2,.8,.2,1)' }}
                                     />
                                 </svg>
-                                <div style={{ position: 'absolute', left: 0, right: 0, bottom: 2, textAlign: 'center' }}>
-                                    <div style={{ fontFamily: 'var(--font-heading)', fontSize: 40, fontWeight: 500, letterSpacing: '-.03em', lineHeight: 1 }}>
-                                        {SCORE}
-                                        <span style={{ fontSize: '.45em', color: `rgba(${theme.textRgb},.55)` }}>%</span>
-                                    </div>
-                                    <div style={{ fontSize: 12, color: theme.softText, marginTop: 2 }}>Bom</div>
+                                <div style={{ position: 'absolute', left: 0, right: 0, bottom: 4, textAlign: 'center' }}>
+                                    <span style={{ fontFamily: 'var(--font-heading)', fontSize: 16, fontWeight: 600 }}>{SCORE}%</span>
                                 </div>
                             </div>
-                            <div style={{ marginTop: 14, fontSize: 12.5, lineHeight: 1.5, color: `rgba(${theme.textRgb},.6)` }}>
-                                Cálculo sobre reserva, endividamento e regularidade dos aportes.
+                            <div>
+                                <div style={{ fontSize: 14, fontWeight: 600 }}>Saúde financeira</div>
+                                <div style={{ fontSize: 12, color: theme.softText, marginTop: 2 }}>Bom · 30 dias</div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Top Row: Saldo total, Receitas, Despesas, Meta · Investimentos */}
+                    <section style={{ marginTop: 'clamp(16px,2.2vw,28px)', display: 'flex', flexWrap: 'wrap', gap: 'clamp(12px,1.4vw,18px)', alignItems: 'stretch' }}>
+                        {/* Saldo total */}
+                        <div style={{ flex: '1 1 210px', padding: 20, borderRadius: 14, background: `linear-gradient(155deg,${heroCardGradStart} 0%,${theme.surface} 65%)`, boxShadow: `inset 0 0 0 1px rgba(${theme.accentRgb},.28)`, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                            <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: `rgba(${theme.textRgb},.6)` }}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={theme.strongAccent} strokeWidth={1.8}>
+                                        <rect x="2.5" y="5.5" width="19" height="13" rx="2.5" />
+                                        <path d="M2.5 10h19" />
+                                    </svg>
+                                    Saldo total
+                                </div>
+                                <div style={{ marginTop: 12, fontFamily: 'var(--font-heading)', fontWeight: 500, fontSize: 'clamp(26px,2.6vw,36px)', letterSpacing: '-.03em', lineHeight: 1, color: theme.text }}>
+                                    R$ 18.420<span style={{ fontSize: '.55em', color: `rgba(${theme.textRgb},.5)` }}>,90</span>
+                                </div>
+                                <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: income }}>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 6, background: 'rgba(0,0,0,.25)', boxShadow: 'inset 0 0 0 1px currentColor' }}>▲ 4,8%</span>
+                                    <span style={{ color: `rgba(${theme.textRgb},.45)` }}>vs. julho</span>
+                                </div>
+                            </div>
+                            <svg viewBox="0 0 220 44" preserveAspectRatio="none" style={{ width: '100%', height: 36, marginTop: 14, overflow: 'visible' }}>
+                                <defs>
+                                    <linearGradient id="sovinna-spark" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0" stopColor={theme.strongAccent} stopOpacity=".45" />
+                                        <stop offset="1" stopColor={theme.strongAccent} stopOpacity="0" />
+                                    </linearGradient>
+                                </defs>
+                                <path d="M0 34 L24 30 L48 33 L72 22 L96 26 L120 15 L144 19 L168 12 L192 16 L220 6 L220 44 L0 44Z" fill="url(#sovinna-spark)" />
+                                <path d="M0 34 L24 30 L48 33 L72 22 L96 26 L120 15 L144 19 L168 12 L192 16 L220 6" fill="none" stroke={theme.strongAccent} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+                                <circle cx="220" cy="6" r="3.4" fill={theme.strongAccent} />
+                            </svg>
+                        </div>
+
+                        {/* Receitas */}
+                        <div style={{ ...card, flex: '1 1 210px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                            <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: `rgba(${theme.textRgb},.6)` }}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={theme.strongAccent} strokeWidth={1.8}>
+                                        <path d="M12 19V5M12 5l-6 6M12 5l6 6" />
+                                    </svg>
+                                    Receitas
+                                </div>
+                                <div style={{ marginTop: 12, fontFamily: 'var(--font-heading)', fontWeight: 500, fontSize: 'clamp(24px,2.4vw,30px)', letterSpacing: '-.02em', lineHeight: 1 }}>
+                                    R$ 9.850<span style={{ fontSize: '.6em', color: `rgba(${theme.textRgb},.5)` }}>,00</span>
+                                </div>
+                                <div style={{ marginTop: 8, fontSize: 12.5, color: `rgba(${theme.textRgb},.5)` }}>3 fontes · última em 02/08</div>
+                            </div>
+                            <div style={{ marginTop: 16, height: 6, borderRadius: 999, background: `rgba(${theme.textRgb},.08)`, overflow: 'hidden' }}>
+                                <div style={{ height: '100%', width: '78%', borderRadius: 999, background: `linear-gradient(90deg,${incomeDeep},${income})`, transformOrigin: 'left', animation: 'riseBar .9s cubic-bezier(.2,.8,.2,1)' }} />
                             </div>
                         </div>
 
-                        <div style={card}>
-                            <div style={{ ...cardHeader, marginBottom: 14 }}>
-                                <h2 style={{ fontSize: 16 }}>Meta · Investimentos</h2>
-                                <span style={muted}>até dez/26</span>
+                        {/* Despesas */}
+                        <div style={{ ...card, flex: '1 1 210px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                            <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: `rgba(${theme.textRgb},.6)` }}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={expense} strokeWidth={1.8}>
+                                        <path d="M12 5v14M12 19l6-6M12 19l-6-6" />
+                                    </svg>
+                                    Despesas
+                                </div>
+                                <div style={{ marginTop: 12, fontFamily: 'var(--font-heading)', fontWeight: 500, fontSize: 'clamp(24px,2.4vw,30px)', letterSpacing: '-.02em', lineHeight: 1, color: expense }}>
+                                    R$ 6.312<span style={{ fontSize: '.6em', color: `rgba(${theme.textRgb},.45)` }}>,40</span>
+                                </div>
+                                <div style={{ marginTop: 8, fontSize: 12.5, color: `rgba(${theme.textRgb},.5)` }}>64% da renda do mês</div>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
-                                <span style={{ fontFamily: 'var(--font-heading)', fontSize: 26, letterSpacing: '-.02em' }}>R$ 21.000</span>
-                                <span style={{ fontSize: 12.5, color: `rgba(${theme.textRgb},.45)` }}>de R$ 30.000</span>
-                            </div>
-                            <div style={{ position: 'relative', height: 26, borderRadius: 8, background: `rgba(${theme.textRgb},.07)`, overflow: 'hidden' }}>
-                                <div style={{ position: 'absolute', inset: '0 30% 0 0', borderRadius: 8, background: `linear-gradient(90deg,${theme.progressGradStart},${theme.progressGradEnd})`, transformOrigin: 'left', animation: 'riseBar 1s cubic-bezier(.2,.8,.2,1)' }} />
-                                <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', paddingLeft: 12, fontSize: 12.5, fontWeight: 600, color: theme.progressText }}>70%</span>
-                            </div>
-                            <div style={{ marginTop: 10, fontSize: 12, color: `rgba(${theme.textRgb},.5)` }}>
-                                Faltam R$ 9.000 · R$ 1.800/mês para chegar no prazo.
+                            <div style={{ marginTop: 16, height: 6, borderRadius: 999, background: `rgba(${theme.textRgb},.08)`, overflow: 'hidden' }}>
+                                <div style={{ height: '100%', width: '64%', borderRadius: 999, background: `linear-gradient(90deg,${expenseDeep},${expense})`, transformOrigin: 'left', animation: 'riseBar .9s .1s backwards cubic-bezier(.2,.8,.2,1)' }} />
                             </div>
                         </div>
 
-                        <div style={card}>
+                        {/* Meta · Investimentos */}
+                        <div style={{ ...card, flex: '1.45 1 330px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                            <div>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: `rgba(${theme.textRgb},.6)` }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={theme.strongAccent} strokeWidth={1.8}>
+                                            <circle cx="12" cy="12" r="9" />
+                                            <circle cx="12" cy="12" r="4" />
+                                        </svg>
+                                        Meta · Investimentos
+                                    </div>
+                                    <span style={muted}>até dez/26</span>
+                                </div>
+                                <div style={{ marginTop: 12, display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                                    <span style={{ fontFamily: 'var(--font-heading)', fontSize: 'clamp(22px,2.2vw,26px)', fontWeight: 500, letterSpacing: '-.02em' }}>R$ 21.000</span>
+                                    <span style={{ fontSize: 12, color: `rgba(${theme.textRgb},.45)` }}>de R$ 30k</span>
+                                </div>
+                                <div style={{ marginTop: 8, fontSize: 12, color: `rgba(${theme.textRgb},.5)` }}>
+                                    Faltam R$ 9.000 · R$ 1.800/mês
+                                </div>
+                            </div>
+                            <div style={{ marginTop: 14, position: 'relative', height: 20, borderRadius: 6, background: `rgba(${theme.textRgb},.07)`, overflow: 'hidden' }}>
+                                <div style={{ position: 'absolute', inset: '0 30% 0 0', borderRadius: 6, background: `linear-gradient(90deg,${theme.progressGradStart},${theme.progressGradEnd})`, transformOrigin: 'left', animation: 'riseBar 1s cubic-bezier(.2,.8,.2,1)' }} />
+                                <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', paddingLeft: 10, fontSize: 11.5, fontWeight: 600, color: theme.progressText }}>70%</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Bottom Row: Próximas despesas, Despesas por categoria, Histórico de gastos */}
+                    <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 'clamp(12px,1.4vw,18px)', alignItems: 'stretch' }}>
+                        {/* Próximas despesas */}
+                        <div style={{ ...card, padding: 16, display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ ...cardHeader, marginBottom: 10 }}>
+                                <h2 style={{ fontSize: 15 }}>Próximas despesas</h2>
+                                <span style={muted}>7 dias</span>
+                            </div>
+                            <div className="scroll-thin" style={{ display: 'flex', flexDirection: 'column', gap: 2, maxHeight: 200, overflowY: 'auto' }}>
+                                {PROXIMAS.map((d) => (
+                                    <label key={d.nome} className="row-hover" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 8px', borderRadius: 8, cursor: 'pointer' }}>
+                                        <input
+                                            type="checkbox"
+                                            style={{ appearance: 'none', width: 16, height: 16, flex: 'none', borderRadius: 4, background: 'transparent', boxShadow: `inset 0 0 0 1.5px rgba(${theme.textRgb},.28)`, cursor: 'pointer' }}
+                                        />
+                                        <span style={{ flex: 1, minWidth: 0 }}>
+                                            <span style={{ display: 'block', fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.nome}</span>
+                                            <span style={{ display: 'block', fontSize: 11, color: `rgba(${theme.textRgb},.45)` }}>vence {d.venc}</span>
+                                        </span>
+                                        <span style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums', color: theme.valueColor }}>{d.valor}</span>
+                                    </label>
+                                ))}
+                            </div>
+                            <button className="btn btn-ghost" style={{ alignSelf: 'center', marginTop: 'auto', paddingTop: 6, fontSize: 12 }}>
+                                Ver todas ⌄
+                            </button>
+                        </div>
+
+                        {/* Despesas por categoria */}
+                        <div style={{ ...card, padding: 16, display: 'flex', flexDirection: 'column' }}>
                             <div style={{ ...cardHeader, marginBottom: 8 }}>
-                                <h2 style={{ fontSize: 16 }}>Histórico de gastos</h2>
+                                <h2 style={{ fontSize: 15 }}>Despesas por categoria</h2>
+                                <span style={muted}>agosto</span>
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 16, marginTop: 4, marginBottom: 'auto' }}>
+                                <div style={{ position: 'relative', flex: '0 0 auto', width: 125, height: 125 }}>
+                                    <svg viewBox="0 0 160 160" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
+                                        <circle cx="80" cy="80" r="70" fill="none" stroke={`rgba(${theme.textRgb},.06)`} strokeWidth={16} />
+                                        <circle cx="80" cy="80" r="70" fill="none" stroke={theme.chartLight} strokeWidth={16} strokeDasharray="151 289" strokeDashoffset="0" style={{ animation: 'drawRing 1s cubic-bezier(.2,.8,.2,1)' }} />
+                                        <circle cx="80" cy="80" r="70" fill="none" stroke={theme.chartMid} strokeWidth={16} strokeDasharray="130 310" strokeDashoffset="-157" />
+                                        <circle cx="80" cy="80" r="70" fill="none" stroke={theme.chartDeep} strokeWidth={16} strokeDasharray="145 295" strokeDashoffset="-293" />
+                                    </svg>
+                                    <div style={{ position: 'absolute', inset: 0, display: 'grid', placeContent: 'center', textAlign: 'center' }}>
+                                        <div style={{ fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', color: `rgba(${theme.textRgb},.45)` }}>Total</div>
+                                        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 17, letterSpacing: '-.02em' }}>R$ 6.312</div>
+                                    </div>
+                                </div>
+                                <div style={{ flex: '1 1 120px', display: 'flex', flexDirection: 'column', gap: 8, minWidth: 120 }}>
+                                    {[
+                                        { cor: theme.chartLight, nome: 'Moradia', pct: '35%' },
+                                        { cor: theme.chartMid, nome: 'Alimentação', pct: '30%' },
+                                        { cor: theme.chartDeep, nome: 'Transporte', pct: '35%' },
+                                    ].map((c) => (
+                                        <div key={c.nome} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <span style={{ width: 8, height: 8, borderRadius: 2.5, background: c.cor, flex: 'none' }} />
+                                            <span style={{ flex: 1, fontSize: 12.5 }}>{c.nome}</span>
+                                            <span style={{ fontSize: 12.5, fontVariantNumeric: 'tabular-nums', color: `rgba(${theme.textRgb},.7)` }}>{c.pct}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div style={{ paddingTop: 8, marginTop: 'auto', fontSize: 11.5, color: `rgba(${theme.textRgb},.45)`, background: `linear-gradient(to right,rgba(${theme.textRgb},.12),transparent) no-repeat top/100% 1px` }}>
+                                Moradia subiu R$ 240 em relação a julho.
+                            </div>
+                        </div>
+
+                        {/* Histórico de gastos */}
+                        <div style={{ ...card, padding: 16, display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ ...cardHeader, marginBottom: 8 }}>
+                                <h2 style={{ fontSize: 15 }}>Histórico de gastos</h2>
                                 <a href="#" style={{ fontSize: 12 }}>Ver tudo</a>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                                 {HISTORICO.map((h) => (
-                                    <div key={h.nome} className="row-hover" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 8px', borderRadius: 9 }}>
+                                    <div key={h.nome} className="row-hover" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 8px', borderRadius: 8 }}>
                                         <span
                                             style={{
-                                                width: 32,
-                                                height: 32,
+                                                width: 28,
+                                                height: 28,
                                                 flex: 'none',
-                                                borderRadius: 9,
+                                                borderRadius: 7,
                                                 display: 'grid',
                                                 placeItems: 'center',
-                                                fontSize: 13,
+                                                fontSize: 12,
                                                 background: `rgba(${theme.accentRgb},.14)`,
                                                 boxShadow: `inset 0 0 0 1px rgba(${theme.accentRgb},.28)`,
                                                 color: theme.softText,
@@ -631,15 +703,15 @@ export default function Sovinna() {
                                             {h.ini}
                                         </span>
                                         <span style={{ flex: 1, minWidth: 0 }}>
-                                            <span style={{ display: 'block', fontSize: 13.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{h.nome}</span>
-                                            <span style={{ display: 'block', fontSize: 11.5, color: `rgba(${theme.textRgb},.45)` }}>{h.cat} · {h.data}</span>
+                                            <span style={{ display: 'block', fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{h.nome}</span>
+                                            <span style={{ display: 'block', fontSize: 11, color: `rgba(${theme.textRgb},.45)` }}>{h.cat} · {h.data}</span>
                                         </span>
-                                        <span style={{ fontSize: 13.5, fontVariantNumeric: 'tabular-nums', color: theme.valueColor }}>{h.valor}</span>
+                                        <span style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums', color: theme.valueColor }}>{h.valor}</span>
                                     </div>
                                 ))}
                             </div>
                         </div>
-                    </aside>
+                    </section>
                 </div>
             </div>
         </>
