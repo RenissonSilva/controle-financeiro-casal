@@ -47,7 +47,10 @@ export default function ThemeStyles({ theme }) {
             .orb .btn-ghost:hover { background: rgba(var(--color-accent-rgb),.1); }
             .orb .nav-link { transition: background .12s, color .12s; }
             .orb .nav-link:hover { color: var(--color-text); background: rgba(var(--color-text-rgb),.06); }
-            .orb .row-hover:hover { background: rgba(var(--color-text-rgb),.045); }
+            .orb .row-hover { transition: background .15s ease, transform .15s ease; }
+            .orb .row-hover:hover { background: rgba(var(--color-text-rgb),.05); }
+            .orb .card-hover { transition: transform .2s cubic-bezier(.16,1,.3,1), box-shadow .2s ease; }
+            .orb .card-hover:hover { transform: translateY(-2px); }
             .orb a { color: var(--color-accent); text-decoration: none; }
             .orb .scroll-thin {
                 scrollbar-width: thin;
@@ -65,3 +68,4 @@ export default function ThemeStyles({ theme }) {
         `}</style>
     );
 }
+
