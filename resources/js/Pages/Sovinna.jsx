@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import ThemeStyles from '@/Components/ThemeStyles';
 import { mareTheme, cardStyle, cardHeaderStyle, mutedStyle } from '@/theme/mare';
 
@@ -22,6 +23,8 @@ const HISTORICO = [
     { nome: 'Posto Shell', cat: 'Transporte', data: '01/08', valor: 'R$ 260,00', tipo: 'despesa' },
     { nome: 'Farmácia São João', cat: 'Saúde', data: '31/07', valor: 'R$ 96,50', tipo: 'despesa' },
     { nome: 'Academia Pulse', cat: 'Lazer', data: '30/07', valor: 'R$ 149,00', tipo: 'despesa' },
+    { nome: 'Academia Pulse 2', cat: 'Lazer', data: '30/07', valor: 'R$ 149,00', tipo: 'despesa' },
+    { nome: 'Academia Pulse 3', cat: 'Lazer', data: '30/07', valor: 'R$ 149,00', tipo: 'despesa' },
 ];
 
 // Sistema de temas: cada entrada define todos os tokens de cor usados na tela.
@@ -307,6 +310,12 @@ export default function Sovinna() {
     const income = theme.income || theme.chartLight;
     const expense = theme.expense || '#fa8c8c';
     const expenseRgb = theme.expenseRgb || '203,213,225';
+
+    const despesasCategoria = [
+        { cor: theme.chartLight, nome: 'Moradia', pct: '35%', valor: 35 },
+        { cor: theme.chartMid, nome: 'Alimentação', pct: '30%', valor: 30 },
+        { cor: theme.chartDeep, nome: 'Transporte', pct: '35%', valor: 35 },
+    ];
 
 
 
@@ -657,35 +666,31 @@ export default function Sovinna() {
                                 boxShadow: `inset 0 0 0 1px rgba(${theme.textRgb},.08), 0 8px 24px -6px rgba(0,0,0,.2)`,
                                 display: 'flex',
                                 flexDirection: 'column',
-                                justifyContent: 'space-between',
+                                gap: 16,
                             }}
                         >
-                            <div>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: `rgba(${theme.textRgb},.6)` }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontWeight: 500 }}>
-                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={theme.strongAccent} strokeWidth={1.8}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <span style={{ width: 26, height: 26, borderRadius: '50%', background: `rgba(${theme.accentRgb},.16)`, display: 'grid', placeItems: 'center', flex: 'none' }}>
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={theme.strongAccent} strokeWidth={2.2}>
                                             <circle cx="12" cy="12" r="9" />
                                             <circle cx="12" cy="12" r="4" />
                                         </svg>
+                                    </span>
+                                    <span style={{ fontSize: 13, fontWeight: 600, letterSpacing: '-.01em', color: theme.text }}>
                                         Meta · Investimentos
-                                    </div>
-                                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: `rgba(${theme.textRgb},.06)`, color: `rgba(${theme.textRgb},.5)` }}>
-                                        até dez/26
                                     </span>
                                 </div>
-                                <div style={{ marginTop: 12, display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                                    <span style={{ fontFamily: 'var(--font-heading)', fontSize: 'clamp(22px,2.2vw,26px)', fontWeight: 500, letterSpacing: '-.02em' }}>R$ 21.000</span>
-                                    <span style={{ fontSize: 12, color: `rgba(${theme.textRgb},.45)` }}>de R$ 30k</span>
-                                </div>
-                                <div style={{ marginTop: 6, fontSize: 12, color: `rgba(${theme.textRgb},.5)` }}>
-                                    Faltam R$ 9.000 · R$ 1.800/mês
-                                </div>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: theme.strongAccent }}>70%</span>
                             </div>
-                            <div style={{ marginTop: 14, position: 'relative', height: 22, borderRadius: 8, background: `rgba(${theme.textRgb},.07)`, overflow: 'hidden' }}>
-                                <div style={{ position: 'absolute', inset: '0 30% 0 0', borderRadius: 8, background: `linear-gradient(90deg, ${theme.progressGradStart}, ${theme.progressGradEnd})`, transformOrigin: 'left', animation: 'riseBar 1s cubic-bezier(.2,.8,.2,1)' }} />
-                                <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', paddingLeft: 12, fontSize: 11.5, fontWeight: 600, color: theme.progressText }}>
-                                    70% concluído
-                                </span>
+
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                                <span style={{ fontFamily: 'var(--font-heading)', fontSize: 'clamp(24px,2.4vw,28px)', fontWeight: 500, letterSpacing: '-.02em', color: theme.text }}>R$ 21.000</span>
+                                <span style={{ fontSize: 12, color: `rgba(${theme.textRgb},.45)` }}>de R$ 30.000 · até dez/26</span>
+                            </div>
+
+                            <div style={{ height: 8, borderRadius: 999, background: `rgba(${theme.textRgb},.08)`, overflow: 'hidden' }}>
+                                <div style={{ height: '100%', width: '70%', borderRadius: 999, background: `linear-gradient(90deg, ${theme.progressGradStart}, ${theme.progressGradEnd})`, transformOrigin: 'left', animation: 'riseBar 1s cubic-bezier(.2,.8,.2,1)' }} />
                             </div>
                         </div>
                     </section>
@@ -809,27 +814,50 @@ export default function Sovinna() {
                                 <h2 style={{ fontSize: 15, fontWeight: 600 }}>Despesas por categoria</h2>
                                 <span style={muted}>agosto</span>
                             </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 18, marginTop: 6, marginBottom: 'auto' }}>
-                                <div style={{ position: 'relative', flex: '0 0 auto', width: 125, height: 125 }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', alignContent: 'center', justifyContent: 'center', gap: 18, marginTop: 6, flex: 1 }}>
+                                <div style={{ position: 'relative', flex: '0 0 auto', width: 170, height: 170 }}>
                                     <div style={{ position: 'absolute', inset: -10, borderRadius: '50%', background: `radial-gradient(circle, rgba(${theme.accentRgb},.15) 0%, transparent 70%)`, pointerEvents: 'none' }} />
-                                    <svg viewBox="0 0 160 160" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)', position: 'relative', zIndex: 1 }}>
-                                        <circle cx="80" cy="80" r="70" fill="none" stroke={`rgba(${theme.textRgb},.06)`} strokeWidth={16} />
-                                        <circle cx="80" cy="80" r="70" fill="none" stroke={theme.chartLight} strokeWidth={16} strokeDasharray="151 289" strokeDashoffset="0" style={{ animation: 'drawRing 1s cubic-bezier(.2,.8,.2,1)' }} />
-                                        <circle cx="80" cy="80" r="70" fill="none" stroke={theme.chartMid} strokeWidth={16} strokeDasharray="130 310" strokeDashoffset="-157" />
-                                        <circle cx="80" cy="80" r="70" fill="none" stroke={theme.chartDeep} strokeWidth={16} strokeDasharray="145 295" strokeDashoffset="-293" />
-                                    </svg>
-                                    <div style={{ position: 'absolute', inset: 0, display: 'grid', placeContent: 'center', textAlign: 'center', zIndex: 2 }}>
-                                        <div style={{ fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', color: `rgba(${theme.textRgb},.45)` }}>Total</div>
-                                        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 17, fontWeight: 600, letterSpacing: '-.02em' }}>R$ 6.312</div>
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={despesasCategoria}
+                                                dataKey="valor"
+                                                nameKey="nome"
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={54}
+                                                outerRadius={70}
+                                                startAngle={90}
+                                                endAngle={-270}
+                                                paddingAngle={4}
+                                                cornerRadius={8}
+                                                stroke="none"
+                                            >
+                                                {despesasCategoria.map((c) => (
+                                                    <Cell key={c.nome} fill={c.cor} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip
+                                                formatter={(value, name) => [`${value}%`, name]}
+                                                contentStyle={{
+                                                    background: theme.surface,
+                                                    border: `1px solid rgba(${theme.textRgb},.12)`,
+                                                    borderRadius: 8,
+                                                    color: theme.text,
+                                                    fontSize: 12,
+                                                }}
+                                                itemStyle={{ color: theme.text }}
+                                            />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                    <div style={{ position: 'absolute', inset: 0, display: 'grid', placeContent: 'center', textAlign: 'center', zIndex: 2, pointerEvents: 'none' }}>
+                                        <div style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: `rgba(${theme.textRgb},.45)` }}>Total</div>
+                                        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 20, fontWeight: 600, letterSpacing: '-.02em' }}>R$ 6.312</div>
                                     </div>
                                 </div>
                                 <div style={{ flex: '1 1 120px', display: 'flex', flexDirection: 'column', gap: 9, minWidth: 120 }}>
-                                    {[
-                                        { cor: theme.chartLight, nome: 'Moradia', pct: '35%' },
-                                        { cor: theme.chartMid, nome: 'Alimentação', pct: '30%' },
-                                        { cor: theme.chartDeep, nome: 'Transporte', pct: '35%' },
-                                    ].map((c) => (
-                                        <div key={c.nome} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 6px', borderRadius: 6, background: `rgba(${theme.textRgb},.03)` }}>
+                                    {despesasCategoria.map((c) => (
+                                        <div key={c.nome} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 6px', borderRadius: 6 }}>
                                             <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.cor, flex: 'none', boxShadow: `0 0 6px ${c.cor}` }} />
                                             <span style={{ flex: 1, fontSize: 12.5, fontWeight: 500 }}>{c.nome}</span>
                                             <span style={{ fontSize: 12.5, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: `rgba(${theme.textRgb},.8)` }}>{c.pct}</span>
@@ -857,7 +885,7 @@ export default function Sovinna() {
                             <div style={{ ...cardHeader, marginBottom: 12 }}>
                                 <h2 style={{ fontSize: 15, fontWeight: 600 }}>Histórico de movimentações</h2>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <div className="scroll-thin" style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 220, overflowY: 'auto', paddingRight: 4 }}>
                                 {HISTORICO.map((h, index) => {
                                     const isReceita = h.tipo === 'receita';
                                     return (
