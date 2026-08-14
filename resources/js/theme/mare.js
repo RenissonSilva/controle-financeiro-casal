@@ -26,8 +26,10 @@ export const mareTheme = {
     valueColor: '#c3dbe0',
     ambientGlow: '#16344a',
     income: '#b5e38a',
+    incomeRgb: '181,227,138',
     incomeDeep: '#4b7a45',
     expense: '#5ec1e0',
+    expenseRgb: '94,193,224',
     expenseDeep: '#1b5875',
 };
 

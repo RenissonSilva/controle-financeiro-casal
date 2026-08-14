@@ -8,20 +8,20 @@ const SCORE = 62;
 const GAUGE_OFFSET = 283 - 283 * (Math.max(0, Math.min(100, SCORE)) / 100);
 
 const PROXIMAS = [
-    { nome: 'Aluguel', venc: '10/08', valor: 'R$ 2.150,00' },
-    { nome: 'Cartão Nubank', venc: '12/08', valor: 'R$ 1.284,30' },
-    { nome: 'Energia · Enel', venc: '15/08', valor: 'R$ 187,40' },
-    { nome: 'Internet · Vivo', venc: '18/08', valor: 'R$ 119,90' },
-    { nome: 'Internet · Vivo', venc: '18/08', valor: 'R$ 119,90' },
-    { nome: 'Internet · Vivo', venc: '18/08', valor: 'R$ 119,90' },
-    { nome: 'Internet · Vivo', venc: '18/08', valor: 'R$ 119,90' },
+    { nome: 'Aluguel', cat: 'Moradia', venc: '10/08', valor: 'R$ 2.150,00', tipo: 'despesa' },
+    { nome: 'Depósito Salário', cat: 'Renda', venc: '11/08', valor: 'R$ 4.850,00', tipo: 'receita' },
+    { nome: 'Cartão Nubank', cat: 'Cartão de Crédito', venc: '12/08', valor: 'R$ 1.284,30', tipo: 'despesa' },
+    { nome: 'Energia · Enel', cat: 'Utilidades', venc: '15/08', valor: 'R$ 187,40', tipo: 'despesa' },
+    { nome: 'Rendimento Inv.', cat: 'Investimentos', venc: '16/08', valor: 'R$ 320,00', tipo: 'receita' },
+    { nome: 'Internet · Vivo', cat: 'Serviços', venc: '18/08', valor: 'R$ 119,90', tipo: 'despesa' },
 ];
 
 const HISTORICO = [
-    { ini: 'MC', nome: 'Mercado Central', cat: 'Alimentação', data: '02/08', valor: 'R$ 412,80' },
-    { ini: 'PS', nome: 'Posto Shell', cat: 'Transporte', data: '01/08', valor: 'R$ 260,00' },
-    { ini: 'FA', nome: 'Farmácia São João', cat: 'Saúde', data: '31/07', valor: 'R$ 96,50' },
-    { ini: 'AC', nome: 'Academia Pulse', cat: 'Lazer', data: '30/07', valor: 'R$ 149,00' },
+    { nome: 'Mercado Central', cat: 'Alimentação', data: '02/08', valor: 'R$ 412,80', tipo: 'despesa' },
+    { nome: 'Projeto Freelance', cat: 'Renda Extra', data: '02/08', valor: 'R$ 1.500,00', tipo: 'receita' },
+    { nome: 'Posto Shell', cat: 'Transporte', data: '01/08', valor: 'R$ 260,00', tipo: 'despesa' },
+    { nome: 'Farmácia São João', cat: 'Saúde', data: '31/07', valor: 'R$ 96,50', tipo: 'despesa' },
+    { nome: 'Academia Pulse', cat: 'Lazer', data: '30/07', valor: 'R$ 149,00', tipo: 'despesa' },
 ];
 
 // Sistema de temas: cada entrada define todos os tokens de cor usados na tela.
@@ -305,9 +305,8 @@ export default function Sovinna() {
 
     const heroCardGradStart = theme.heroCardGradStart || theme.healthCardGradStart;
     const income = theme.income || theme.chartLight;
-    const incomeDeep = theme.incomeDeep || theme.chartMid;
-    const expense = theme.expense || theme.chartDeep;
-    const expenseDeep = theme.expenseDeep || theme.chartDeep;
+    const expense = theme.expense || '#fa8c8c';
+    const expenseRgb = theme.expenseRgb || '203,213,225';
 
 
 
@@ -520,7 +519,7 @@ export default function Sovinna() {
                             </div>
                             <div>
                                 <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: '-.01em' }}>Saúde financeira</div>
-                                <div style={{ fontSize: 12, color: theme.softText, marginTop: 1 }}>Excelente · 30 dias</div>
+                                <div style={{ fontSize: 12, color: theme.expense, marginTop: 1 }}>Excelente · 30 dias</div>
                             </div>
                         </div>
                     </section>
@@ -535,7 +534,7 @@ export default function Sovinna() {
                                 padding: 22,
                                 borderRadius: 18,
                                 background: `linear-gradient(135deg, rgba(${theme.accentRgb},.32) 0%, ${heroCardGradStart} 50%, ${theme.surface} 100%)`,
-                                boxShadow: `inset 0 0 0 1.5px rgba(${theme.strongAccentGlowRgb},.55), 0 16px 40px -8px rgba(${theme.accentRgb},.35)`,
+                                boxShadow: `inset 0 0 0 1px rgba(${theme.textRgb},.08), 0 8px 24px -6px rgba(0,0,0,.2)`,
                                 display: 'flex',
                                 flexDirection: 'column',
                                 justifyContent: 'space-between',
@@ -543,9 +542,6 @@ export default function Sovinna() {
                                 overflow: 'hidden',
                             }}
                         >
-                            {/* Ambient Glow inside card */}
-                            <div style={{ position: 'absolute', top: '-25%', right: '-20%', width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, rgba(${theme.strongAccentGlowRgb},.35) 0%, transparent 70%)`, pointerEvents: 'none', zIndex: 0 }} />
-
                             <div style={{ position: 'relative', zIndex: 1 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 600, color: theme.text }}>
@@ -578,7 +574,7 @@ export default function Sovinna() {
                                 </defs>
                                 <path d="M0 34 L24 30 L48 33 L72 22 L96 26 L120 15 L144 19 L168 12 L192 16 L220 6 L220 44 L0 44Z" fill="url(#sovinna-spark)" />
                                 <path d="M0 34 L24 30 L48 33 L72 22 L96 26 L120 15 L144 19 L168 12 L192 16 L220 6" fill="none" stroke={theme.strongAccent} strokeWidth={2.2} strokeLinejoin="round" strokeLinecap="round" />
-                                <circle cx="220" cy="6" r="3.8" fill={theme.strongAccent} style={{ filter: `drop-shadow(0 0 8px ${theme.strongAccent})` }} />
+                                <circle cx="220" cy="6" r="3.8" fill={theme.strongAccent} />
                             </svg>
                         </div>
 
@@ -606,45 +602,46 @@ export default function Sovinna() {
                             </div>
 
                             {/* Dual Metrics Grid */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'center' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 16, alignItems: 'center' }}>
                                 {/* Receitas */}
-                                <div style={{ padding: '12px 14px', borderRadius: 12 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: `rgba(${theme.textRgb},.6)` }}>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={income} strokeWidth={2}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <span style={{ width: 26, height: 26, borderRadius: '50%', background: `rgba(${theme.accentRgb},.16)`, display: 'grid', placeItems: 'center', flex: 'none' }}>
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={income} strokeWidth={2.5}>
                                             <path d="M12 19V5M12 5l-6 6M12 5l6 6" />
                                         </svg>
-                                        Receitas
+                                    </span>
+                                    <div>
+                                        <div style={{ fontSize: 11.5, color: `rgba(${theme.textRgb},.55)` }}>Receitas</div>
+                                        <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 19, letterSpacing: '-.02em', color: income }}>
+                                            R$ 9.850,00
+                                        </div>
                                     </div>
-                                    <div style={{ marginTop: 6, fontFamily: 'var(--font-heading)', fontWeight: 500, fontSize: 'clamp(20px,2vw,24px)', letterSpacing: '-.02em' }}>
-                                        R$ 9.850<span style={{ fontSize: '.6em', opacity: 0.6 }}>,00</span>
-                                    </div>
-                                    <div style={{ marginTop: 4, fontSize: 11.5, color: `rgba(${theme.textRgb},.45)` }}>3 fontes ativas</div>
                                 </div>
 
+                                {/* Central Divider */}
+                                <div style={{ width: 1, alignSelf: 'stretch', background: `rgba(${theme.textRgb},.1)` }} />
+
                                 {/* Despesas */}
-                                <div style={{ padding: '12px 14px', borderRadius: 12, textAlign: 'right' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, fontSize: 12, color: `rgba(${theme.textRgb},.6)` }}>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={expense} strokeWidth={2}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, textAlign: 'right' }}>
+                                    <div>
+                                        <div style={{ fontSize: 11.5, color: `rgba(${theme.textRgb},.55)` }}>Despesas</div>
+                                        <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 19, letterSpacing: '-.02em', color: expense }}>
+                                            R$ 6.312,40
+                                        </div>
+                                    </div>
+                                    <span style={{ width: 26, height: 26, borderRadius: '50%', background: `rgba(${expenseRgb},.16)`, display: 'grid', placeItems: 'center', flex: 'none' }}>
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={expense} strokeWidth={2.5}>
                                             <path d="M12 5v14M12 19l6-6M12 19l-6-6" />
                                         </svg>
-                                        Despesas
-                                    </div>
-                                    <div style={{ marginTop: 6, fontFamily: 'var(--font-heading)', fontWeight: 500, fontSize: 'clamp(20px,2vw,24px)', letterSpacing: '-.02em', color: expense }}>
-                                        R$ 6.312<span style={{ fontSize: '.6em', opacity: 0.6 }}>,40</span>
-                                    </div>
-                                    <div style={{ marginTop: 4, fontSize: 11.5, color: `rgba(${theme.textRgb},.45)` }}>64% da renda alocada</div>
+                                    </span>
                                 </div>
                             </div>
 
                             {/* Ratio Progress Indicator Bar */}
-                            <div style={{ marginTop: 14 }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: `rgba(${theme.textRgb},.5)`, marginBottom: 5 }}>
-                                    <span>Uso da Renda</span>
-                                    <span>64% comprometidos</span>
-                                </div>
-                                <div style={{ height: 7, borderRadius: 999, background: `rgba(${theme.textRgb},.08)`, overflow: 'hidden', display: 'flex' }}>
-                                    <div style={{ height: '100%', width: '64%', borderRadius: '999px 0 0 999px', background: `linear-gradient(90deg, ${expenseDeep}, ${expense})`, transition: 'width 1s ease' }} />
-                                    <div style={{ height: '100%', width: '36%', borderRadius: '0 999px 999px 0', background: `linear-gradient(90deg, ${incomeDeep}, ${income})`, opacity: 0.8 }} />
+                            <div style={{ marginTop: 16 }}>
+                                <div style={{ height: 6, borderRadius: 999, background: `rgba(${theme.textRgb},.08)`, overflow: 'hidden', display: 'flex' }}>
+                                    <div style={{ height: '100%', width: '36%', borderRadius: '999px 0 0 999px', background: income, transition: 'width 1s ease' }} />
+                                    <div style={{ height: '100%', width: '64%', borderRadius: '0 999px 999px 0', background: expense, opacity: 0.85 }} />
                                 </div>
                             </div>
                         </div>
@@ -695,7 +692,7 @@ export default function Sovinna() {
 
                     {/* Bottom Row: Próximas Despesas (Checklist), Despesas Por Categoria (Graphic Spotlight), Histórico (Timeline Feed) */}
                     <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 'clamp(14px,1.6vw,20px)', alignItems: 'stretch' }}>
-                        {/* Próximas despesas (Checklist Visual Style) */}
+                        {/* Próximas despesas / Atividades (Visual Activity Feed Style) */}
                         <div
                             className="card-hover"
                             style={{
@@ -713,32 +710,83 @@ export default function Sovinna() {
                                     <span style={{ fontSize: 11.5, color: `rgba(${theme.textRgb},.45)` }}>Próximos 7 dias</span>
                                 </div>
                                 <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 999, background: `rgba(${theme.accentRgb},.12)`, color: theme.strongAccent, fontWeight: 500 }}>
-                                    7 contas
+                                    {PROXIMAS.length} gastos
                                 </span>
                             </div>
-                            <div className="scroll-thin" style={{ display: 'flex', flexDirection: 'column', gap: 3, maxHeight: 220, overflowY: 'auto', paddingRight: 4 }}>
-                                {PROXIMAS.map((d) => (
-                                    <label key={d.nome} className="row-hover" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10, cursor: 'pointer', border: `1px solid transparent` }}>
-                                        <input
-                                            type="checkbox"
+                            <div className="scroll-thin" style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 220, overflowY: 'auto', paddingRight: 4 }}>
+                                {PROXIMAS.map((d, index) => {
+                                    const isReceita = d.tipo === 'receita';
+                                    return (
+                                        <div
+                                            key={d.nome + index}
+                                            className="row-hover"
                                             style={{
-                                                appearance: 'none',
-                                                width: 17,
-                                                height: 17,
-                                                flex: 'none',
-                                                borderRadius: 5,
-                                                background: 'transparent',
-                                                boxShadow: `inset 0 0 0 1.5px rgba(${theme.textRgb},.3)`,
-                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 12,
+                                                padding: '8px 10px',
+                                                borderRadius: 10,
                                             }}
-                                        />
-                                        <span style={{ flex: 1, minWidth: 0 }}>
-                                            <span style={{ display: 'block', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.nome}</span>
-                                            <span style={{ display: 'block', fontSize: 11, color: `rgba(${theme.textRgb},.45)` }}>vence {d.venc}</span>
-                                        </span>
-                                        <span style={{ fontSize: 13, fontWeight: 500, fontVariantNumeric: 'tabular-nums', color: theme.valueColor }}>{d.valor}</span>
-                                    </label>
-                                ))}
+                                        >
+                                            {/* Data à esquerda da cobrança */}
+                                            <span style={{ fontSize: 12, fontWeight: 500, color: `rgba(${theme.textRgb},.5)`, minWidth: 42, flexShrink: 0 }}>
+                                                {d.venc}
+                                            </span>
+
+                                            {/* Seta indicadora (cima = receita/verde, baixo = cobrança/prateado) */}
+                                            <div
+                                                style={{
+                                                    width: 28,
+                                                    height: 28,
+                                                    borderRadius: '50%',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    flexShrink: 0,
+                                                    background: isReceita ? 'rgba(34, 197, 94, 0.15)' : 'rgba(185, 190, 190, 0.15)',
+                                                    color: isReceita ? '#8ED79B' : '#b9bfbf',
+                                                }}
+                                            >
+                                                {isReceita ? (
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                        <line x1="12" y1="19" x2="12" y2="5" />
+                                                        <polyline points="5 12 12 5 19 12" />
+                                                    </svg>
+                                                ) : (
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                        <line x1="12" y1="5" x2="12" y2="19" />
+                                                        <polyline points="19 12 12 19 5 12" />
+                                                    </svg>
+                                                )}
+                                            </div>
+
+                                            {/* Cobrança / Nome & Categoria */}
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <span style={{ display: 'block', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                    {d.nome}
+                                                </span>
+                                                {d.cat && (
+                                                    <span style={{ display: 'block', fontSize: 11, color: `rgba(${theme.textRgb},.45)`, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                        {d.cat}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Valor à direita (Verde para receita, Prateado para cobrança) */}
+                                            <span
+                                                style={{
+                                                    fontSize: 13,
+                                                    fontWeight: 600,
+                                                    fontVariantNumeric: 'tabular-nums',
+                                                    color: isReceita ? '#8ED79B' : '#b9bfbf',
+                                                    flexShrink: 0,
+                                                }}
+                                            >
+                                                {isReceita ? `+${d.valor}` : `-${d.valor}`}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
                             </div>
                             <button className="btn btn-ghost" style={{ alignSelf: 'center', marginTop: 'auto', paddingTop: 10, fontSize: 12, fontWeight: 500 }}>
                                 Ver todas ⌄
@@ -807,36 +855,58 @@ export default function Sovinna() {
                             }}
                         >
                             <div style={{ ...cardHeader, marginBottom: 12 }}>
-                                <h2 style={{ fontSize: 15, fontWeight: 600 }}>Histórico de gastos</h2>
-                                <a href="#" style={{ fontSize: 12, fontWeight: 500 }}>Ver tudo</a>
+                                <h2 style={{ fontSize: 15, fontWeight: 600 }}>Histórico de movimentações</h2>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                {HISTORICO.map((h) => (
-                                    <div key={h.nome} className="row-hover" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10 }}>
-                                        <span
-                                            style={{
-                                                width: 32,
-                                                height: 32,
-                                                flex: 'none',
-                                                borderRadius: '50%',
-                                                display: 'grid',
-                                                placeItems: 'center',
-                                                fontSize: 12,
-                                                fontWeight: 600,
-                                                background: `rgba(${theme.accentRgb},.15)`,
-                                                boxShadow: `inset 0 0 0 1px rgba(${theme.accentRgb},.3)`,
-                                                color: theme.softText,
-                                            }}
-                                        >
-                                            {h.ini}
-                                        </span>
-                                        <span style={{ flex: 1, minWidth: 0 }}>
-                                            <span style={{ display: 'block', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{h.nome}</span>
-                                            <span style={{ display: 'block', fontSize: 11, color: `rgba(${theme.textRgb},.45)` }}>{h.cat} · {h.data}</span>
-                                        </span>
-                                        <span style={{ fontSize: 13, fontWeight: 500, fontVariantNumeric: 'tabular-nums', color: theme.valueColor }}>{h.valor}</span>
-                                    </div>
-                                ))}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                {HISTORICO.map((h, index) => {
+                                    const isReceita = h.tipo === 'receita';
+                                    return (
+                                        <div key={h.nome + index} className="row-hover" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 10px', borderRadius: 10 }}>
+                                            {/* Data à esquerda */}
+                                            <span style={{ fontSize: 12, fontWeight: 500, color: `rgba(${theme.textRgb},.5)`, minWidth: 42, flexShrink: 0 }}>
+                                                {h.data}
+                                            </span>
+
+                                            {/* Seta (verde pra cima se receita, prateado pra baixo se cobrança) */}
+                                            <div
+                                                style={{
+                                                    width: 28,
+                                                    height: 28,
+                                                    borderRadius: '50%',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    flexShrink: 0,
+                                                    background: isReceita ? 'rgba(34, 197, 94, 0.15)' : 'rgba(185, 190, 190, 0.15)',
+                                                    color: isReceita ? '#8ED79B' : '#b9bfbf',
+                                                }}
+                                            >
+                                                {isReceita ? (
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                        <line x1="12" y1="19" x2="12" y2="5" />
+                                                        <polyline points="5 12 12 5 19 12" />
+                                                    </svg>
+                                                ) : (
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                        <line x1="12" y1="5" x2="12" y2="19" />
+                                                        <polyline points="19 12 12 19 5 12" />
+                                                    </svg>
+                                                )}
+                                            </div>
+
+                                            {/* Nome e Categoria */}
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <span style={{ display: 'block', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{h.nome}</span>
+                                                <span style={{ display: 'block', fontSize: 11, color: `rgba(${theme.textRgb},.45)` }}>{h.cat}</span>
+                                            </div>
+
+                                            {/* Valor à direita */}
+                                            <span style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: isReceita ? '#8ED79B' : '#b9bfbf', flexShrink: 0 }}>
+                                                {isReceita ? `+${h.valor}` : `-${h.valor}`}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     </section>
