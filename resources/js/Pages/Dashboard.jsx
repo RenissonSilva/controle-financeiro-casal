@@ -48,7 +48,7 @@ export default function Dashboard() {
                     </h1>
                     <div className="inline-flex items-center gap-2 rounded-full bg-accent/12 py-[5px] pl-2.5 pr-3.5 shadow-[inset_0_0_0_1px_rgb(var(--color-accent-rgb)/0.35)] backdrop-blur">
                         <span className="h-[7px] w-[7px] rounded-full bg-strong-accent shadow-[0_0_10px_2px_rgb(var(--color-strong-accent-rgb)/0.7)]" />
-                        <span className="text-[13px] text-soft-text">Suas finanças estão saudáveis</span>
+                        <span className="text-[13px] text-income">Suas finanças estão saudáveis</span>
                     </div>
                 </div>
 
@@ -61,13 +61,13 @@ export default function Dashboard() {
                     <GaugeArc score={SCORE} />
                     <div>
                         <div className="text-[13.5px] font-semibold tracking-[-.01em]">Saúde financeira</div>
-                        <div className="mt-px text-xs text-expense">Excelente · 30 dias</div>
+                        <div className="mt-px text-xs text-income font-semibold">Excelente · 30 dias</div>
                     </div>
                 </Card>
             </section>
 
             <section className="mt-[clamp(14px,2vw,24px)] flex justify-end gap-[clamp(14px,1.6vw,20px)]">
-                <div className="text-xs uppercase tracking-[.12em] text-text/60">Agosto de 2026</div>
+                <div className="text-xs uppercase tracking-[.12em] text-text/70">Agosto de 2026</div>
             </section>
 
             {/* Top Row: Saldo Total (Hero), Fluxo de Caixa (Unificado), Meta Investimentos */}
@@ -80,7 +80,9 @@ export default function Dashboard() {
                     <div className="relative z-[1]">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-[7px] text-xs font-semibold text-text">
-                                <CreditCard size={15} strokeWidth={2} className="stroke-strong-accent" />
+                                <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-full bg-accent/16">
+                                    <CreditCard size={13} strokeWidth={2.2} className="stroke-strong-accent" />
+                                </span>
                                 Saldo Total
                             </div>
                             <span className="rounded-full bg-[linear-gradient(90deg,var(--color-strong-accent),var(--color-accent))] px-2.5 py-[3px] text-[11px] font-bold text-bg shadow-[0_2px_8px_rgba(0,0,0,0.25)]">
@@ -204,7 +206,6 @@ export default function Dashboard() {
                         className="mb-2.5"
                         icon={<PieChart size={13} strokeWidth={2.2} className="stroke-strong-accent" />}
                         title="Despesas por categoria"
-                        action={<span className="text-[11.5px] text-text/45">agosto</span>}
                     />
                     <DonutChart data={DESPESAS_CATEGORIA} totalValue="R$ 6.312" tooltipSuffix="%" />
                 </Card>

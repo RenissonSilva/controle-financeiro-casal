@@ -61,8 +61,8 @@
     --color-ambient-glow-rgb: 22 52 74;
     --color-income: #b5e38a;
     --color-income-rgb: 181 227 138;
-    --color-expense: #5ec1e0;
-    --color-expense-rgb: 94 193 224;
+    --color-expense: #f98c8c;
+    --color-expense-rgb: 249 140 140;
     --font-heading: 'Poppins', system-ui, sans-serif;
     --font-body: 'Poppins', system-ui, sans-serif;
 }

@@ -34,22 +34,22 @@ export default function AppLayout({ title, children }) {
                         </span>
                     </div>
 
-                    <nav className="flex gap-0.5 rounded-full bg-text/5 p-1 shadow-[inset_0_0_0_1px_rgb(var(--color-text-rgb)/0.09)]">
+                    <nav className="flex gap-0.5 rounded-full bg-text/12 p-1 shadow-[inset_0_0_0_1px_rgb(var(--color-text-rgb)/0.14)]">
                         <Link
                             href={route('dashboard')}
-                            className="rounded-full bg-accent/18 px-[18px] py-[7px] text-[13.5px] text-text shadow-[inset_0_0_0_1px_rgb(var(--color-accent-rgb)/0.55)]"
+                            className="rounded-full bg-accent/40 px-[18px] py-[7px] text-[13.5px] text-text shadow-[inset_0_0_0_1px_rgb(var(--color-accent-rgb)/0.55)]"
                         >
                             Dashboard
                         </Link>
                         <a
                             href="#"
-                            className="rounded-full px-[18px] py-[7px] text-[13.5px] text-text/60 transition-colors duration-150 hover:bg-text/6 hover:text-text"
+                            className="rounded-full px-[18px] py-[7px] text-[13.5px] text-text/90 transition-colors duration-150 hover:bg-text/14 hover:text-text"
                         >
                             Metas
                         </a>
                         <Link
                             href={route('settings.show')}
-                            className="rounded-full px-[18px] py-[7px] text-[13.5px] text-text/60 transition-colors duration-150 hover:bg-text/6 hover:text-text"
+                            className="rounded-full px-[18px] py-[7px] text-[13.5px] text-text/90 transition-colors duration-150 hover:bg-text/14 hover:text-text"
                         >
                             Configurações
                         </Link>
