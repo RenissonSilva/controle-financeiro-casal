@@ -7,6 +7,7 @@ import DonutChart from '@/Components/ui/DonutChart';
 import GaugeArc from '@/Components/ui/GaugeArc';
 import Button from '@/Components/ui/Button';
 import { theme } from '@/theme/tokens';
+import { CreditCard, ArrowUp, ArrowDown, Target, Wallet, Clock, PieChart, History } from 'lucide-react';
 
 const NOME = 'Reni';
 const SCORE = 62;
@@ -42,7 +43,6 @@ export default function Dashboard() {
             {/* Hero Section */}
             <section className="flex flex-wrap items-center justify-between gap-5">
                 <div>
-                    <div className="mb-2 text-xs uppercase tracking-[.12em] text-text/45">Agosto de 2026</div>
                     <h1 className="mb-2.5 text-[clamp(34px,4.5vw,52px)] font-medium leading-[1.02] tracking-[-.03em]">
                         Bem-vindo, <span className="text-strong-accent">{NOME}</span>
                     </h1>
@@ -53,6 +53,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* Saúde financeira (Glass Badge Pill) */}
+                
                 <Card
                     bg={false}
                     className="flex items-center gap-[18px] rounded-[20px] bg-[linear-gradient(135deg,var(--color-health-card-grad-start)_0%,rgb(var(--color-text-rgb)/0.03)_100%)] px-[22px] py-3 shadow-[inset_0_0_0_1px_rgb(var(--color-accent-rgb)/0.25),0_12px_32px_-8px_rgba(0,0,0,0.25)] backdrop-blur-md"
@@ -65,8 +66,12 @@ export default function Dashboard() {
                 </Card>
             </section>
 
+            <section className="mt-[clamp(14px,2vw,24px)] flex justify-end gap-[clamp(14px,1.6vw,20px)]">
+                <div className="text-xs uppercase tracking-[.12em] text-text/60">Agosto de 2026</div>
+            </section>
+
             {/* Top Row: Saldo Total (Hero), Fluxo de Caixa (Unificado), Meta Investimentos */}
-            <section className="mt-[clamp(14px,2vw,24px)] flex flex-wrap items-stretch gap-[clamp(14px,1.6vw,20px)]">
+            <section className="flex flex-wrap items-stretch gap-[clamp(14px,1.6vw,20px)]">
                 {/* Saldo Total - Hero Card */}
                 <Card
                     bg={false}
@@ -75,10 +80,7 @@ export default function Dashboard() {
                     <div className="relative z-[1]">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-[7px] text-xs font-semibold text-text">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" className="stroke-strong-accent" strokeWidth={2}>
-                                    <rect x="2.5" y="5.5" width="19" height="13" rx="2.5" />
-                                    <path d="M2.5 10h19" />
-                                </svg>
+                                <CreditCard size={15} strokeWidth={2} className="stroke-strong-accent" />
                                 Saldo Total
                             </div>
                             <span className="rounded-full bg-[linear-gradient(90deg,var(--color-strong-accent),var(--color-accent))] px-2.5 py-[3px] text-[11px] font-bold text-bg shadow-[0_2px_8px_rgba(0,0,0,0.25)]">
@@ -111,7 +113,12 @@ export default function Dashboard() {
                 {/* Fluxo do Mês (Painel Unificado para Receitas & Despesas) */}
                 <Card className="flex flex-[2_1_440px] flex-col justify-between">
                     <div className="mb-3 flex items-center justify-between">
-                        <div className="text-[13px] font-semibold tracking-[-.01em] text-text">Fluxo de Caixa</div>
+                        <div className="flex items-center gap-2">
+                            <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-full bg-accent/16">
+                                <Wallet size={13} strokeWidth={2.2} className="stroke-strong-accent" />
+                            </span>
+                            <span className="text-[13px] font-semibold tracking-[-.01em] text-text">Fluxo de Caixa</span>
+                        </div>
                         <div className="text-[11.5px] text-text/50">
                             Balanço estimado: <strong className="font-semibold text-income">+R$ 3.537,60</strong>
                         </div>
@@ -120,9 +127,7 @@ export default function Dashboard() {
                     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
                         <div className="flex items-center gap-2.5">
                             <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-full bg-accent/16">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className="stroke-income" strokeWidth={2.5}>
-                                    <path d="M12 19V5M12 5l-6 6M12 5l6 6" />
-                                </svg>
+                                <ArrowUp size={13} strokeWidth={2.5} className="stroke-income" />
                             </span>
                             <div>
                                 <div className="text-[11.5px] text-text/55">Receitas</div>
@@ -138,9 +143,7 @@ export default function Dashboard() {
                                 <div className="font-heading text-[19px] font-semibold tracking-[-.02em] text-expense">R$ 6.312,40</div>
                             </div>
                             <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-full bg-expense/16">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className="stroke-expense" strokeWidth={2.5}>
-                                    <path d="M12 5v14M12 19l6-6M12 19l-6-6" />
-                                </svg>
+                                <ArrowDown size={13} strokeWidth={2.5} className="stroke-expense" />
                             </span>
                         </div>
                     </div>
@@ -158,10 +161,7 @@ export default function Dashboard() {
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-full bg-accent/16">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className="stroke-strong-accent" strokeWidth={2.2}>
-                                    <circle cx="12" cy="12" r="9" />
-                                    <circle cx="12" cy="12" r="4" />
-                                </svg>
+                                <Target size={13} strokeWidth={2.2} className="stroke-strong-accent" />
                             </span>
                             <span className="text-[13px] font-semibold tracking-[-.01em] text-text">Meta · Investimentos</span>
                         </div>
@@ -183,8 +183,8 @@ export default function Dashboard() {
                 <Card className="flex flex-col">
                     <SectionHeader
                         className="mb-3"
+                        icon={<Clock size={13} strokeWidth={2.2} className="stroke-strong-accent" />}
                         title="Próximas despesas"
-                        subtitle="Próximos 7 dias"
                         action={
                             <span className="rounded-full bg-accent/12 px-[9px] py-[3px] text-[11px] font-medium text-strong-accent">
                                 {PROXIMAS.length} gastos
@@ -196,27 +196,26 @@ export default function Dashboard() {
                             <TransactionRow key={d.nome + index} date={d.venc} nome={d.nome} categoria={d.cat} valor={d.valor} tipo={d.tipo} />
                         ))}
                     </div>
-                    <Button variant="ghost" className="mt-auto self-center pt-2.5 text-xs font-medium">
-                        Ver todas ⌄
-                    </Button>
                 </Card>
 
                 {/* Despesas por categoria */}
                 <Card className="flex flex-col">
                     <SectionHeader
                         className="mb-2.5"
+                        icon={<PieChart size={13} strokeWidth={2.2} className="stroke-strong-accent" />}
                         title="Despesas por categoria"
                         action={<span className="text-[11.5px] text-text/45">agosto</span>}
                     />
                     <DonutChart data={DESPESAS_CATEGORIA} totalValue="R$ 6.312" tooltipSuffix="%" />
-                    <div className="mt-3 border-t border-dashed border-text/12 pt-2.5 text-[11.5px] text-text/50">
-                        💡 Moradia subiu <strong className="text-text">R$ 240</strong> em relação a julho.
-                    </div>
                 </Card>
 
                 {/* Histórico de gastos */}
                 <Card className="flex flex-col">
-                    <SectionHeader className="mb-3" title="Histórico de movimentações" />
+                    <SectionHeader
+                        className="mb-3"
+                        icon={<History size={13} strokeWidth={2.2} className="stroke-strong-accent" />}
+                        title="Histórico de movimentações"
+                    />
                     <div className="scroll-thin flex max-h-[220px] flex-col gap-1 overflow-y-auto pr-1">
                         {HISTORICO.map((h, index) => (
                             <TransactionRow key={h.nome + index} date={h.data} nome={h.nome} categoria={h.cat} valor={h.valor} tipo={h.tipo} />

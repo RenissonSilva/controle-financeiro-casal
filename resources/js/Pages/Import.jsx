@@ -1,6 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router, usePage } from '@inertiajs/react';
 import { useRef, useState } from 'react';
+import { Loader2, Upload } from 'lucide-react';
 
 export default function Import({ payer1Name, payer2Name }) {
     const { flash } = usePage().props;
@@ -97,19 +98,14 @@ export default function Import({ payer1Name, payer2Name }) {
                 >
                     {uploading ? (
                         <div className="flex flex-col items-center gap-3">
-                            <svg className="h-10 w-10 animate-spin text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                            </svg>
+                            <Loader2 className="h-10 w-10 animate-spin text-indigo-500" />
                             <p className="text-sm text-indigo-600">
                                 Importando extrato de <strong>{activePayer}</strong> e enviando para categorização pela IA...
                             </p>
                         </div>
                     ) : (
                         <>
-                            <svg className="mb-3 h-12 w-12 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                            </svg>
+                            <Upload className="mb-3 h-12 w-12 text-gray-400" strokeWidth={1.5} />
                             <p className="text-sm font-medium text-gray-700">
                                 {fileName
                                     ? `${fileName} → ${activePayer}`

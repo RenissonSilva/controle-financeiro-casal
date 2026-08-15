@@ -1,16 +1,4 @@
-const ArrowUp = () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="12" y1="19" x2="12" y2="5" />
-        <polyline points="5 12 12 5 19 12" />
-    </svg>
-);
-
-const ArrowDown = () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="12" y1="5" x2="12" y2="19" />
-        <polyline points="19 12 12 19 5 12" />
-    </svg>
-);
+import { ArrowUp, ArrowDown } from 'lucide-react';
 
 // Linha de lançamento usada nas listas "Próximas despesas" e "Histórico".
 // tipo: 'receita' (seta verde para cima) | 'despesa' (seta prateada para baixo).
@@ -26,7 +14,7 @@ export default function TransactionRow({ date, nome, categoria, valor, tipo }) {
                     isReceita ? 'bg-[#22c55e]/15 text-[#8ED79B]' : 'bg-[#b9bebe]/15 text-[#b9bfbf]'
                 }`}
             >
-                {isReceita ? <ArrowUp /> : <ArrowDown />}
+                {isReceita ? <ArrowUp size={14} strokeWidth={2.5} /> : <ArrowDown size={14} strokeWidth={2.5} />}
             </div>
 
             <div className="min-w-0 flex-1">

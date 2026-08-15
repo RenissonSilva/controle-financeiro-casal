@@ -3,6 +3,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router, usePage } from '@inertiajs/react';
 import axios from 'axios';
 import { useEffect, useRef, useState } from 'react';
+import { X, Loader2, Trash2, FileDown, Sparkles, Plus } from 'lucide-react';
 
 const OWNERSHIP_OPTIONS = [
     { value: 'payer1', label: 'Reni' },
@@ -110,9 +111,7 @@ function AddExpenseModal({ categories, currentMonth, source, ownerName, onAdded,
                         <p className="text-xs text-gray-400">Extrato de <strong>{ownerName}</strong></p>
                     </div>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        <X className="h-5 w-5" strokeWidth={2} />
                     </button>
                 </div>
 
@@ -274,9 +273,7 @@ function ExportPdfModal({ availableMonths, currentMonth, settings, onClose }) {
                 <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
                     <h2 className="text-base font-semibold text-gray-800">Exportar PDF</h2>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        <X className="h-5 w-5" strokeWidth={2} />
                     </button>
                 </div>
 
@@ -677,10 +674,7 @@ export default function Expenses({
 
             {hasPending && (
                 <div className="mb-4 flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
-                    <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                    </svg>
+                    <Loader2 className="h-4 w-4 animate-spin" />
                     Categorização por IA em andamento... a tabela será atualizada automaticamente.
                 </div>
             )}
@@ -716,9 +710,7 @@ export default function Expenses({
                             onClick={handleDeleteMonth}
                             className="flex items-center gap-1.5 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
                         >
-                            <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
+                            <Trash2 className="h-4 w-4" strokeWidth={2} />
                             Limpar mês
                         </button>
                     )}
@@ -726,9 +718,7 @@ export default function Expenses({
                         onClick={() => setShowExportModal(true)}
                         className="flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
                     >
-                        <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H8a2 2 0 01-2-2V5a2 2 0 012-2h6l6 6v11a2 2 0 01-2 2z" />
-                        </svg>
+                        <FileDown className="h-4 w-4" strokeWidth={2} />
                         Exportar PDF
                     </button>
                     {currentSelected.length > 0 && (
@@ -737,9 +727,7 @@ export default function Expenses({
                             disabled={categorizing}
                             className="flex items-center gap-1.5 rounded-lg border border-indigo-300 bg-white px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-60"
                         >
-                            <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                            </svg>
+                            <Sparkles className="h-4 w-4" strokeWidth={2} />
                             {categorizing ? 'Categorizando...' : `Categorizar com IA (${currentSelected.length})`}
                         </button>
                     )}
@@ -747,9 +735,7 @@ export default function Expenses({
                         onClick={() => setShowModal(true)}
                         className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
                     >
-                        <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
+                        <Plus className="h-4 w-4" strokeWidth={2} />
                         Adicionar Despesa
                     </button>
                 </div>

@@ -1,6 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
+import { X, RefreshCw, Plus } from 'lucide-react';
 
 const OWNERSHIP_OPTIONS = [
     { value: 'payer1', label: 'Reni' },
@@ -61,9 +62,7 @@ function RuleFormModal({ categories, rule, onClose }) {
                         {isEditing ? 'Editar Regra' : 'Nova Regra'}
                     </h2>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        <X className="h-5 w-5" strokeWidth={2} />
                     </button>
                 </div>
 
@@ -202,18 +201,14 @@ export default function CategorizationRules({ rules, categories }) {
                     disabled={applying || rules.length === 0}
                     className="flex items-center gap-1.5 rounded-lg border border-indigo-300 bg-white px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-60"
                 >
-                    <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
+                    <RefreshCw className="h-4 w-4" strokeWidth={2} />
                     {applying ? 'Aplicando...' : 'Aplicar regras às despesas existentes'}
                 </button>
                 <button
                     onClick={openCreate}
                     className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
                 >
-                    <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
+                    <Plus className="h-4 w-4" strokeWidth={2} />
                     Nova Regra
                 </button>
             </div>

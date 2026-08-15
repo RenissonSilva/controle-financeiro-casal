@@ -1,6 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
+import { X, Plus } from 'lucide-react';
 
 const OWNERSHIP_OPTIONS = [
     { value: 'payer1', label: 'Reni' },
@@ -66,9 +67,7 @@ function FixedExpenseFormModal({ categories, fixedExpense, onClose }) {
                         {isEditing ? 'Editar Despesa Fixa' : 'Nova Despesa Fixa'}
                     </h2>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        <X className="h-5 w-5" strokeWidth={2} />
                     </button>
                 </div>
 
@@ -266,9 +265,7 @@ export default function FixedExpenses({ fixedExpenses, categories }) {
                     onClick={openCreate}
                     className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
                 >
-                    <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
+                    <Plus className="h-4 w-4" strokeWidth={2} />
                     Nova Despesa Fixa
                 </button>
             </div>

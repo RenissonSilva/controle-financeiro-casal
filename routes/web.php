@@ -9,10 +9,18 @@ use App\Http\Controllers\ImportController;
 use App\Http\Controllers\OpenFinanceController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingController;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 // Redireciona raiz para o dashboard.
 Route::redirect('/', '/dashboard');
+
+if (app()->environment('local')) {
+    Route::get('/_dev-login', function () {
+        Auth::loginUsingId(1);
+        return redirect('/dashboard');
+    });
+}
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
