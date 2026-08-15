@@ -10,15 +10,12 @@ use App\Http\Controllers\OpenFinanceController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 // Redireciona raiz para o dashboard.
 Route::redirect('/', '/dashboard');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-
-    Route::get('/sovinna', fn () => Inertia::render('Sovinna'))->name('sovinna');
 
     // Despesas
     Route::get('/expenses', [ExpenseController::class, 'index'])->name('expenses.index');

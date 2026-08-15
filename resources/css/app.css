@@ -1,3 +1,93 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@font-face {
+    font-family: 'Avalon Alt';
+    src: url('../js/assets/avallon-alt.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Contrail One';
+    src: url('../js/assets/ContrailOne-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+/*
+ * Tokens de cor do tema oficial ("Maré"). Espelham resources/js/theme/tokens.js —
+ * qualquer alteração de paleta deve ser feita nos dois lugares.
+ *
+ * Os triplets "*-rgb" ficam SEM vírgula (espaço simples) de propósito: é o
+ * formato exigido pela sintaxe moderna que o Tailwind usa para cor com
+ * opacidade — rgb(var(--x-rgb) / <alpha-value>). Misturar vírgula (formato
+ * legado) com a barra de alpha é CSS inválido e a declaração inteira é
+ * descartada silenciosamente pelo navegador (sem erro no console).
+ */
+:root {
+    --color-bg: #0e1c28;
+    --color-surface: #152a38;
+    --color-text: #eef7f8;
+    --color-text-rgb: 223 238 240;
+    --color-accent: #43a9ab;
+    --color-accent-rgb: 67 169 171;
+    --color-avatar-bg: #2a7daa;
+    --color-avatar-bg-rgb: 42 125 170;
+    --color-soft-text: #dcee8e;
+    --color-soft-text-rgb: 220 238 142;
+    --color-strong-accent: #8fd79b;
+    --color-strong-accent-rgb: 143 215 155;
+    --color-chart-light: #dcee8e;
+    --color-chart-light-rgb: 220 238 142;
+    --color-chart-mid: #43a9ab;
+    --color-chart-mid-rgb: 67 169 171;
+    --color-chart-deep: #3f7fb8;
+    --color-chart-deep-rgb: 63 127 184;
+    --color-gauge-start: #22517e;
+    --color-gauge-start-rgb: 34 81 126;
+    --color-health-card-grad-start: #14304a;
+    --color-health-card-grad-start-rgb: 20 48 74;
+    --color-hero-card-grad-start: #173548;
+    --color-hero-card-grad-start-rgb: 23 53 72;
+    --color-progress-grad-start: #22517e;
+    --color-progress-grad-start-rgb: 34 81 126;
+    --color-progress-grad-end: #43a9ab;
+    --color-progress-grad-end-rgb: 67 169 171;
+    --color-ambient-glow: #16344a;
+    --color-ambient-glow-rgb: 22 52 74;
+    --color-income: #b5e38a;
+    --color-income-rgb: 181 227 138;
+    --color-expense: #5ec1e0;
+    --color-expense-rgb: 94 193 224;
+    --font-heading: 'Poppins', system-ui, sans-serif;
+    --font-body: 'Poppins', system-ui, sans-serif;
+}
+
+@keyframes drawArc {
+    from { stroke-dashoffset: 283; }
+}
+@keyframes drawRing {
+    from { stroke-dasharray: 0 440; }
+}
+@keyframes riseBar {
+    from { transform: scaleX(0); }
+}
+
+/* Scrollbar fina — Tailwind core não tem utilities para isso sem plugin. */
+.scroll-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--color-accent-rgb) / .35) transparent;
+}
+.scroll-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+.scroll-thin::-webkit-scrollbar-track { background: transparent; }
+.scroll-thin::-webkit-scrollbar-thumb {
+    background: rgb(var(--color-accent-rgb) / .35);
+    border-radius: 999px;
+}
+.scroll-thin::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--color-accent-rgb) / .55);
+}

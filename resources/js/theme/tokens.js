@@ -1,9 +1,10 @@
 import bgFloresta from '@/assets/bg-floresta.jpeg';
 
-export const mareTheme = {
-    label: 'Maré',
-    bgImage: bgFloresta,
-    bgImagePosition: 'center 22%',
+// Paleta oficial do produto ("Maré"). Fonte única de verdade para as cores —
+// espelhada como CSS vars estáticas em resources/css/app.css (para as classes
+// Tailwind) e importada diretamente aqui onde é preciso um valor de cor puro
+// (fill/stroke de SVG, Cell do Recharts, gradientes de <defs>).
+export const theme = {
     bg: '#0e1c28',
     surface: '#152a38',
     text: '#eef7f8',
@@ -27,30 +28,8 @@ export const mareTheme = {
     ambientGlow: '#16344a',
     income: '#b5e38a',
     incomeRgb: '181,227,138',
-    incomeDeep: '#4b7a45',
     expense: '#5ec1e0',
     expenseRgb: '94,193,224',
-    expenseDeep: '#1b5875',
+    bgImage: bgFloresta,
+    bgImagePosition: 'center 22%',
 };
-
-export function cardStyle(theme) {
-    return {
-        padding: 20,
-        borderRadius: 14,
-        background: 'var(--color-surface)',
-        boxShadow: `inset 0 0 0 1px rgba(${theme.textRgb},.08)`,
-    };
-}
-
-export function cardHeaderStyle() {
-    return {
-        display: 'flex',
-        alignItems: 'baseline',
-        justifyContent: 'space-between',
-        gap: 12,
-    };
-}
-
-export function mutedStyle(theme) {
-    return { fontSize: 11.5, color: `rgba(${theme.textRgb},.45)` };
-}
