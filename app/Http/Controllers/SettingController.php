@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Category;
+use App\Models\CategorizationRule;
 use App\Models\Setting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,6 +26,27 @@ class SettingController extends Controller
                 'payer2_percent'   => $settings->payer2_percent,
                 'card_closing_day' => $settings->card_closing_day,
             ],
+            'categories' => Category::withCount('expenses')
+                ->orderBy('name')
+                ->get()
+                ->map(fn (Category $category) => [
+                    'id'                => $category->id,
+                    'name'              => $category->name,
+                    'color'             => $category->color,
+                    'default_ownership' => $category->default_ownership,
+                    'expenses_count'    => $category->expenses_count,
+                ]),
+            'rules' => CategorizationRule::with('category')
+                ->orderBy('pattern')
+                ->get()
+                ->map(fn (CategorizationRule $rule) => [
+                    'id'          => $rule->id,
+                    'pattern'     => $rule->pattern,
+                    'amount'      => $rule->amount,
+                    'category_id' => $rule->category_id,
+                    'category'    => $rule->category->name,
+                    'ownership'   => $rule->ownership,
+                ]),
         ]);
     }
 

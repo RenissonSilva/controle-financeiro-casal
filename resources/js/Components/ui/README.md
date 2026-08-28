@@ -34,6 +34,8 @@ As outras 10 paletas exploradas antes de fixar em "Maré" ficam arquivadas em `t
 - `ProgressBar` — barra de progresso em gradiente (`value` de 0 a 100).
 - `Button` — variantes `secondary` / `ghost`; aceita `href` (vira `Link` do Inertia) ou fica como `<button>` decorativo (sem `href`/`onClick`) — replique o comportamento do mockup: nem todo botão do Sovinna é funcional ainda.
 - `GaugeArc` — arco de progresso 0-100 usado no card "Saúde financeira". **Não existe hoje uma fórmula real dessa métrica** (ver PLANNING.md) — só usar com valor real quando essa métrica for implementada; até lá, é só o visual do mockup. Gradiente/filtro de glow do SVG usam `theme.x` (atributos de `<defs>`/`<stop>` não são estilizáveis via `className`).
+- `Modal` — Dialog do HeadlessUI com o mesmo tratamento visual do `Card` (`bg-surface`, borda/sombra inset). Props: `show`, `onClose`, `title` (opcional), `maxWidth` (`sm`|`md`|`lg`|`xl`|`2xl`, default `md`), `closeable`. Substitui o `Components/Modal.jsx` antigo (light) nas telas migradas — o conteúdo (form, botões) fica a cargo de quem chama.
+- `Field` / `Select` — label + input/select + mensagem de erro, estilo dark consistente (`bg-bg/40`, borda `text/16`, foco `accent`). Usar em qualquer form de tela migrada em vez de inputs Tailwind ad-hoc. Mensagem de erro usa `text-red-400/90` — única exceção deliberada aos tokens da paleta "Maré", porque ela não define uma cor semântica de erro (`income`/`expense` são cores de tipo de lançamento, não de estado de validação).
 
 ## Layout
 
