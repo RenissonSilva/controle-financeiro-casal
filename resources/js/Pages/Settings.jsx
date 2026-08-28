@@ -220,15 +220,11 @@ function PayerCard({ name, onNameChange, salary, onSalaryChange, percentLabel, a
                         value={salary}
                         onChange={onSalaryChange}
                         aria-label="Renda mensal"
-                        className="min-w-0 flex-1 border-0 bg-transparent py-2.5 text-[15px] tabular-nums text-text focus:outline-none"
+                        className="min-w-0 flex-1 border-0 bg-transparent py-2.5 text-[15px] tabular-nums text-text focus:outline-none focus:ring-0"
                     />
                 </div>
             </div>
 
-            <div className="mt-3.5 flex items-baseline justify-between gap-2.5 border-t border-text/8 pt-3">
-                <span className="text-[12px] text-text/50">{cotaLabel}</span>
-                <span className="font-heading text-[15px] tabular-nums text-text">{cotaValue}</span>
-            </div>
             {error && <p className="mt-1.5 text-[11.5px] text-red-400/90">{error}</p>}
         </div>
     );
@@ -530,7 +526,6 @@ export default function Settings({ settings, categories, rules }) {
                     <SectionHeader
                         icon={<Wallet size={13} strokeWidth={2.2} className="stroke-strong-accent" />}
                         title="Proporção por renda"
-                        subtitle="Gastos marcados como Nós são divididos nesta proporção. Quem ganha mais assume a fatia maior."
                     />
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -541,9 +536,7 @@ export default function Settings({ settings, categories, rules }) {
                             onSalaryChange={setGeneral('payer1_salary')}
                             percentLabel={`${p1.toFixed(1).replace('.', ',')}%`}
                             avatarClass="bg-green text-bg"
-                            percentClass="text-green"
-                            cotaLabel={`Cabe a ${firstName(draft.payer1_name)} em ${fmt(REF_SALARIO)}`}
-                            cotaValue={fmt(REF_SALARIO * p1 / 100)}
+                            percentClass="text-teal"
                             error={errors.payer1_name || errors.payer1_salary}
                         />
                         <PayerCard
@@ -553,9 +546,7 @@ export default function Settings({ settings, categories, rules }) {
                             onSalaryChange={setGeneral('payer2_salary')}
                             percentLabel={`${p2.toFixed(1).replace('.', ',')}%`}
                             avatarClass="bg-red text-bg"
-                            percentClass="text-red"
-                            cotaLabel={`Cabe a ${firstName(draft.payer2_name)} em ${fmt(REF_SALARIO)}`}
-                            cotaValue={fmt(REF_SALARIO * p2 / 100)}
+                            percentClass="text-lime"
                             error={errors.payer2_name || errors.payer2_salary}
                         />
                     </div>
@@ -568,10 +559,6 @@ export default function Settings({ settings, categories, rules }) {
                             />
                             <div className="flex-1 bg-[linear-gradient(90deg,var(--color-strong-accent),var(--color-soft-text))]" />
                         </div>
-                        <div className="mt-2 flex justify-between text-[12px] text-text/50">
-                            <span>{firstName(draft.payer1_name)} paga {fmt(REF_SALARIO * p1 / 100)} de cada {fmt(REF_SALARIO)}</span>
-                            <span>{firstName(draft.payer2_name)} paga {fmt(REF_SALARIO * p2 / 100)}</span>
-                        </div>
                     </div>
                 </Card>
             </section>
@@ -583,10 +570,9 @@ export default function Settings({ settings, categories, rules }) {
                     <SectionHeader
                         icon={<CreditCard size={13} strokeWidth={2.2} className="stroke-strong-accent" />}
                         title="Fechamento do cartão"
-                        subtitle="O mês do app acompanha a fatura, não o calendário. Escolha o dia em que ela fecha."
                     />
 
-                    <div className="mt-4 flex flex-wrap gap-[clamp(20px,3vw,40px)]">
+                    <div className="mt-4 flex flex-wrap items-center gap-[clamp(20px,3vw,40px)]">
                         <div className="min-w-[240px] flex-1">
                             <div className="inline-flex items-center gap-1 rounded-[12px] bg-[#0c1620] p-[5px] shadow-[inset_0_0_0_1px_rgb(var(--color-accent-rgb)/0.28)]">
                                 <button type="button" onClick={() => stepDay(-1)} aria-label="Dia anterior" className="grid h-[34px] w-[34px] flex-none place-items-center rounded-[9px] text-text/75 transition-colors hover:bg-text/8 hover:text-text">
@@ -599,7 +585,6 @@ export default function Settings({ settings, categories, rules }) {
                                     <Plus size={16} strokeWidth={2.4} />
                                 </button>
                             </div>
-                            <p className="mt-2.5 text-[12px] text-text/45">Entre 1 e 28 — dias maiores não existem em fevereiro.</p>
                             {errors.card_closing_day && <p className="mt-1 text-[11.5px] text-red-400/90">{errors.card_closing_day}</p>}
                         </div>
 
@@ -609,16 +594,6 @@ export default function Settings({ settings, categories, rules }) {
                                 <span>{cycle.startLabel}</span>
                                 <span className="h-px min-w-[20px] flex-1 bg-[linear-gradient(90deg,var(--color-accent),var(--color-soft-text))]" />
                                 <span>{cycle.endLabel}</span>
-                            </div>
-                            <div className="mt-4 flex flex-col gap-2.5 text-[12.5px] leading-[1.45] text-text/60">
-                                <div className="flex gap-2">
-                                    <Check size={14} strokeWidth={2.2} className="mt-0.5 flex-none stroke-strong-accent" />
-                                    <span>Uma compra em {cycle.exampleInsideLabel} entra neste ciclo.</span>
-                                </div>
-                                <div className="flex gap-2">
-                                    <Clock size={14} strokeWidth={2.2} className="mt-0.5 flex-none stroke-red" />
-                                    <span>Uma compra em {cycle.exampleOutsideLabel} já cai no ciclo seguinte.</span>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -648,7 +623,7 @@ export default function Settings({ settings, categories, rules }) {
                                     onChange={(e) => setSearch(e.target.value)}
                                     placeholder="Buscar categoria"
                                     aria-label="Buscar categoria"
-                                    className="min-w-0 flex-1 border-0 bg-transparent py-[9px] text-[13.5px] text-text placeholder:text-text/40 focus:outline-none"
+                                    className="min-w-0 flex-1 border-0 bg-transparent py-[9px] text-[13.5px] text-text placeholder:text-text/40 focus:outline-none focus:ring-0"
                                 />
                             </div>
                             <div className="flex gap-0.5 rounded-[10px] bg-text/[0.035] p-[3px] shadow-[inset_0_0_0_1px_rgb(var(--color-text-rgb)/0.09)]">
