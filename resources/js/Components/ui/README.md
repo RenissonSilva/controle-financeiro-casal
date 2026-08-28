@@ -4,11 +4,11 @@ Padrão visual oficial do produto — portado 1:1 do antigo mockup `Sovinna.jsx`
 
 ## Tokens
 
-Fonte única de cor: [`resources/js/theme/tokens.js`](../../theme/tokens.js) (tema "Maré", fixo — sem seletor de tema em runtime). Os mesmos valores são espelhados como CSS vars estáticas em [`resources/css/app.css`](../../../css/app.css) e viram classes Tailwind via `tailwind.config.js` (`bg-surface`, `text-accent`, `text-strong-accent`, `bg-income`, etc. — ver a lista completa em `colors` no config).
+Fonte única de cor: [`resources/js/theme/tokens.js`](../../theme/tokens.js) (tema "Maré", fixo — sem seletor de tema em runtime). Os mesmos valores são espelhados como CSS vars estáticas em [`resources/css/app.css`](../../../css/app.css) e viram classes Tailwind via `tailwind.config.js` (`bg-surface`, `text-teal`, `text-strong-accent`, `bg-green`, etc. — ver a lista completa em `colors` no config).
 
 ```jsx
 // preferir sempre a classe Tailwind:
-<div className="bg-surface text-accent" />
+<div className="bg-surface text-teal" />
 
 // só usar o objeto `theme` (theme/tokens.js) onde className não alcança:
 // atributos de SVG (fill/stroke/stopColor em <defs>), o objeto contentStyle
@@ -22,7 +22,7 @@ As outras 10 paletas exploradas antes de fixar em "Maré" ficam arquivadas em `t
 ### Duas pegadinhas do Tailwind que já causaram bug visual real aqui — leia antes de mexer em cor
 
 1. **O valor da CSS var precisa ser separado por espaço, não por vírgula.** `tailwind.config.js` usa o padrão `rgb(var(--x-rgb) / <alpha-value>)` (sintaxe moderna). Se `--x-rgb` estiver definido como `"223, 238, 240"` (vírgula, formato legado de `rgba()`), o resultado vira `rgb(223, 238, 240 / 1)` — **CSS inválido**, descartado silenciosamente pelo navegador (sem erro no console, a cor simplesmente não aplica). Tem que ser `--x-rgb: 223 238 240;` (espaço). Todos os tokens em `app.css` já seguem isso — se adicionar um novo, mantenha o padrão.
-2. **Modificador de opacidade "solto" (`bg-accent/16`) só funciona se o número estiver na escala padrão do Tailwind** (0,5,10,20,25,30,40,50,60,70,75,80,90,95,100). Fora disso (`/16`, `/8`, `/45`...), a classe não é gerada — de novo, sem erro, só não aparece no CSS final. Os valores usados no design já foram adicionados em `theme.extend.opacity` no `tailwind.config.js`; se precisar de um novo valor fora da lista, adicione lá (ou use a sintaxe com colchete `/[0.16]`, que sempre funciona).
+2. **Modificador de opacidade "solto" (`bg-teal/16`) só funciona se o número estiver na escala padrão do Tailwind** (0,5,10,20,25,30,40,50,60,70,75,80,90,95,100). Fora disso (`/16`, `/8`, `/45`...), a classe não é gerada — de novo, sem erro, só não aparece no CSS final. Os valores usados no design já foram adicionados em `theme.extend.opacity` no `tailwind.config.js`; se precisar de um novo valor fora da lista, adicione lá (ou use a sintaxe com colchete `/[0.16]`, que sempre funciona).
 3. **Não misture gradiente + cor sólida num único `bg-[...]`** (ex: `bg-[linear-gradient(...),var(--color-bg)]`). Isso é válido como propriedade `background` (shorthand), mas a classe arbitrária `bg-[...]` do Tailwind vira só `background-image` OU `background-color` (inferido pelo valor) — misturar os dois no mesmo bracket quebra a declaração inteira. Use duas classes separadas: `bg-bg bg-[linear-gradient(...)]`.
 
 ## Componentes
@@ -35,7 +35,7 @@ As outras 10 paletas exploradas antes de fixar em "Maré" ficam arquivadas em `t
 - `Button` — variantes `secondary` / `ghost`; aceita `href` (vira `Link` do Inertia) ou fica como `<button>` decorativo (sem `href`/`onClick`) — replique o comportamento do mockup: nem todo botão do Sovinna é funcional ainda.
 - `GaugeArc` — arco de progresso 0-100 usado no card "Saúde financeira". **Não existe hoje uma fórmula real dessa métrica** (ver PLANNING.md) — só usar com valor real quando essa métrica for implementada; até lá, é só o visual do mockup. Gradiente/filtro de glow do SVG usam `theme.x` (atributos de `<defs>`/`<stop>` não são estilizáveis via `className`).
 - `Modal` — Dialog do HeadlessUI com o mesmo tratamento visual do `Card` (`bg-surface`, borda/sombra inset). Props: `show`, `onClose`, `title` (opcional), `maxWidth` (`sm`|`md`|`lg`|`xl`|`2xl`, default `md`), `closeable`. Substitui o `Components/Modal.jsx` antigo (light) nas telas migradas — o conteúdo (form, botões) fica a cargo de quem chama.
-- `Field` / `Select` — label + input/select + mensagem de erro, estilo dark consistente (`bg-bg/40`, borda `text/16`, foco `accent`). Usar em qualquer form de tela migrada em vez de inputs Tailwind ad-hoc. Mensagem de erro usa `text-red-400/90` — única exceção deliberada aos tokens da paleta "Maré", porque ela não define uma cor semântica de erro (`income`/`expense` são cores de tipo de lançamento, não de estado de validação).
+- `Field` / `Select` — label + input/select + mensagem de erro, estilo dark consistente (`bg-bg/40`, borda `text/16`, foco `teal`). Usar em qualquer form de tela migrada em vez de inputs Tailwind ad-hoc. Mensagem de erro usa `text-red-400/90` (escala padrão do Tailwind, shade 400) — única exceção deliberada aos tokens da paleta "Maré", porque ela não define uma cor semântica de erro (`green`/`red` são cores de tipo de lançamento, não de estado de validação; não confundir com o `red` custom do token, que é uma cor só, sem escala).
 
 ## Layout
 

@@ -13,9 +13,9 @@ import {
 } from 'lucide-react';
 
 const OWNERSHIP_BADGE = {
-    payer1: 'bg-income/16 text-income',
-    payer2: 'bg-expense/16 text-expense',
-    both:   'bg-accent/16 text-strong-accent',
+    payer1: 'bg-green/16 text-green',
+    payer2: 'bg-red/16 text-red',
+    both:   'bg-teal/16 text-strong-accent',
 };
 const OWNERSHIP_CYCLE = ['both', 'payer1', 'payer2'];
 const PALETA = ['#f0a04b', '#e2703a', '#5ec1e0', '#a78bfa', '#43c39a', '#8fa3b0', '#f0576b', '#dcee8e', '#43a9ab', '#c9a0dc'];
@@ -540,8 +540,8 @@ export default function Settings({ settings, categories, rules }) {
                             salary={draft.payer1_salary}
                             onSalaryChange={setGeneral('payer1_salary')}
                             percentLabel={`${p1.toFixed(1).replace('.', ',')}%`}
-                            avatarClass="bg-income text-bg"
-                            percentClass="text-income"
+                            avatarClass="bg-green text-bg"
+                            percentClass="text-green"
                             cotaLabel={`Cabe a ${firstName(draft.payer1_name)} em ${fmt(REF_SALARIO)}`}
                             cotaValue={fmt(REF_SALARIO * p1 / 100)}
                             error={errors.payer1_name || errors.payer1_salary}
@@ -552,8 +552,8 @@ export default function Settings({ settings, categories, rules }) {
                             salary={draft.payer2_salary}
                             onSalaryChange={setGeneral('payer2_salary')}
                             percentLabel={`${p2.toFixed(1).replace('.', ',')}%`}
-                            avatarClass="bg-expense text-bg"
-                            percentClass="text-expense"
+                            avatarClass="bg-red text-bg"
+                            percentClass="text-red"
                             cotaLabel={`Cabe a ${firstName(draft.payer2_name)} em ${fmt(REF_SALARIO)}`}
                             cotaValue={fmt(REF_SALARIO * p2 / 100)}
                             error={errors.payer2_name || errors.payer2_salary}
@@ -616,7 +616,7 @@ export default function Settings({ settings, categories, rules }) {
                                     <span>Uma compra em {cycle.exampleInsideLabel} entra neste ciclo.</span>
                                 </div>
                                 <div className="flex gap-2">
-                                    <Clock size={14} strokeWidth={2.2} className="mt-0.5 flex-none stroke-expense" />
+                                    <Clock size={14} strokeWidth={2.2} className="mt-0.5 flex-none stroke-red" />
                                     <span>Uma compra em {cycle.exampleOutsideLabel} já cai no ciclo seguinte.</span>
                                 </div>
                             </div>
@@ -657,7 +657,7 @@ export default function Settings({ settings, categories, rules }) {
                                         key={f.value}
                                         type="button"
                                         onClick={() => setFilter(f.value)}
-                                        className={`rounded-[8px] px-[11px] py-[6px] text-[12.5px] transition-colors ${filter === f.value ? 'bg-accent/28 text-text' : 'text-text/60 hover:bg-text/8'}`}
+                                        className={`rounded-[8px] px-[11px] py-[6px] text-[12.5px] transition-colors ${filter === f.value ? 'bg-teal/28 text-text' : 'text-text/60 hover:bg-text/8'}`}
                                     >
                                         {f.label}
                                     </button>
@@ -701,7 +701,7 @@ export default function Settings({ settings, categories, rules }) {
                                 className="min-w-0 flex-1 border-0 bg-transparent py-2.5 text-[13.5px] text-text placeholder:text-text/40 focus:outline-none"
                             />
                             {novaCategoria.trim() && (
-                                <button type="button" onClick={addCategory} className="flex-none rounded-[8px] bg-strong-accent px-3 py-1 text-[12.5px] text-bg hover:bg-soft-text">
+                                <button type="button" onClick={addCategory} className="flex-none rounded-[8px] bg-strong-accent px-3 py-1 text-[12.5px] text-bg hover:bg-lime">
                                     Criar
                                 </button>
                             )}
@@ -760,7 +760,7 @@ export default function Settings({ settings, categories, rules }) {
                             type="button"
                             onClick={salvar}
                             disabled={saving}
-                            className="rounded-[9px] bg-soft-text px-[18px] py-2.5 font-heading text-[13px] font-medium text-bg transition-colors hover:bg-strong-accent disabled:pointer-events-none disabled:opacity-60"
+                            className="rounded-[9px] bg-lime px-[18px] py-2.5 font-heading text-[13px] font-medium text-bg transition-colors hover:bg-strong-accent disabled:pointer-events-none disabled:opacity-60"
                         >
                             {saving ? 'Salvando...' : 'Salvar alterações'}
                         </button>
@@ -769,8 +769,8 @@ export default function Settings({ settings, categories, rules }) {
             )}
 
             {toast && (
-                <div className="fixed bottom-[26px] left-1/2 z-50 flex -translate-x-1/2 items-center gap-2.5 rounded-full bg-surface px-[18px] py-[11px] text-[13.5px] text-income shadow-[inset_0_0_0_1px_rgb(var(--color-income-rgb)/0.4),0_10px_28px_rgba(0,0,0,0.4)]">
-                    <Check size={15} strokeWidth={2.2} className="stroke-income" />
+                <div className="fixed bottom-[26px] left-1/2 z-50 flex -translate-x-1/2 items-center gap-2.5 rounded-full bg-surface px-[18px] py-[11px] text-[13.5px] text-green shadow-[inset_0_0_0_1px_rgb(var(--color-income-rgb)/0.4),0_10px_28px_rgba(0,0,0,0.4)]">
+                    <Check size={15} strokeWidth={2.2} className="stroke-green" />
                     {toast}
                 </div>
             )}

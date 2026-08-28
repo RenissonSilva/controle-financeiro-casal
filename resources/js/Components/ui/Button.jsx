@@ -4,7 +4,7 @@ const BASE = 'inline-flex items-center justify-center gap-1.5 rounded-[9px] px-4
 
 const VARIANTS = {
     secondary: 'border-text/16 hover:bg-text/7',
-    ghost: 'text-accent hover:bg-accent/10',
+    ghost: 'text-teal hover:bg-teal/10',
 };
 
 // variant: 'secondary' | 'ghost'

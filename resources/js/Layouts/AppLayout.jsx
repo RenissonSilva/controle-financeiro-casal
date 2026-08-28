@@ -19,7 +19,7 @@ export default function AppLayout({ title, children }) {
                             className="absolute inset-0 h-full w-full object-cover opacity-70 brightness-90"
                             style={{ objectPosition: theme.bgImagePosition || 'center' }}
                         />
-                        <div className="absolute inset-0 bg-accent mix-blend-color opacity-60" />
+                        <div className="absolute inset-0 bg-teal mix-blend-color opacity-60" />
                         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,.5)_0%,rgba(0,0,0,.28)_24%,var(--color-bg)_76%)]" />
                     </div>
                 )}
@@ -37,7 +37,7 @@ export default function AppLayout({ title, children }) {
                     <nav className="flex gap-0.5 rounded-full bg-text/12 p-1 shadow-[inset_0_0_0_1px_rgb(var(--color-text-rgb)/0.14)]">
                         <Link
                             href={route('dashboard')}
-                            className="rounded-full bg-accent/40 px-[18px] py-[7px] text-[13.5px] text-text shadow-[inset_0_0_0_1px_rgb(var(--color-accent-rgb)/0.55)]"
+                            className="rounded-full bg-teal/40 px-[18px] py-[7px] text-[13.5px] text-text shadow-[inset_0_0_0_1px_rgb(var(--color-accent-rgb)/0.55)]"
                         >
                             Dashboard
                         </Link>
@@ -56,7 +56,7 @@ export default function AppLayout({ title, children }) {
                     </nav>
 
                     <div className="ml-auto flex items-center gap-2.5">
-                        <div className="grid h-[34px] w-[34px] place-items-center rounded-full bg-avatar-bg text-[12.5px] font-semibold text-soft-text shadow-[0_0_0_1px_rgb(var(--color-accent-rgb)/0.45)]">
+                        <div className="grid h-[34px] w-[34px] place-items-center rounded-full bg-blue text-[12.5px] font-semibold text-lime shadow-[0_0_0_1px_rgb(var(--color-accent-rgb)/0.45)]">
                             R
                         </div>
                     </div>

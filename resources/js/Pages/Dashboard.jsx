@@ -46,9 +46,9 @@ export default function Dashboard() {
                     <h1 className="mb-2.5 text-[clamp(34px,4.5vw,52px)] font-medium leading-[1.02] tracking-[-.03em]">
                         Bem-vindo, <span className="text-strong-accent">{NOME}</span>
                     </h1>
-                    <div className="inline-flex items-center gap-2 rounded-full bg-accent/12 py-[5px] pl-2.5 pr-3.5 shadow-[inset_0_0_0_1px_rgb(var(--color-accent-rgb)/0.35)] backdrop-blur">
+                    <div className="inline-flex items-center gap-2 rounded-full bg-teal/12 py-[5px] pl-2.5 pr-3.5 shadow-[inset_0_0_0_1px_rgb(var(--color-accent-rgb)/0.35)] backdrop-blur">
                         <span className="h-[7px] w-[7px] rounded-full bg-strong-accent shadow-[0_0_10px_2px_rgb(var(--color-strong-accent-rgb)/0.7)]" />
-                        <span className="text-[13px] text-income">Suas finanças estão saudáveis</span>
+                        <span className="text-[13px] text-green">Suas finanças estão saudáveis</span>
                     </div>
                 </div>
 
@@ -61,7 +61,7 @@ export default function Dashboard() {
                     <GaugeArc score={SCORE} />
                     <div>
                         <div className="text-[13.5px] font-semibold tracking-[-.01em]">Saúde financeira</div>
-                        <div className="mt-px text-xs text-income font-semibold">Excelente · 30 dias</div>
+                        <div className="mt-px text-xs text-green font-semibold">Excelente · 30 dias</div>
                     </div>
                 </Card>
             </section>
@@ -80,7 +80,7 @@ export default function Dashboard() {
                     <div className="relative z-[1]">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-[7px] text-xs font-semibold text-text">
-                                <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-full bg-accent/16">
+                                <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-full bg-teal/16">
                                     <CreditCard size={13} strokeWidth={2.2} className="stroke-strong-accent" />
                                 </span>
                                 Saldo Total
@@ -92,7 +92,7 @@ export default function Dashboard() {
                         <div className="mt-3.5 font-heading text-[clamp(28px,2.8vw,38px)] font-semibold leading-none tracking-[-.03em] text-text [text-shadow:0_2px_12px_rgba(0,0,0,0.3)]">
                             R$ 18.420<span className="text-[.55em] opacity-80">,90</span>
                         </div>
-                        <div className="mt-2.5 flex items-center gap-2 text-[12.5px] text-income">
+                        <div className="mt-2.5 flex items-center gap-2 text-[12.5px] text-green">
                             <span className="inline-flex items-center gap-[3px] rounded-md bg-black/40 px-2 py-[2px] font-semibold shadow-[inset_0_0_0_1px_var(--color-income)]">
                                 ▲ 4,8%
                             </span>
@@ -116,24 +116,24 @@ export default function Dashboard() {
                 <Card className="flex flex-[2_1_440px] flex-col justify-between">
                     <div className="mb-3 flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-full bg-accent/16">
+                            <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-full bg-teal/16">
                                 <Wallet size={13} strokeWidth={2.2} className="stroke-strong-accent" />
                             </span>
                             <span className="text-[13px] font-semibold tracking-[-.01em] text-text">Fluxo de Caixa</span>
                         </div>
                         <div className="text-[11.5px] text-text/50">
-                            Balanço estimado: <strong className="font-semibold text-income">+R$ 3.537,60</strong>
+                            Balanço estimado: <strong className="font-semibold text-green">+R$ 3.537,60</strong>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
                         <div className="flex items-center gap-2.5">
-                            <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-full bg-accent/16">
-                                <ArrowUp size={13} strokeWidth={2.5} className="stroke-income" />
+                            <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-full bg-teal/16">
+                                <ArrowUp size={13} strokeWidth={2.5} className="stroke-green" />
                             </span>
                             <div>
                                 <div className="text-[11.5px] text-text/55">Receitas</div>
-                                <div className="font-heading text-[19px] font-semibold tracking-[-.02em] text-income">R$ 9.850,00</div>
+                                <div className="font-heading text-[19px] font-semibold tracking-[-.02em] text-green">R$ 9.850,00</div>
                             </div>
                         </div>
 
@@ -142,18 +142,18 @@ export default function Dashboard() {
                         <div className="flex items-center justify-end gap-2.5 text-right">
                             <div>
                                 <div className="text-[11.5px] text-text/55">Despesas</div>
-                                <div className="font-heading text-[19px] font-semibold tracking-[-.02em] text-expense">R$ 6.312,40</div>
+                                <div className="font-heading text-[19px] font-semibold tracking-[-.02em] text-red">R$ 6.312,40</div>
                             </div>
-                            <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-full bg-expense/16">
-                                <ArrowDown size={13} strokeWidth={2.5} className="stroke-expense" />
+                            <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-full bg-red/16">
+                                <ArrowDown size={13} strokeWidth={2.5} className="stroke-red" />
                             </span>
                         </div>
                     </div>
 
                     <div className="mt-4">
                         <div className="flex h-1.5 overflow-hidden rounded-full bg-text/8">
-                            <div className="h-full w-[36%] rounded-l-full bg-income [transition:width_1s_ease]" />
-                            <div className="h-full w-[64%] rounded-r-full bg-expense/85" />
+                            <div className="h-full w-[36%] rounded-l-full bg-green [transition:width_1s_ease]" />
+                            <div className="h-full w-[64%] rounded-r-full bg-red/85" />
                         </div>
                     </div>
                 </Card>
@@ -162,7 +162,7 @@ export default function Dashboard() {
                 <Card className="flex flex-[1.2_1_300px] flex-col gap-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-full bg-accent/16">
+                            <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-full bg-teal/16">
                                 <Target size={13} strokeWidth={2.2} className="stroke-strong-accent" />
                             </span>
                             <span className="text-[13px] font-semibold tracking-[-.01em] text-text">Meta · Investimentos</span>
@@ -188,7 +188,7 @@ export default function Dashboard() {
                         icon={<Clock size={13} strokeWidth={2.2} className="stroke-strong-accent" />}
                         title="Próximas despesas"
                         action={
-                            <span className="rounded-full bg-accent/12 px-[9px] py-[3px] text-[11px] font-medium text-strong-accent">
+                            <span className="rounded-full bg-teal/12 px-[9px] py-[3px] text-[11px] font-medium text-strong-accent">
                                 {PROXIMAS.length} gastos
                             </span>
                         }

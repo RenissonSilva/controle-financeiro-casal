@@ -3,7 +3,7 @@ export default function SectionHeader({ title, subtitle, icon, action, className
         <div className={`flex items-baseline justify-between gap-3 ${className}`}>
             <div className="flex items-center gap-2">
                 {icon && (
-                    <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-full bg-accent/16">
+                    <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-full bg-teal/16">
                         {icon}
                     </span>
                 )}
