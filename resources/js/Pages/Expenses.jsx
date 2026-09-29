@@ -480,6 +480,81 @@ function ExpenseTable({ rows, categories, selectedIds, onToggleSelect, onToggleS
     );
 }
 
+// ─── Resumo de gastos por responsável ─────────────────────────────────────────
+function SpendingSummary({ rows, settings }) {
+    const totals = rows.reduce(
+        (acc, r) => ({ ...acc, [r.ownership]: (acc[r.ownership] ?? 0) + Number(r.amount) }),
+        { payer1: 0, payer2: 0, both: 0 }
+    );
+    const total = totals.payer1 + totals.payer2 + totals.both;
+
+    if (total === 0) return null;
+
+    const p1Ratio = (settings.payer1_percent ?? 50) / 100;
+    const p2Ratio = (settings.payer2_percent ?? 50) / 100;
+    const p1Share = totals.both * p1Ratio;
+    const p2Share = totals.both * p2Ratio;
+
+    const cards = [
+        {
+            key: 'payer1',
+            label: settings.payer1_name,
+            value: totals.payer1 + p1Share,
+            note: totals.both > 0 ? `inclui ${fmt(p1Share)} rateados de "Nós" (${settings.payer1_percent}%)` : null,
+            dot: 'bg-emerald-500',
+        },
+        {
+            key: 'payer2',
+            label: settings.payer2_name,
+            value: totals.payer2 + p2Share,
+            note: totals.both > 0 ? `inclui ${fmt(p2Share)} rateados de "Nós" (${settings.payer2_percent}%)` : null,
+            dot: 'bg-rose-500',
+        },
+        {
+            key: 'both',
+            label: 'Nós',
+            value: totals.both,
+            note: 'gasto compartilhado, já rateado acima por renda',
+            dot: 'bg-amber-500',
+        },
+    ];
+
+    const barSegments = [
+        { key: 'payer1', value: totals.payer1, bar: 'bg-emerald-400' },
+        { key: 'payer2', value: totals.payer2, bar: 'bg-rose-400' },
+        { key: 'both',   value: totals.both,   bar: 'bg-amber-400' },
+    ];
+
+    return (
+        <div className="mb-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <h3 className="mb-4 text-sm font-semibold text-gray-600">Resumo do mês por responsável</h3>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                {cards.map((c) => (
+                    <div key={c.key} className="rounded-lg border border-gray-100 bg-gray-50/60 p-4">
+                        <div className="flex items-center gap-2 text-xs font-medium text-gray-500">
+                            <span className={`h-2 w-2 rounded-full ${c.dot}`} />
+                            {c.label}
+                        </div>
+                        <div className="mt-1 text-xl font-semibold text-gray-800">{fmt(c.value)}</div>
+                        <div className="mt-0.5 text-xs text-gray-400">
+                            {((c.value / total) * 100).toFixed(0)}% do total
+                        </div>
+                        {c.note && <div className="mt-1 text-[11px] leading-snug text-gray-400">{c.note}</div>}
+                    </div>
+                ))}
+            </div>
+            <div className="mt-4 flex h-2 overflow-hidden rounded-full bg-gray-100">
+                {barSegments.map((s) => s.value > 0 && (
+                    <div key={s.key} className={s.bar} style={{ width: `${(s.value / total) * 100}%` }} />
+                ))}
+            </div>
+            <div className="mt-2 text-right text-xs text-gray-400">
+                Total do mês: <strong className="text-gray-600">{fmt(total)}</strong>
+            </div>
+        </div>
+    );
+}
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 export default function Expenses({
     payer1Expenses: initialP1,
@@ -740,6 +815,9 @@ export default function Expenses({
                     </button>
                 </div>
             </div>
+
+            {/* Resumo de gastos por responsável */}
+            <SpendingSummary rows={[...rows.payer1, ...rows.payer2]} settings={settings} />
 
             {/* Despesas fixas do mês */}
             <FixedExpensesPanel fixedExpenses={fixedExpenses} className="mb-6" />

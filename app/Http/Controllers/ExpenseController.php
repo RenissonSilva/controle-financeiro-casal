@@ -66,8 +66,10 @@ class ExpenseController extends Controller
             'hasPending'     => $hasPending,
             'availableMonths' => $availableMonths,
             'settings'       => [
-                'payer1_name' => $settings->payer1_name,
-                'payer2_name' => $settings->payer2_name,
+                'payer1_name'    => $settings->payer1_name,
+                'payer2_name'    => $settings->payer2_name,
+                'payer1_percent' => $settings->payer1_percent,
+                'payer2_percent' => $settings->payer2_percent,
             ],
             'fixedExpenses' => [
                 'total' => round($fixedExpensesProjection->sum('amount'), 2),

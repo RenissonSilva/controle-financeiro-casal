@@ -735,7 +735,7 @@ export default function Settings({ settings, categories, rules }) {
                             type="button"
                             onClick={salvar}
                             disabled={saving}
-                            className="rounded-[9px] bg-lime px-[18px] py-2.5 font-heading text-[13px] font-medium text-bg transition-colors hover:bg-strong-accent disabled:pointer-events-none disabled:opacity-60"
+                            className="rounded-[9px] bg-teal/80 px-[18px] py-2.5 font-heading text-[13px] font-medium text-gray transition-colors hover:bg-teal/70 disabled:pointer-events-none disabled:opacity-60"
                         >
                             {saving ? 'Salvando...' : 'Salvar alterações'}
                         </button>
