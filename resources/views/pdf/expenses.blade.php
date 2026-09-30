@@ -88,6 +88,15 @@
         }
         .total-row td.amount { color: #4f46e5; }
 
+        .split {
+            margin-top: 12px;
+            font-size: 10px;
+            color: #374151;
+        }
+        .split td { border: none; padding: 2px 8px 2px 0; }
+        .muted { color: #9ca3af; }
+        .refund { color: #047857; }
+
         .empty {
             padding: 20px 0;
             text-align: center;
@@ -100,11 +109,11 @@
     @foreach ($pages as $page)
         <div class="month-page">
             <div class="header">
-                <h1>Controle Financeiro Casal — Relatório de Despesas</h1>
+                <h1>{{ config('app.name') }} — Relatório de Despesas</h1>
                 <div class="meta">Escopo: {{ $scopeLabel }} &nbsp;·&nbsp; Gerado em {{ $generatedAt }}</div>
             </div>
 
-            <p class="month-title">{{ $page['label'] }}</p>
+            <p class="month-title">{{ $page['label'] }} <span class="muted" style="font-weight: normal; font-size: 10px;">· {{ $page['range'] }}</span></p>
 
             @if ($page['rows']->isEmpty())
                 <p class="empty">Nenhuma despesa encontrada para este mês/escopo.</p>
@@ -123,10 +132,14 @@
                         @foreach ($page['rows'] as $row)
                             <tr>
                                 <td>{{ \Illuminate\Support\Carbon::parse($row->date)->format('d/m/Y') }}</td>
-                                <td>{{ $row->description }}</td>
+                                <td>
+                                    {{ $row->custom_name ?: \App\Support\ExpensePresenter::splitDescription($row->description)[1] }}
+                                    @if ($row->installment_number && ! str_contains($row->description, "{$row->installment_number}/{$row->installment_total}"))<span class="muted"> · parcela {{ $row->installment_number }}/{{ $row->installment_total }}</span>@endif
+                                    @if ($row->notes)<br><span class="muted">{{ $row->notes }}</span>@endif
+                                </td>
                                 <td>{{ $row->category?->name ?? '—' }}</td>
                                 <td><span class="badge badge-{{ $row->ownership }}">{{ $ownershipLabels[$row->ownership] }}</span></td>
-                                <td class="amount">{{ 'R$ ' . number_format($row->amount, 2, ',', '.') }}</td>
+                                <td class="amount {{ $row->direction === 'in' ? 'refund' : '' }}">{{ ($row->direction === 'in' ? '−R$ ' : 'R$ ') . number_format($row->amount, 2, ',', '.') }}</td>
                             </tr>
                         @endforeach
                         <tr class="total-row">
@@ -135,6 +148,22 @@
                         </tr>
                     </tbody>
                 </table>
+
+                @if ($showSplit)
+                    <table class="split">
+                        <tr>
+                            <td><strong>{{ $settings->payer1_name }}</strong>: R$ {{ number_format($page['split']['payer1_total'], 2, ',', '.') }}</td>
+                            <td class="muted">individual R$ {{ number_format($page['split']['payer1_individual'], 2, ',', '.') }} + {{ number_format($settings->payer1_percent, 1, ',', '.') }}% do compartilhado</td>
+                        </tr>
+                        <tr>
+                            <td><strong>{{ $settings->payer2_name }}</strong>: R$ {{ number_format($page['split']['payer2_total'], 2, ',', '.') }}</td>
+                            <td class="muted">individual R$ {{ number_format($page['split']['payer2_individual'], 2, ',', '.') }} + {{ number_format($settings->payer2_percent, 1, ',', '.') }}% do compartilhado</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" class="muted">Compartilhado no mês: R$ {{ number_format($page['split']['shared_total'], 2, ',', '.') }} · estornos já abatidos</td>
+                        </tr>
+                    </table>
+                @endif
             @endif
         </div>
     @endforeach

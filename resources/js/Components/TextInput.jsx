@@ -1,5 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import { INPUT_CLASSES } from '@/Components/ui/Field';
 
+// Input do Breeze no visual Sovinna (mesmas classes do ui/Field).
 export default forwardRef(function TextInput(
     { type = 'text', className = '', isFocused = false, ...props },
     ref,
@@ -20,10 +22,7 @@ export default forwardRef(function TextInput(
         <input
             {...props}
             type={type}
-            className={
-                'rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ' +
-                className
-            }
+            className={`${INPUT_CLASSES} ${className}`}
             ref={localRef}
         />
     );

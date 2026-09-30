@@ -2,31 +2,27 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\ImportPluggyTransactionsJob;
+use App\Models\Expense;
 use App\Models\OpenFinanceItem;
+use App\Services\Categorization\Categorizer;
+use App\Services\OpenFinance\PluggySynchronizer;
 use App\Services\PluggyService;
+use App\Support\ExpensePresenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class OpenFinanceController extends Controller
 {
-    public function index(): Response
+    // A tela de conexões virou a seção "Contas conectadas" de Configurações.
+    public function index(): RedirectResponse
     {
-        return Inertia::render('OpenFinance', [
-            'items' => OpenFinanceItem::orderBy('connector_name')
-                ->get()
-                ->map(fn (OpenFinanceItem $item) => [
-                    'id'              => $item->id,
-                    'connector_name'  => $item->connector_name,
-                    'owner'           => $item->owner,
-                    'status'          => $item->status,
-                    'last_synced_at'  => $item->last_synced_at?->format('d/m/Y H:i'),
-                ]),
-            'useSandbox' => (bool) config('pluggy.use_sandbox'),
-        ]);
+        return redirect()->to(route('settings.show').'#contas');
     }
 
     public function connectToken(Request $request, PluggyService $pluggy): JsonResponse
@@ -40,7 +36,7 @@ class OpenFinanceController extends Controller
         ]);
     }
 
-    public function store(Request $request, PluggyService $pluggy): RedirectResponse
+    public function store(Request $request, PluggyService $pluggy, PluggySynchronizer $synchronizer, Categorizer $categorizer): RedirectResponse
     {
         $data = $request->validate([
             'item_id'        => ['required', 'string'],
@@ -57,9 +53,12 @@ class OpenFinanceController extends Controller
             ]
         );
 
-        ImportPluggyTransactionsJob::dispatch($item->id);
+        $result = $this->syncItems(collect([$item]), $synchronizer, $categorizer);
 
-        return back()->with('success', 'Conexão criada! Importando as transações em background.');
+        return back()->with(
+            $result['errors'] ? 'error' : 'success',
+            $result['errors'] ? 'Conexão criada, mas a primeira importação falhou: '.$result['errors'][0] : "Conexão criada! {$result['created']} transações importadas."
+        );
     }
 
     public function update(Request $request, OpenFinanceItem $openFinanceItem): RedirectResponse
@@ -69,62 +68,147 @@ class OpenFinanceController extends Controller
         ]);
 
         $openFinanceItem->update($data);
+        // Os lançamentos da conexão passam a ser "pagos por" quem é o novo dono.
+        $openFinanceItem->expenses()->update(['source' => $data['owner']]);
 
         return back()->with('success', 'Conexão atualizada.');
     }
 
-    public function sync(OpenFinanceItem $openFinanceItem): RedirectResponse
+    /**
+     * Sincroniza uma conexão (ou todas, sem parâmetro) na hora: busca no Pluggy, classifica,
+     * categoriza (regras, memória e IA) e vincula as contas fixas. Leva alguns segundos.
+     */
+    public function sync(Request $request, PluggySynchronizer $synchronizer, Categorizer $categorizer, ?OpenFinanceItem $openFinanceItem = null): JsonResponse|RedirectResponse
     {
-        ImportPluggyTransactionsJob::dispatch($openFinanceItem->id);
+        $items = $openFinanceItem ? collect([$openFinanceItem]) : OpenFinanceItem::all();
+        $result = $this->syncItems($items, $synchronizer, $categorizer);
 
-        return back()->with('success', 'Sincronização iniciada em background.');
+        if ($request->wantsJson()) {
+            return response()->json($result, $result['errors'] ? 502 : 200);
+        }
+
+        return back()->with(
+            $result['errors'] ? 'error' : 'success',
+            $result['errors'] ? 'Falha ao sincronizar: '.$result['errors'][0] : self::summary($result)
+        );
     }
 
-    public function show(OpenFinanceItem $openFinanceItem, PluggyService $pluggy): Response
+    public function show(OpenFinanceItem $openFinanceItem): Response
     {
-        $accounts = collect($pluggy->getAccounts($openFinanceItem->item_id))
-            ->map(function (array $account) use ($pluggy) {
-                $transactions = collect($pluggy->getTransactions($account['id'], now()->subMonths(3)->toDateString()))
-                    ->sortByDesc('date')
-                    ->values()
-                    ->map(fn (array $t) => [
-                        'id'          => $t['id'],
-                        'description' => $t['description'],
-                        'amount'      => $t['amount'],
-                        'date'        => $t['date'],
-                        'type'        => $t['type'],
-                        'category'    => $t['category'] ?? null,
-                    ]);
-
-                return [
-                    'id'           => $account['id'],
-                    'name'         => $account['name'] ?? null,
-                    'type'         => $account['type'] ?? null,
-                    'subtype'      => $account['subtype'] ?? null,
-                    'number'       => $account['number'] ?? null,
-                    'balance'      => $account['balance'] ?? null,
-                    'currencyCode' => $account['currencyCode'] ?? null,
-                    'transactions' => $transactions->all(),
-                ];
-            });
+        $openFinanceItem->load('accounts', 'investments');
 
         return Inertia::render('OpenFinanceDetails', [
             'item' => [
-                'id'             => $openFinanceItem->id,
+                'id' => $openFinanceItem->id,
                 'connector_name' => $openFinanceItem->connector_name,
-                'owner'          => $openFinanceItem->owner,
-                'status'         => $openFinanceItem->status,
-                'last_synced_at' => $openFinanceItem->last_synced_at?->format('d/m/Y H:i'),
+                'owner' => $openFinanceItem->owner,
+                'status' => $openFinanceItem->status,
+                'last_synced_at' => $openFinanceItem->last_synced_at?->toIso8601String(),
+                'last_sync_error' => $openFinanceItem->last_sync_error,
             ],
-            'accounts' => $accounts->values()->all(),
+            'accounts' => $openFinanceItem->accounts->map(fn ($account) => [
+                'id' => $account->id,
+                'external_id' => $account->external_id,
+                'type' => $account->type,
+                'subtype' => $account->subtype,
+                'name' => $account->name,
+                'number' => $account->number,
+                'balance' => $account->balance,
+                'credit_limit' => $account->credit_limit,
+                'available_credit_limit' => $account->available_credit_limit,
+                'bill_due_date' => $account->bill_due_date?->toDateString(),
+                'transactions' => Expense::with('category')
+                    ->where('account_id', $account->external_id)
+                    ->whereBetween('date', [now()->subMonths(3)->toDateString(), now()->toDateString()])
+                    ->newestFirst()
+                    ->get()
+                    ->map(fn (Expense $e) => ExpensePresenter::row($e)),
+                // Parcelas de faturas que ainda vão fechar, da mais próxima para a mais distante.
+                'future' => Expense::with('category')
+                    ->where('account_id', $account->external_id)
+                    ->where('date', '>', now()->toDateString())
+                    ->orderBy('date')
+                    ->get()
+                    ->map(fn (Expense $e) => ExpensePresenter::row($e)),
+            ]),
+            'investments' => $openFinanceItem->investments
+                ->where('balance', '>', 0)
+                ->sortByDesc('balance')
+                ->values()
+                ->map(fn ($investment) => [
+                    'id' => $investment->id,
+                    'name' => $investment->shortName(),
+                    'type' => $investment->subtype ?? $investment->type,
+                    'balance' => $investment->balance,
+                ]),
         ]);
     }
 
     public function destroy(OpenFinanceItem $openFinanceItem, PluggyService $pluggy): RedirectResponse
     {
-        $pluggy->deleteItem($openFinanceItem->item_id);
+        try {
+            $pluggy->deleteItem($openFinanceItem->item_id);
+        } catch (\Throwable $e) {
+            // A conexão pode já não existir no Pluggy; remove daqui de qualquer jeito.
+            Log::warning('Falha ao remover item no Pluggy', ['item' => $openFinanceItem->id, 'error' => $e->getMessage()]);
+        }
+
         $openFinanceItem->delete();
 
-        return back()->with('success', 'Conexão removida.');
+        return back()->with('success', 'Conexão removida. Os lançamentos já importados foram mantidos.');
+    }
+
+    /**
+     * @return array{created: int, updated: int, removed: int, categorized_by_ai: int, errors: list<string>}
+     */
+    private function syncItems($items, PluggySynchronizer $synchronizer, Categorizer $categorizer): array
+    {
+        set_time_limit(300);
+
+        $result = ['created' => 0, 'updated' => 0, 'removed' => 0, 'categorized_by_ai' => 0, 'errors' => []];
+
+        // Evita duas sincronizações simultâneas (ex: Home aberta em duas abas).
+        $lock = Cache::lock('open-finance:sync', 300);
+
+        if (! $lock->get()) {
+            $result['errors'][] = 'Já existe uma sincronização em andamento.';
+
+            return $result;
+        }
+
+        try {
+            foreach ($items as $item) {
+                try {
+                    $stats = $synchronizer->sync($item);
+                    $result['created'] += $stats['created'];
+                    $result['updated'] += $stats['updated'];
+                    $result['removed'] += $stats['removed'];
+                } catch (\Throwable $e) {
+                    $message = Str::limit($e->getMessage(), 300);
+                    $item->update(['last_sync_error' => $message]);
+                    $result['errors'][] = $message;
+                }
+            }
+
+            $pending = Expense::where('status', 'pending')->pluck('id')->all();
+
+            if ($pending) {
+                $categorizer->applyAi($categorizer->applyLocal($pending));
+                $result['categorized_by_ai'] = count($pending);
+            }
+        } finally {
+            $lock->release();
+        }
+
+        return $result;
+    }
+
+    private static function summary(array $result): string
+    {
+        if ($result['created'] === 0 && $result['removed'] === 0) {
+            return 'Tudo em dia — nenhuma transação nova.';
+        }
+
+        return "Sincronizado: {$result['created']} novas, {$result['updated']} atualizadas, {$result['removed']} removidas.";
     }
 }

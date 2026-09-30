@@ -4,7 +4,8 @@ import { theme } from '@/theme/tokens';
 // data: [{ nome, cor, valor, pct }]
 // Recharts (Pie/Cell/Tooltip.contentStyle) recebe cor via props JS, não className —
 // por isso theme.x ainda é usado aqui, mesmo com o resto convertido para Tailwind.
-export default function DonutChart({ data, totalLabel = 'Total', totalValue, tooltipSuffix = '' }) {
+// valueFormatter: formata o valor do tooltip (ex: moeda); sem ele, usa valor + tooltipSuffix.
+export default function DonutChart({ data, totalLabel = 'Total', totalValue, tooltipSuffix = '', valueFormatter }) {
     return (
         <div className="mt-1.5 flex flex-1 flex-wrap items-center justify-center gap-[18px]">
             <div className="relative h-[170px] w-[170px] flex-none">
@@ -30,7 +31,7 @@ export default function DonutChart({ data, totalLabel = 'Total', totalValue, too
                             ))}
                         </Pie>
                         <Tooltip
-                            formatter={(value, name) => [`${value}${tooltipSuffix}`, name]}
+                            formatter={(value, name) => [valueFormatter ? valueFormatter(value) : `${value}${tooltipSuffix}`, name]}
                             contentStyle={{
                                 background: theme.surface,
                                 border: `1px solid rgba(${theme.textRgb},.12)`,

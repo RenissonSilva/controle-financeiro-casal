@@ -12,37 +12,22 @@ export default function VerifyEmail({ status }) {
     };
 
     return (
-        <GuestLayout>
-            <Head title="Email Verification" />
-
-            <div className="mb-4 text-sm text-gray-600">
-                Thanks for signing up! Before getting started, could you verify
-                your email address by clicking on the link we just emailed to
-                you? If you didn't receive the email, we will gladly send you
-                another.
-            </div>
+        <GuestLayout
+            title="Confirme seu e-mail"
+            subtitle="Enviamos um link de confirmação para o seu e-mail. Se não chegou, podemos mandar outro."
+        >
+            <Head title="Confirmar e-mail" />
 
             {status === 'verification-link-sent' && (
-                <div className="mb-4 text-sm font-medium text-green-600">
-                    A new verification link has been sent to the email address
-                    you provided during registration.
-                </div>
+                <div className="mb-4 text-[13px] font-medium text-green">Um novo link foi enviado para o seu e-mail.</div>
             )}
 
             <form onSubmit={submit}>
-                <div className="mt-4 flex items-center justify-between">
-                    <PrimaryButton disabled={processing}>
-                        Resend Verification Email
-                    </PrimaryButton>
-
-                    <Link
-                        href={route('logout')}
-                        method="post"
-                        as="button"
-                        className="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                    >
-                        Log Out
+                <div className="flex items-center justify-between gap-3">
+                    <Link href={route('logout')} method="post" as="button" className="text-[12.5px] text-text/55 underline-offset-2 hover:text-text hover:underline">
+                        Sair
                     </Link>
+                    <PrimaryButton disabled={processing}>Reenviar e-mail</PrimaryButton>
                 </div>
             </form>
         </GuestLayout>

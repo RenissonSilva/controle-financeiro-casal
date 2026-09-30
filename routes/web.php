@@ -5,10 +5,11 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FixedExpenseController;
-use App\Http\Controllers\ImportController;
+use App\Http\Controllers\GoalController;
 use App\Http\Controllers\OpenFinanceController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\SettlementController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -25,43 +26,53 @@ if (app()->environment('local')) {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // Despesas
+    // Lançamentos
     Route::get('/expenses', [ExpenseController::class, 'index'])->name('expenses.index');
     Route::post('/expenses', [ExpenseController::class, 'store'])->name('expenses.store');
     Route::post('/expenses/batch', [ExpenseController::class, 'batchUpdate'])->name('expenses.batch');
-    Route::delete('/expenses/{expense}', [ExpenseController::class, 'destroy'])->name('expenses.destroy');
-    Route::delete('/expenses-month/{month}/{source}', [ExpenseController::class, 'destroyByMonth'])->name('expenses.destroyByMonth');
     Route::post('/expenses/export-pdf', [ExpenseController::class, 'exportPdf'])->name('expenses.exportPdf');
     Route::post('/expenses/categorize', [ExpenseController::class, 'categorize'])->name('expenses.categorize');
+    Route::put('/expenses/{expense}', [ExpenseController::class, 'update'])->name('expenses.update');
+    Route::post('/expenses/{expense}/ignore', [ExpenseController::class, 'toggleIgnore'])->name('expenses.toggleIgnore');
+    Route::delete('/expenses/{expense}', [ExpenseController::class, 'destroy'])->name('expenses.destroy');
 
-    // Importação
-    Route::get('/import', [ImportController::class, 'show'])->name('import.show');
-    Route::post('/import', [ImportController::class, 'store'])->name('import.store');
+    // Acerto do casal (detalhes do card da Home)
+    Route::get('/settlement', [SettlementController::class, 'index'])->name('settlement.index');
 
-    // Categorias
+    // Categorias e regras (editadas em Configurações; os index só redirecionam)
     Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
     Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
     Route::put('/categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
     Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
 
-    // Regras de categorização automática
     Route::get('/categorization-rules', [CategorizationRuleController::class, 'index'])->name('categorizationRules.index');
     Route::post('/categorization-rules', [CategorizationRuleController::class, 'store'])->name('categorizationRules.store');
     Route::put('/categorization-rules/{categorizationRule}', [CategorizationRuleController::class, 'update'])->name('categorizationRules.update');
     Route::delete('/categorization-rules/{categorizationRule}', [CategorizationRuleController::class, 'destroy'])->name('categorizationRules.destroy');
     Route::post('/categorization-rules/apply', [CategorizationRuleController::class, 'apply'])->name('categorizationRules.apply');
 
-    // Despesas fixas
+    // Contas fixas
     Route::get('/fixed-expenses', [FixedExpenseController::class, 'index'])->name('fixedExpenses.index');
     Route::post('/fixed-expenses', [FixedExpenseController::class, 'store'])->name('fixedExpenses.store');
     Route::put('/fixed-expenses/{fixedExpense}', [FixedExpenseController::class, 'update'])->name('fixedExpenses.update');
     Route::delete('/fixed-expenses/{fixedExpense}', [FixedExpenseController::class, 'destroy'])->name('fixedExpenses.destroy');
     Route::put('/fixed-expenses/{fixedExpense}/occurrence', [FixedExpenseController::class, 'updateOccurrence'])->name('fixedExpenses.occurrence.update');
     Route::delete('/fixed-expenses/occurrence/{occurrence}', [FixedExpenseController::class, 'destroyOccurrence'])->name('fixedExpenses.occurrence.destroy');
+    Route::get('/fixed-expenses/{fixedExpense}/candidates', [FixedExpenseController::class, 'candidates'])->name('fixedExpenses.candidates');
+    Route::post('/fixed-expenses/{fixedExpense}/link', [FixedExpenseController::class, 'link'])->name('fixedExpenses.link');
+    Route::post('/fixed-expenses/{fixedExpense}/unlink', [FixedExpenseController::class, 'unlink'])->name('fixedExpenses.unlink');
 
-    // Open Finance (Pluggy)
+    // Metas
+    Route::get('/goals', [GoalController::class, 'index'])->name('goals.index');
+    Route::post('/goals', [GoalController::class, 'store'])->name('goals.store');
+    Route::put('/goals/{goal}', [GoalController::class, 'update'])->name('goals.update');
+    Route::delete('/goals/{goal}', [GoalController::class, 'destroy'])->name('goals.destroy');
+    Route::post('/goals/{goal}/primary', [GoalController::class, 'primary'])->name('goals.primary');
+
+    // Open Finance (Pluggy) — as conexões ficam em Configurações > Contas conectadas
     Route::get('/open-finance', [OpenFinanceController::class, 'index'])->name('openFinance.index');
     Route::post('/open-finance/connect-token', [OpenFinanceController::class, 'connectToken'])->name('openFinance.connectToken');
+    Route::post('/open-finance/sync', [OpenFinanceController::class, 'sync'])->name('openFinance.sync');
     Route::post('/open-finance/items', [OpenFinanceController::class, 'store'])->name('openFinance.items.store');
     Route::get('/open-finance/items/{openFinanceItem}', [OpenFinanceController::class, 'show'])->name('openFinance.items.show');
     Route::put('/open-finance/items/{openFinanceItem}', [OpenFinanceController::class, 'update'])->name('openFinance.items.update');

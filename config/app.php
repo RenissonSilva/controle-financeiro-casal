@@ -65,7 +65,9 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // Fuso do casal: define o "hoje" (ciclo atual, contas a vencer) e a data local das
+    // transações do Pluggy, que chegam em UTC (23h de um dia viraria o dia seguinte).
+    'timezone' => env('APP_TIMEZONE', 'America/Sao_Paulo'),
 
     /*
     |--------------------------------------------------------------------------

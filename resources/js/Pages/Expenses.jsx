@@ -1,890 +1,498 @@
-import FixedExpensesPanel from '@/Components/FixedExpensesPanel';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, router, usePage } from '@inertiajs/react';
+import AppLayout from '@/Layouts/AppLayout';
+import Card from '@/Components/ui/Card';
+import Button from '@/Components/ui/Button';
+import PageHeader from '@/Components/ui/PageHeader';
+import SectionLabel from '@/Components/ui/SectionLabel';
+import Segmented from '@/Components/ui/Segmented';
+import CycleSwitcher from '@/Components/ui/CycleSwitcher';
+import SaveBar from '@/Components/ui/SaveBar';
+import IconBadge from '@/Components/ui/IconBadge';
+import ExpenseRow from '@/Components/expenses/ExpenseRow';
+import ExpenseModal from '@/Components/expenses/ExpenseModal';
+import ExportPdfModal from '@/Components/expenses/ExportPdfModal';
+import { router, usePage } from '@inertiajs/react';
 import axios from 'axios';
-import { useEffect, useRef, useState } from 'react';
-import { X, Loader2, Trash2, FileDown, Sparkles, Plus } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowLeftRight, FileDown, Plus, RefreshCw, Search, Sparkles, Users, Wallet, PieChart, X } from 'lucide-react';
+import { firstName, money, monthLabel, parseDate, percent, relativeTime } from '@/lib/format';
+import { OWNERSHIP_BADGE, ownershipOptions } from '@/lib/ownership';
 
-const OWNERSHIP_OPTIONS = [
-    { value: 'payer1', label: 'Reni' },
-    { value: 'payer2', label: 'Lua' },
-    { value: 'both',   label: 'Nós' },
-];
+const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
-const OWNERSHIP_BADGE = {
-    payer1: 'bg-emerald-100 text-emerald-700',
-    payer2: 'bg-rose-100 text-rose-700',
-    both:   'bg-amber-100 text-amber-700',
+// '2026-09-10' → 'Qui, 10 de set'
+const dayHeader = (date) => {
+    const d = parseDate(date);
+    const weekday = WEEKDAYS[d.getDay()];
+    return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)}, ${d.getDate()} de ${MONTHS[d.getMonth()]}`;
 };
 
-const fmt = (v) =>
-    Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+// Valor com sinal para somas de "despesa líquida" (estorno abate).
+const expenseValue = (row) => (row.kind !== 'expense' ? 0 : row.direction === 'in' ? -row.amount : row.amount);
 
-const monthLabel = (m) => {
-    const label = new Date(`${m}-01T00:00:00`).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-    return label.charAt(0).toUpperCase() + label.slice(1);
-};
+export default function Expenses({ cycle, availableMonths, rows, summary, categories, fixedExpenses, lastSyncedAt, hasConnection }) {
+    const { couple } = usePage().props;
+    const partner = firstName(couple?.payer2_name);
+    const me = firstName(couple?.payer1_name);
 
-const SCOPE_OPTIONS = (settings) => [
-    { value: 'payer1', label: settings.payer1_name },
-    { value: 'payer2', label: settings.payer2_name },
-    { value: 'both',   label: 'Compartilhado' },
-];
-const ALL_OWNERSHIPS = ['payer1', 'payer2', 'both'];
+    const [drafts, setDrafts] = useState({});
+    const [selected, setSelected] = useState(() => new Set());
+    const [type, setType] = useState('expense');
+    const [owner, setOwner] = useState('all');
+    const [search, setSearch] = useState('');
+    const [onlyUncategorized, setOnlyUncategorized] = useState(false);
+    const [groupBy, setGroupBy] = useState('day');
+    const [modal, setModal] = useState({ show: false, row: null });
+    const [exportOpen, setExportOpen] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [syncing, setSyncing] = useState(false);
+    const [aiRunning, setAiRunning] = useState(false);
 
-function buildCategoryGroups(rows) {
-    const map = {};
-    for (const r of rows) {
-        const key = r.category ?? 'Sem categoria';
-        if (!map[key]) map[key] = [];
-        map[key].push(r.id);
-    }
-    return map;
-}
+    // Mudou de mês: descarta rascunho e seleção.
+    useEffect(() => {
+        setDrafts({});
+        setSelected(new Set());
+    }, [cycle.month]);
 
-// ─── Modal de adição manual ───────────────────────────────────────────────────
-const EMPTY_FORM = { description: '', amount: '', date: '', category_id: '', ownership: 'both' };
+    // Linhas novas do servidor: mantém só a seleção que ainda existe.
+    useEffect(() => {
+        setSelected((prev) => new Set([...prev].filter((id) => rows.some((r) => r.id === id))));
+    }, [rows]);
 
-function AddExpenseModal({ categories, currentMonth, source, ownerName, onAdded, onClose }) {
-    const [form, setForm] = useState(() => ({
-        ...EMPTY_FORM,
-        date: currentMonth ? `${currentMonth}-01` : new Date().toISOString().slice(0, 10),
-    }));
-    const [errors, setErrors] = useState({});
-    const [submitting, setSubmitting] = useState(false);
+    const withDrafts = useMemo(() => rows.map((r) => (drafts[r.id] ? { ...r, ...drafts[r.id] } : r)), [rows, drafts]);
 
-    const set = (field, value) => {
-        setForm((prev) => ({ ...prev, [field]: value }));
-        setErrors((prev) => ({ ...prev, [field]: undefined }));
+    const counts = useMemo(() => ({
+        expense: rows.filter((r) => r.kind === 'expense').length,
+        income: rows.filter((r) => r.kind === 'income').length,
+        settlement: rows.filter((r) => r.kind === 'settlement').length,
+        ignored: rows.filter((r) => r.kind === 'ignored').length,
+        all: rows.length,
+        uncategorized: rows.filter((r) => r.kind === 'expense' && !r.category_id).length,
+    }), [rows]);
+
+    const visible = useMemo(() => {
+        const term = search.trim().toLowerCase();
+        return withDrafts.filter((r) => {
+            if (type !== 'all' && r.kind !== type) return false;
+            if (owner !== 'all' && (r.kind !== 'expense' || r.ownership !== owner)) return false;
+            if (onlyUncategorized && (r.kind !== 'expense' || r.category_id)) return false;
+            if (term && !`${r.name} ${r.description} ${r.notes ?? ''} ${r.category ?? ''}`.toLowerCase().includes(term)) return false;
+            return true;
+        });
+    }, [withDrafts, type, owner, onlyUncategorized, search]);
+
+    const groups = useMemo(() => {
+        const map = new Map();
+        const categoryName = (r) => {
+            if (r.kind === 'income') return 'Receitas';
+            if (r.kind === 'settlement') return `Acertos com ${partner}`;
+            if (r.kind === 'ignored') return 'Ignorados';
+            return categories.find((c) => c.id === r.category_id)?.name ?? 'Sem categoria';
+        };
+
+        visible.forEach((r) => {
+            const key = groupBy === 'day' ? r.date : categoryName(r);
+            if (!map.has(key)) map.set(key, []);
+            map.get(key).push(r);
+        });
+
+        const list = [...map.entries()].map(([key, items]) => ({ key, items, total: items.reduce((s, r) => s + expenseValue(r), 0) }));
+        return groupBy === 'day' ? list : list.sort((a, b) => b.total - a.total);
+    }, [visible, groupBy, categories, partner]);
+
+    // ---- Rascunho de categoria/quem paga ----
+    const changeRow = (row, patch) => {
+        const original = rows.find((r) => r.id === row.id);
+        setDrafts((prev) => {
+            const next = { ...(prev[row.id] || {}), ...patch };
+            const unchanged = Object.keys(next).every((k) => next[k] === original[k]);
+            const copy = { ...prev };
+            if (unchanged) delete copy[row.id];
+            else copy[row.id] = next;
+            return copy;
+        });
     };
 
-    const validate = () => {
-        const e = {};
-        if (!form.description.trim()) e.description = 'Informe a descrição.';
-        if (!form.amount || Number(form.amount) <= 0) e.amount = 'Valor deve ser maior que zero.';
-        if (!form.date) e.date = 'Informe a data.';
-        return e;
+    const applyToMany = (ids, patch) => ids.forEach((id) => changeRow({ id }, patch));
+
+    const saveDrafts = () => {
+        const expenses = Object.keys(drafts).map((id) => {
+            const row = withDrafts.find((r) => r.id === Number(id));
+            return { id: row.id, category_id: row.category_id, ownership: row.ownership };
+        });
+        setSaving(true);
+        router.post(route('expenses.batch'), { expenses }, {
+            preserveScroll: true,
+            onSuccess: () => setDrafts({}),
+            onFinish: () => setSaving(false),
+        });
     };
 
-    const submit = async (e) => {
-        e.preventDefault();
-        const errs = validate();
-        if (Object.keys(errs).length) { setErrors(errs); return; }
+    // ---- Seleção ----
+    const toggleSelect = (id) => setSelected((prev) => {
+        const next = new Set(prev);
+        next.has(id) ? next.delete(id) : next.add(id);
+        return next;
+    });
+    const allVisibleSelected = visible.length > 0 && visible.every((r) => selected.has(r.id));
+    const toggleSelectAll = () => setSelected(allVisibleSelected ? new Set() : new Set(visible.map((r) => r.id)));
+    const selectedIds = [...selected];
 
-        setSubmitting(true);
+    const categorizeWithAi = async (ids) => {
+        if (!ids.length) return;
+        setAiRunning(true);
         try {
-            const { data } = await axios.post(route('expenses.store'), {
-                description: form.description.trim(),
-                amount:      Number(form.amount),
-                date:        form.date,
-                category_id: form.category_id || null,
-                ownership:   form.ownership,
-                source,
-            });
-            onAdded(data);
-            onClose();
-        } catch (err) {
-            if (err.response?.status === 422) {
-                const serverErrors = {};
-                Object.entries(err.response.data.errors).forEach(([k, msgs]) => {
-                    serverErrors[k] = msgs[0];
-                });
-                setErrors(serverErrors);
-            }
+            await axios.post(route('expenses.categorize'), { ids });
+            setSelected(new Set());
+            router.reload({ only: ['rows', 'summary'] });
         } finally {
-            setSubmitting(false);
+            setAiRunning(false);
         }
     };
 
-    useEffect(() => {
-        const handler = (e) => { if (e.key === 'Escape') onClose(); };
-        window.addEventListener('keydown', handler);
-        return () => window.removeEventListener('keydown', handler);
-    }, [onClose]);
+    const sync = () => {
+        setSyncing(true);
+        router.post(route('openFinance.sync'), {}, { preserveScroll: true, onFinish: () => setSyncing(false) });
+    };
+
+    const toggleIgnore = (row) => router.post(route('expenses.toggleIgnore', row.id), {}, { preserveScroll: true });
+    const destroy = (row) => {
+        if (confirm(`Excluir "${row.name}"? Esta ação não pode ser desfeita.`)) {
+            router.delete(route('expenses.destroy', row.id), { preserveScroll: true });
+        }
+    };
+
+    const split = summary.split;
+    const flow = summary.cash_flow;
+    const settlement = summary.settlement;
+    const shareTotal = split.payer1_total + split.payer2_total || 1;
+    const defaultDate = cycle.is_current ? new Date().toISOString().slice(0, 10) : cycle.start;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-            <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
-                <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-                    <div>
-                        <h2 className="text-base font-semibold text-gray-800">Adicionar Despesa</h2>
-                        <p className="text-xs text-gray-400">Extrato de <strong>{ownerName}</strong></p>
-                    </div>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-                        <X className="h-5 w-5" strokeWidth={2} />
-                    </button>
-                </div>
+        <AppLayout title="Lançamentos">
+            <PageHeader
+                eyebrow="Mês financeiro"
+                title="Lançamentos"
+                description="Tudo que entrou e saiu no mês. Ajuste categoria e quem paga — o rateio e o acerto são recalculados na hora."
+                actions={<CycleSwitcher cycle={cycle} routeName="expenses.index" />}
+            />
 
-                <form onSubmit={submit} className="space-y-4 px-6 py-5">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Descrição *</label>
-                        <input
-                            type="text"
-                            autoFocus
-                            value={form.description}
-                            onChange={(e) => set('description', e.target.value)}
-                            placeholder="Ex: Supermercado Extra"
-                            className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none ${errors.description ? 'border-red-400' : 'border-gray-300'}`}
-                        />
-                        {errors.description && <p className="mt-1 text-xs text-red-500">{errors.description}</p>}
+            {/* Resumo do mês */}
+            <section className="flex flex-wrap items-stretch gap-[clamp(14px,1.6vw,20px)]">
+                <Card className="flex flex-[1.4_1_320px] flex-col gap-3.5">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <IconBadge><Users size={13} strokeWidth={2.2} className="stroke-strong-accent" /></IconBadge>
+                            <span className="text-[13px] font-semibold tracking-[-.01em]">Total do casal</span>
+                        </div>
+                        <span className="font-heading text-[19px] font-semibold tracking-[-.02em]">{money(split.total)}</span>
                     </div>
+                    <div className="flex h-2 overflow-hidden rounded-full bg-text/8">
+                        <div className="bg-green/85" style={{ width: `${(split.payer1_total / shareTotal) * 100}%` }} />
+                        <div className="flex-1 bg-red/85" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-[12px]">
+                        {[
+                            { name: me, total: split.payer1_total, individual: split.payer1_individual, shared: split.payer1_shared, pct: couple?.payer1_percent, dot: 'bg-green' },
+                            { name: partner, total: split.payer2_total, individual: split.payer2_individual, shared: split.payer2_shared, pct: couple?.payer2_percent, dot: 'bg-red' },
+                        ].map((p) => (
+                            <div key={p.name}>
+                                <div className="flex items-center gap-1.5 text-text/60"><span className={`h-2 w-2 rounded-full ${p.dot}`} />{p.name}</div>
+                                <div className="font-heading text-[16px] font-semibold tracking-[-.01em]">{money(p.total)}</div>
+                                <div className="text-[11px] leading-snug text-text/45">
+                                    {money(p.individual)} individuais + {money(p.shared)} ({percent(p.pct)} de "Nós")
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </Card>
 
+                <SettlementCard settlement={settlement} partner={partner} me={me} />
+
+                <Card className="flex flex-[1_1_240px] flex-col justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                        <IconBadge><Wallet size={13} strokeWidth={2.2} className="stroke-strong-accent" /></IconBadge>
+                        <span className="text-[13px] font-semibold tracking-[-.01em]">Seu mês</span>
+                    </div>
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Valor (R$) *</label>
-                            <input
-                                type="number"
-                                min="0.01"
-                                step="0.01"
-                                value={form.amount}
-                                onChange={(e) => set('amount', e.target.value)}
-                                placeholder="0,00"
-                                className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none ${errors.amount ? 'border-red-400' : 'border-gray-300'}`}
-                            />
-                            {errors.amount && <p className="mt-1 text-xs text-red-500">{errors.amount}</p>}
+                            <div className="text-[11.5px] text-text/55">Receitas</div>
+                            <div className="font-heading text-[17px] font-semibold text-green">{money(flow.income)}</div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Data *</label>
-                            <input
-                                type="date"
-                                value={form.date}
-                                onChange={(e) => set('date', e.target.value)}
-                                className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none ${errors.date ? 'border-red-400' : 'border-gray-300'}`}
-                            />
-                            {errors.date && <p className="mt-1 text-xs text-red-500">{errors.date}</p>}
+                            <div className="text-[11.5px] text-text/55">Sua parte</div>
+                            <div className="font-heading text-[17px] font-semibold text-red">{money(flow.expenses)}</div>
                         </div>
                     </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Categoria</label>
-                        <select
-                            value={form.category_id}
-                            onChange={(e) => set('category_id', e.target.value)}
-                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-                        >
-                            <option value="">— Sem categoria —</option>
-                            {categories.map((c) => (
-                                <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                        </select>
+                    <div className="text-[12px] text-text/50">
+                        Sobra: <strong className={flow.balance >= 0 ? 'text-green' : 'text-red'}>{money(flow.balance)}</strong>
+                        {flow.pending_fixed > 0 && <> · contas fixas a pagar: {money(flow.pending_fixed)}</>}
                     </div>
+                </Card>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">De quem é o gasto?</label>
-                        <div className="mt-2 flex gap-2">
-                            {OWNERSHIP_OPTIONS.map((opt) => (
-                                <button
-                                    key={opt.value}
-                                    type="button"
-                                    onClick={() => set('ownership', opt.value)}
-                                    className={`flex-1 rounded-lg border py-2 text-xs font-medium transition-colors ${
-                                        form.ownership === opt.value
-                                            ? OWNERSHIP_BADGE[opt.value] + ' border-transparent'
-                                            : 'border-gray-300 text-gray-500 hover:bg-gray-50'
-                                    }`}
-                                >
-                                    {opt.label}
-                                </button>
-                            ))}
-                        </div>
+                <Card className="flex flex-[1_1_240px] flex-col gap-2.5">
+                    <div className="flex items-center gap-2">
+                        <IconBadge><PieChart size={13} strokeWidth={2.2} className="stroke-strong-accent" /></IconBadge>
+                        <span className="text-[13px] font-semibold tracking-[-.01em]">Por categoria</span>
                     </div>
-
-                    <div className="flex justify-end gap-3 pt-1">
-                        <button type="button" onClick={onClose} className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">
-                            Cancelar
-                        </button>
-                        <button type="submit" disabled={submitting} className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60">
-                            {submitting ? 'Salvando...' : 'Adicionar'}
-                        </button>
+                    <div className="scroll-thin flex max-h-[120px] flex-col gap-1.5 overflow-y-auto pr-1">
+                        {summary.by_category.length === 0 && <span className="text-[12px] text-text/45">Sem despesas no mês.</span>}
+                        {summary.by_category.map((c) => (
+                            <div key={c.name} className="flex items-center gap-2 text-[12.5px]">
+                                <span className="h-2 w-2 flex-none rounded-full" style={{ background: c.color }} />
+                                <span className="min-w-0 flex-1 truncate">{c.name}</span>
+                                <span className="tabular-nums text-text/70">{money(c.value)}</span>
+                            </div>
+                        ))}
                     </div>
-                </form>
-            </div>
-        </div>
-    );
-}
+                </Card>
+            </section>
 
-// ─── Modal de exportação em PDF ───────────────────────────────────────────────
-function ExportPdfModal({ availableMonths, currentMonth, settings, onClose }) {
-    const [selectedMonths, setSelectedMonths] = useState(() =>
-        availableMonths.includes(currentMonth) ? [currentMonth] : availableMonths.slice(0, 1)
-    );
-    const [ownerships, setOwnerships] = useState(ALL_OWNERSHIPS);
-    const [exporting, setExporting] = useState(false);
-    const [error, setError] = useState(null);
-
-    const scopeOptions = SCOPE_OPTIONS(settings);
-    const isTotal = ownerships.length === ALL_OWNERSHIPS.length;
-
-    const toggleMonth = (m) => {
-        setSelectedMonths((prev) =>
-            prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]
-        );
-    };
-
-    const toggleOwnership = (value) => {
-        setOwnerships((prev) =>
-            prev.includes(value) ? prev.filter((x) => x !== value) : [...prev, value]
-        );
-    };
-
-    const submit = async (e) => {
-        e.preventDefault();
-        if (selectedMonths.length === 0) {
-            setError('Selecione ao menos um mês.');
-            return;
-        }
-        if (ownerships.length === 0) {
-            setError('Selecione ao menos uma opção em "O que exportar?".');
-            return;
-        }
-        setError(null);
-        setExporting(true);
-        try {
-            const response = await axios.post(
-                route('expenses.exportPdf'),
-                { months: selectedMonths, ownerships },
-                { responseType: 'blob' }
-            );
-            const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = 'despesas.pdf';
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            window.URL.revokeObjectURL(url);
-            onClose();
-        } catch {
-            setError('Erro ao gerar o PDF. Tente novamente.');
-        } finally {
-            setExporting(false);
-        }
-    };
-
-    useEffect(() => {
-        const handler = (e) => { if (e.key === 'Escape') onClose(); };
-        window.addEventListener('keydown', handler);
-        return () => window.removeEventListener('keydown', handler);
-    }, [onClose]);
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-            <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
-                <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-                    <h2 className="text-base font-semibold text-gray-800">Exportar PDF</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-                        <X className="h-5 w-5" strokeWidth={2} />
-                    </button>
-                </div>
-
-                <form onSubmit={submit} className="space-y-4 px-6 py-5">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Meses</label>
-                        <p className="mb-2 text-xs text-gray-400">
-                            Se mais de um mês for selecionado, cada um sai em uma página separada.
-                        </p>
-                        <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-gray-200 p-2">
-                            {availableMonths.length === 0 && (
-                                <p className="px-1 py-1 text-xs text-gray-400">Nenhum mês com despesas cadastradas.</p>
+            {/* Lista */}
+            <section className="flex flex-col gap-4">
+                <SectionLabel
+                    title={`${monthLabel(cycle.month)} · ${counts.all} lançamentos`}
+                    action={
+                        <div className="flex flex-wrap items-center gap-2">
+                            {hasConnection && (
+                                <Button type="button" variant="ghost" onClick={sync} disabled={syncing} title={`Última sincronização: ${relativeTime(lastSyncedAt)}`}>
+                                    <RefreshCw size={14} strokeWidth={2.2} className={syncing ? 'animate-spin' : ''} />
+                                    {syncing ? 'Sincronizando…' : 'Sincronizar'}
+                                </Button>
                             )}
-                            {availableMonths.map((m) => (
-                                <label key={m} className="flex items-center gap-2 rounded px-1 py-1 text-sm text-gray-700 hover:bg-gray-50">
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedMonths.includes(m)}
-                                        onChange={() => toggleMonth(m)}
-                                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                    />
-                                    {monthLabel(m)}
-                                </label>
-                            ))}
+                            <Button type="button" variant="secondary" onClick={() => setExportOpen(true)}>
+                                <FileDown size={14} strokeWidth={2.2} /> PDF
+                            </Button>
+                            <Button type="button" variant="secondary" onClick={() => setModal({ show: true, row: null })}>
+                                <Plus size={14} strokeWidth={2.2} /> Lançamento
+                            </Button>
                         </div>
-                    </div>
+                    }
+                />
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">O que exportar?</label>
-                        <p className="mb-2 text-xs text-gray-400">Pode marcar mais de uma opção.</p>
-                        <div className="grid grid-cols-2 gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setOwnerships(isTotal ? [] : ALL_OWNERSHIPS)}
-                                className={`col-span-2 rounded-lg border py-2 text-xs font-medium transition-colors ${
-                                    isTotal
-                                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                                        : 'border-gray-300 text-gray-500 hover:bg-gray-50'
-                                }`}
-                            >
-                                Total (todos)
+                <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex min-w-[180px] flex-1 items-center gap-2 rounded-[10px] bg-text/[0.04] px-3 shadow-[inset_0_0_0_1px_rgb(var(--color-text-rgb)/0.1)] focus-within:shadow-[inset_0_0_0_1px_var(--color-accent)]">
+                        <Search size={14} strokeWidth={1.9} className="flex-none text-text/45" />
+                        <input
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Buscar lançamento"
+                            aria-label="Buscar lançamento"
+                            className="min-w-0 flex-1 border-0 bg-transparent py-[9px] text-[13.5px] text-text placeholder:text-text/40 focus:outline-none focus:ring-0"
+                        />
+                        {search && (
+                            <button type="button" onClick={() => setSearch('')} aria-label="Limpar busca" className="text-text/45 hover:text-text">
+                                <X size={14} />
                             </button>
-                            {scopeOptions.map((opt) => (
-                                <button
-                                    key={opt.value}
-                                    type="button"
-                                    onClick={() => toggleOwnership(opt.value)}
-                                    className={`rounded-lg border py-2 text-xs font-medium transition-colors ${
-                                        ownerships.includes(opt.value)
-                                            ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                                            : 'border-gray-300 text-gray-500 hover:bg-gray-50'
-                                    }`}
-                                >
-                                    {opt.label}
-                                </button>
-                            ))}
-                        </div>
+                        )}
                     </div>
-
-                    {error && <p className="text-xs text-red-500">{error}</p>}
-
-                    <div className="flex justify-end gap-3 pt-1">
-                        <button type="button" onClick={onClose} className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">
-                            Cancelar
-                        </button>
-                        <button type="submit" disabled={exporting} className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60">
-                            {exporting ? 'Gerando...' : 'Exportar'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-}
-
-// ─── Tabela de despesas (reutilizada nas duas abas) ───────────────────────────
-function ExpenseTable({ rows, categories, selectedIds, onToggleSelect, onToggleSelectAll, onUpdate, onBatchOwnership, onDelete }) {
-    const categoryGroups = buildCategoryGroups(rows);
-
-    if (rows.length === 0) return null;
-
-    const allSelected = rows.length > 0 && rows.every((r) => selectedIds.includes(r.id));
-
-    return (
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-            <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                    <thead className="bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500">
-                        <tr>
-                            <th className="w-8 px-4 py-3 text-left">
-                                <input
-                                    type="checkbox"
-                                    checked={allSelected}
-                                    onChange={() => onToggleSelectAll(rows.map((r) => r.id))}
-                                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                />
-                            </th>
-                            <th className="px-4 py-3 text-left">Data</th>
-                            <th className="px-4 py-3 text-left">Descrição</th>
-                            <th className="px-4 py-3 text-left">Categoria</th>
-                            <th className="px-4 py-3 text-right">Valor</th>
-                            <th className="px-4 py-3 text-left">De quem é?</th>
-                            <th className="px-4 py-3" />
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {Object.entries(categoryGroups).map(([cat, ids]) => (
-                            <tr key={`group-${cat}`} className="bg-gray-50/60">
-                                <td />
-                                <td colSpan={2} className="px-4 py-2 text-xs font-semibold text-gray-600">
-                                    {cat} ({ids.length})
-                                </td>
-                                <td />
-                                <td />
-                                <td className="px-4 py-2">
-                                    <div className="flex gap-1">
-                                        {OWNERSHIP_OPTIONS.map((opt) => (
-                                            <button
-                                                key={opt.value}
-                                                onClick={() => onBatchOwnership(cat, opt.value)}
-                                                className="rounded border border-gray-300 bg-white px-2 py-0.5 text-xs text-gray-600 hover:border-indigo-300 hover:bg-indigo-50"
-                                            >
-                                                Todos: {opt.label}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </td>
-                                <td />
-                            </tr>
-                        ))}
-
-                        {rows.map((row) => (
-                            <tr key={row.id} className="hover:bg-gray-50">
-                                <td className="px-4 py-3">
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedIds.includes(row.id)}
-                                        onChange={() => onToggleSelect(row.id)}
-                                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                    />
-                                </td>
-                                <td className="whitespace-nowrap px-4 py-3 text-gray-500">
-                                    {new Date(row.date + 'T00:00:00').toLocaleDateString('pt-BR')}
-                                </td>
-                                <td className="px-4 py-3">
-                                    <span className={row.status === 'pending' ? 'italic text-gray-400' : 'text-gray-800'}>
-                                        {row.description}
-                                    </span>
-                                    {row.status === 'pending' && (
-                                        <span className="ml-2 text-xs text-indigo-400">(categorizando...)</span>
-                                    )}
-                                </td>
-                                <td className="px-4 py-3">
-                                    <select
-                                        value={row.category_id ?? ''}
-                                        onChange={(e) =>
-                                            onUpdate(row.id, 'category_id', e.target.value ? Number(e.target.value) : null)
-                                        }
-                                        className="rounded border border-gray-300 bg-white px-2 py-1 text-xs focus:border-indigo-400 focus:outline-none"
-                                    >
-                                        <option value="">— Sem categoria —</option>
-                                        {categories.map((c) => (
-                                            <option key={c.id} value={c.id}>{c.name}</option>
-                                        ))}
-                                    </select>
-                                </td>
-                                <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-gray-800">
-                                    {fmt(row.amount)}
-                                </td>
-                                <td className="px-4 py-3">
-                                    <div className="flex gap-1">
-                                        {OWNERSHIP_OPTIONS.map((opt) => (
-                                            <button
-                                                key={opt.value}
-                                                onClick={() => onUpdate(row.id, 'ownership', opt.value)}
-                                                className={`rounded-full px-2 py-0.5 text-xs font-medium transition-colors ${
-                                                    row.ownership === opt.value
-                                                        ? OWNERSHIP_BADGE[opt.value]
-                                                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                                                }`}
-                                            >
-                                                {opt.label}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </td>
-                                <td className="px-4 py-3">
-                                    <button
-                                        onClick={() => {
-                                            if (!confirm('Remover esta despesa?')) return;
-                                            onDelete(row.id);
-                                        }}
-                                        className="text-xs text-red-400 hover:text-red-600"
-                                    >
-                                        Remover
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    );
-}
-
-// ─── Resumo de gastos por responsável ─────────────────────────────────────────
-function SpendingSummary({ rows, settings }) {
-    const totals = rows.reduce(
-        (acc, r) => ({ ...acc, [r.ownership]: (acc[r.ownership] ?? 0) + Number(r.amount) }),
-        { payer1: 0, payer2: 0, both: 0 }
-    );
-    const total = totals.payer1 + totals.payer2 + totals.both;
-
-    if (total === 0) return null;
-
-    const p1Ratio = (settings.payer1_percent ?? 50) / 100;
-    const p2Ratio = (settings.payer2_percent ?? 50) / 100;
-    const p1Share = totals.both * p1Ratio;
-    const p2Share = totals.both * p2Ratio;
-
-    const cards = [
-        {
-            key: 'payer1',
-            label: settings.payer1_name,
-            value: totals.payer1 + p1Share,
-            note: totals.both > 0 ? `inclui ${fmt(p1Share)} rateados de "Nós" (${settings.payer1_percent}%)` : null,
-            dot: 'bg-emerald-500',
-        },
-        {
-            key: 'payer2',
-            label: settings.payer2_name,
-            value: totals.payer2 + p2Share,
-            note: totals.both > 0 ? `inclui ${fmt(p2Share)} rateados de "Nós" (${settings.payer2_percent}%)` : null,
-            dot: 'bg-rose-500',
-        },
-        {
-            key: 'both',
-            label: 'Nós',
-            value: totals.both,
-            note: 'gasto compartilhado, já rateado acima por renda',
-            dot: 'bg-amber-500',
-        },
-    ];
-
-    const barSegments = [
-        { key: 'payer1', value: totals.payer1, bar: 'bg-emerald-400' },
-        { key: 'payer2', value: totals.payer2, bar: 'bg-rose-400' },
-        { key: 'both',   value: totals.both,   bar: 'bg-amber-400' },
-    ];
-
-    return (
-        <div className="mb-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <h3 className="mb-4 text-sm font-semibold text-gray-600">Resumo do mês por responsável</h3>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                {cards.map((c) => (
-                    <div key={c.key} className="rounded-lg border border-gray-100 bg-gray-50/60 p-4">
-                        <div className="flex items-center gap-2 text-xs font-medium text-gray-500">
-                            <span className={`h-2 w-2 rounded-full ${c.dot}`} />
-                            {c.label}
-                        </div>
-                        <div className="mt-1 text-xl font-semibold text-gray-800">{fmt(c.value)}</div>
-                        <div className="mt-0.5 text-xs text-gray-400">
-                            {((c.value / total) * 100).toFixed(0)}% do total
-                        </div>
-                        {c.note && <div className="mt-1 text-[11px] leading-snug text-gray-400">{c.note}</div>}
-                    </div>
-                ))}
-            </div>
-            <div className="mt-4 flex h-2 overflow-hidden rounded-full bg-gray-100">
-                {barSegments.map((s) => s.value > 0 && (
-                    <div key={s.key} className={s.bar} style={{ width: `${(s.value / total) * 100}%` }} />
-                ))}
-            </div>
-            <div className="mt-2 text-right text-xs text-gray-400">
-                Total do mês: <strong className="text-gray-600">{fmt(total)}</strong>
-            </div>
-        </div>
-    );
-}
-
-// ─── Página principal ─────────────────────────────────────────────────────────
-export default function Expenses({
-    payer1Expenses: initialP1,
-    payer2Expenses: initialP2,
-    categories,
-    month,
-    activeTab: initialTab,
-    hasPending,
-    settings,
-    availableMonths,
-    fixedExpenses,
-}) {
-    const { flash } = usePage().props;
-
-    // Estado separado por aba. Cada aba tem seus próprios rows e dirty flag.
-    const [rows, setRows] = useState({ payer1: initialP1, payer2: initialP2 });
-    const [dirty, setDirty] = useState({ payer1: false, payer2: false });
-    const [saving, setSaving] = useState(false);
-    const [saveMsg, setSaveMsg] = useState(null);
-    const [activeTab, setActiveTab] = useState(initialTab);
-    const [showModal, setShowModal] = useState(false);
-    const [showExportModal, setShowExportModal] = useState(false);
-    const [selectedIds, setSelectedIds] = useState({ payer1: [], payer2: [] });
-    const [categorizing, setCategorizing] = useState(false);
-
-    const currentRows = rows[activeTab];
-    const isDirty = dirty[activeTab];
-    const currentSelected = selectedIds[activeTab];
-
-    const tabNames = { payer1: settings.payer1_name, payer2: settings.payer2_name };
-    const tabColors = {
-        payer1: { active: 'border-emerald-500 text-emerald-700', count: 'bg-emerald-100 text-emerald-600' },
-        payer2: { active: 'border-rose-500 text-rose-700',       count: 'bg-rose-100 text-rose-600' },
-    };
-
-    // Polling enquanto houver categorização pendente.
-    const pollRef = useRef(null);
-    useEffect(() => {
-        if (!hasPending) return;
-        pollRef.current = setInterval(() => {
-            router.reload({ only: ['payer1Expenses', 'payer2Expenses', 'hasPending'] });
-        }, 5000);
-        return () => clearInterval(pollRef.current);
-    }, [hasPending]);
-
-    // Sincroniza state local quando Inertia recarrega (ex: polling, delete).
-    useEffect(() => { setRows({ payer1: initialP1, payer2: initialP2 }); }, [initialP1, initialP2]);
-
-    // Remove da seleção ids que não existem mais na aba (ex: removidos ou fora do mês).
-    useEffect(() => {
-        setSelectedIds((prev) => ({
-            payer1: prev.payer1.filter((id) => initialP1.some((r) => r.id === id)),
-            payer2: prev.payer2.filter((id) => initialP2.some((r) => r.id === id)),
-        }));
-    }, [initialP1, initialP2]);
-
-    const toggleSelect = (id) => {
-        setSelectedIds((prev) => ({
-            ...prev,
-            [activeTab]: prev[activeTab].includes(id)
-                ? prev[activeTab].filter((x) => x !== id)
-                : [...prev[activeTab], id],
-        }));
-    };
-
-    const toggleSelectAll = (ids) => {
-        setSelectedIds((prev) => ({
-            ...prev,
-            [activeTab]: ids.every((id) => prev[activeTab].includes(id)) ? [] : ids,
-        }));
-    };
-
-    const handleCategorize = async () => {
-        if (currentSelected.length === 0) return;
-        setCategorizing(true);
-        try {
-            await axios.post(route('expenses.categorize'), { ids: currentSelected });
-            setSelectedIds((prev) => ({ ...prev, [activeTab]: [] }));
-            setSaveMsg('Categorização por IA iniciada!');
-            setTimeout(() => setSaveMsg(null), 3000);
-            router.reload({ only: ['payer1Expenses', 'payer2Expenses', 'hasPending'] });
-        } catch {
-            setSaveMsg('Erro ao iniciar categorização. Tente novamente.');
-        } finally {
-            setCategorizing(false);
-        }
-    };
-
-    const updateRow = (id, field, value) => {
-        setRows((prev) => ({
-            ...prev,
-            [activeTab]: prev[activeTab].map((r) => (r.id === id ? { ...r, [field]: value } : r)),
-        }));
-        setDirty((prev) => ({ ...prev, [activeTab]: true }));
-    };
-
-    const batchOwnership = (categoryName, ownership) => {
-        setRows((prev) => ({
-            ...prev,
-            [activeTab]: prev[activeTab].map((r) =>
-                (r.category ?? 'Sem categoria') === categoryName ? { ...r, ownership } : r
-            ),
-        }));
-        setDirty((prev) => ({ ...prev, [activeTab]: true }));
-    };
-
-    const handleDelete = (id) => {
-        router.delete(route('expenses.destroy', id), {
-            preserveScroll: true,
-        });
-    };
-
-    const handleDeleteMonth = () => {
-        const name = tabNames[activeTab];
-        if (!confirm(`Remover TODAS as despesas de ${name} em ${month}? Esta ação não pode ser desfeita.`)) return;
-        router.delete(route('expenses.destroyByMonth', { month, source: activeTab }), {
-            preserveScroll: true,
-        });
-    };
-
-    const handleAdded = (newExpense) => {
-        if (newExpense.date.slice(0, 7) === month) {
-            setRows((prev) => ({
-                ...prev,
-                [activeTab]: [newExpense, ...prev[activeTab]],
-            }));
-        }
-        setSaveMsg('Despesa adicionada!');
-        setTimeout(() => setSaveMsg(null), 3000);
-    };
-
-    const saveAll = async () => {
-        setSaving(true);
-        setSaveMsg(null);
-        try {
-            await axios.post(route('expenses.batch'), {
-                expenses: currentRows.map((r) => ({
-                    id:          r.id,
-                    category_id: r.category_id,
-                    ownership:   r.ownership,
-                })),
-            });
-            setDirty((prev) => ({ ...prev, [activeTab]: false }));
-            setSaveMsg('Despesas salvas com sucesso!');
-        } catch {
-            setSaveMsg('Erro ao salvar. Tente novamente.');
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const changeMonth = (e) =>
-        router.get(route('expenses.index'), { month: e.target.value, tab: activeTab });
-
-    const switchTab = (tab) => {
-        setActiveTab(tab);
-        router.get(route('expenses.index'), { month, tab }, { preserveState: true, replace: true });
-    };
-
-    return (
-        <AuthenticatedLayout
-            header={<h2 className="text-xl font-semibold text-gray-800">Revisão de Despesas</h2>}
-            breadcrumbs={[{ label: 'Despesas' }]}
-        >
-            <Head title="Despesas" />
-
-            {showModal && (
-                <AddExpenseModal
-                    categories={categories}
-                    currentMonth={month}
-                    source={activeTab}
-                    ownerName={tabNames[activeTab]}
-                    onAdded={handleAdded}
-                    onClose={() => setShowModal(false)}
-                />
-            )}
-
-            {showExportModal && (
-                <ExportPdfModal
-                    availableMonths={availableMonths}
-                    currentMonth={month}
-                    settings={settings}
-                    onClose={() => setShowExportModal(false)}
-                />
-            )}
-
-            {flash?.success && (
-                <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-                    {flash.success}
-                </div>
-            )}
-
-            {hasPending && (
-                <div className="mb-4 flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Categorização por IA em andamento... a tabela será atualizada automaticamente.
-                </div>
-            )}
-
-            {/* Toolbar: mês + ações */}
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                    <label className="text-sm font-medium text-gray-600">Mês:</label>
-                    <input
-                        type="month"
-                        value={month}
-                        onChange={changeMonth}
-                        className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none"
+                    <Segmented
+                        value={type}
+                        onChange={setType}
+                        options={[
+                            { value: 'expense', label: 'Despesas', count: counts.expense },
+                            { value: 'income', label: 'Receitas', count: counts.income },
+                            { value: 'settlement', label: 'Acertos', count: counts.settlement },
+                            { value: 'ignored', label: 'Ignorados', count: counts.ignored },
+                            { value: 'all', label: 'Todos' },
+                        ]}
                     />
-                </div>
-                <div className="flex items-center gap-3">
-                    {saveMsg && (
-                        <span className={`text-sm ${saveMsg.includes('sucesso') || saveMsg === 'Despesa adicionada!' ? 'text-green-600' : 'text-red-500'}`}>
-                            {saveMsg}
-                        </span>
-                    )}
-                    {isDirty && (
+                    <Segmented value={owner} onChange={setOwner} options={[{ value: 'all', label: 'Todos' }, ...ownershipOptions(couple)]} />
+                    {counts.uncategorized > 0 && (
                         <button
-                            onClick={saveAll}
-                            disabled={saving}
-                            className="rounded-lg border border-indigo-300 bg-white px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-60"
-                        >
-                            {saving ? 'Salvando...' : 'Salvar Alterações'}
-                        </button>
-                    )}
-                    {currentRows.length > 0 && (
-                        <button
-                            onClick={handleDeleteMonth}
-                            className="flex items-center gap-1.5 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
-                        >
-                            <Trash2 className="h-4 w-4" strokeWidth={2} />
-                            Limpar mês
-                        </button>
-                    )}
-                    <button
-                        onClick={() => setShowExportModal(true)}
-                        className="flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
-                    >
-                        <FileDown className="h-4 w-4" strokeWidth={2} />
-                        Exportar PDF
-                    </button>
-                    {currentSelected.length > 0 && (
-                        <button
-                            onClick={handleCategorize}
-                            disabled={categorizing}
-                            className="flex items-center gap-1.5 rounded-lg border border-indigo-300 bg-white px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-60"
-                        >
-                            <Sparkles className="h-4 w-4" strokeWidth={2} />
-                            {categorizing ? 'Categorizando...' : `Categorizar com IA (${currentSelected.length})`}
-                        </button>
-                    )}
-                    <button
-                        onClick={() => setShowModal(true)}
-                        className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-                    >
-                        <Plus className="h-4 w-4" strokeWidth={2} />
-                        Adicionar Despesa
-                    </button>
-                </div>
-            </div>
-
-            {/* Resumo de gastos por responsável */}
-            <SpendingSummary rows={[...rows.payer1, ...rows.payer2]} settings={settings} />
-
-            {/* Despesas fixas do mês */}
-            <FixedExpensesPanel fixedExpenses={fixedExpenses} className="mb-6" />
-
-            {/* Abas Reni / Lua */}
-            <div className="mb-4 flex border-b border-gray-200">
-                {(['payer1', 'payer2']).map((tab) => {
-                    const isActive = activeTab === tab;
-                    const count = rows[tab].length;
-                    const colors = tabColors[tab];
-                    return (
-                        <button
-                            key={tab}
-                            onClick={() => switchTab(tab)}
-                            className={`flex items-center gap-2 border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
-                                isActive
-                                    ? colors.active
-                                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                            type="button"
+                            onClick={() => setOnlyUncategorized((v) => !v)}
+                            className={`rounded-full px-3 py-[6px] text-[12px] font-medium transition-colors ${
+                                onlyUncategorized ? 'bg-lime/20 text-lime shadow-[inset_0_0_0_1px_rgb(var(--color-soft-text-rgb)/0.5)]' : 'text-lime/80 shadow-[inset_0_0_0_1px_rgb(var(--color-soft-text-rgb)/0.25)] hover:bg-lime/10'
                             }`}
                         >
-                            {tabNames[tab]}
-                            <span className={`rounded-full px-1.5 py-0.5 text-xs font-semibold ${isActive ? colors.count : 'bg-gray-100 text-gray-500'}`}>
-                                {count}
-                            </span>
-                            {/* Indicador de alterações não salvas */}
-                            {dirty[tab] && (
-                                <span className="h-1.5 w-1.5 rounded-full bg-amber-400" title="Há alterações não salvas" />
-                            )}
+                            Sem categoria · {counts.uncategorized}
                         </button>
-                    );
-                })}
-            </div>
-
-            {/* Conteúdo da aba ativa */}
-            {currentRows.length === 0 ? (
-                <div className="rounded-xl border border-gray-200 bg-white py-16 text-center shadow-sm">
-                    <p className="text-gray-400">
-                        Nenhuma despesa de <strong>{tabNames[activeTab]}</strong> neste mês.
-                    </p>
-                    <div className="mt-3 flex justify-center gap-4">
-                        <a href={route('import.show')} className="text-sm text-indigo-500 underline">
-                            Importar CSV
-                        </a>
-                        <span className="text-gray-300">|</span>
-                        <button onClick={() => setShowModal(true)} className="text-sm text-indigo-500 underline">
-                            Adicionar manualmente
-                        </button>
-                    </div>
+                    )}
+                    <Segmented value={groupBy} onChange={setGroupBy} size="sm" options={[{ value: 'day', label: 'Por dia' }, { value: 'category', label: 'Por categoria' }]} />
                 </div>
-            ) : (
-                <>
-                    <div className="mb-2 text-right text-xs text-gray-400">
-                        {currentRows.length} despesa(s) · Total:{' '}
-                        <strong>{fmt(currentRows.reduce((s, r) => s + r.amount, 0))}</strong>
-                    </div>
-                    <ExpenseTable
-                        rows={currentRows}
+
+                {selectedIds.length > 0 && (
+                    <BulkBar
+                        count={selectedIds.length}
                         categories={categories}
-                        selectedIds={currentSelected}
-                        onToggleSelect={toggleSelect}
-                        onToggleSelectAll={toggleSelectAll}
-                        onUpdate={updateRow}
-                        onBatchOwnership={batchOwnership}
-                        onDelete={handleDelete}
+                        couple={couple}
+                        aiRunning={aiRunning}
+                        onCategory={(categoryId) => applyToMany(selectedIds.filter((id) => rows.find((r) => r.id === id)?.kind === 'expense'), { category_id: categoryId })}
+                        onOwnership={(ownership) => applyToMany(selectedIds.filter((id) => rows.find((r) => r.id === id)?.kind === 'expense'), { ownership })}
+                        onAi={() => categorizeWithAi(selectedIds)}
+                        onClear={() => setSelected(new Set())}
                     />
-                </>
+                )}
+
+                <Card hover={false} className="p-3">
+                    {visible.length === 0 ? (
+                        <div className="py-14 text-center">
+                            <p className="text-[13px] text-text/50">
+                                {rows.length === 0 ? 'Nenhum lançamento neste mês.' : 'Nenhum lançamento com esses filtros.'}
+                            </p>
+                            {rows.length === 0 && (
+                                <button type="button" onClick={() => setModal({ show: true, row: null })} className="mt-3 text-[13px] text-strong-accent hover:underline">
+                                    Adicionar um lançamento manual
+                                </button>
+                            )}
+                        </div>
+                    ) : (
+                        <>
+                            <div className="flex items-center gap-3 px-2 pb-2 text-[11px] uppercase tracking-[.08em] text-text/40">
+                                <input
+                                    type="checkbox"
+                                    checked={allVisibleSelected}
+                                    onChange={toggleSelectAll}
+                                    aria-label="Selecionar todos"
+                                    className="h-4 w-4 rounded border-text/25 bg-transparent text-teal focus:ring-teal/40 focus:ring-offset-0"
+                                />
+                                <span className="flex-1">{visible.length} {visible.length === 1 ? 'lançamento' : 'lançamentos'}</span>
+                                {counts.uncategorized > 0 && type === 'expense' && (
+                                    <button
+                                        type="button"
+                                        onClick={() => categorizeWithAi(rows.filter((r) => r.kind === 'expense' && !r.category_id).map((r) => r.id))}
+                                        disabled={aiRunning}
+                                        className="inline-flex items-center gap-1 normal-case tracking-normal text-strong-accent hover:underline disabled:opacity-50"
+                                    >
+                                        <Sparkles size={12} /> {aiRunning ? 'Categorizando…' : `Categorizar ${counts.uncategorized} com IA`}
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="flex flex-col gap-3">
+                                {groups.map((group) => (
+                                    <div key={group.key}>
+                                        <GroupHeader
+                                            group={group}
+                                            groupBy={groupBy}
+                                            couple={couple}
+                                            onOwnershipAll={(ownership) => applyToMany(group.items.filter((r) => r.kind === 'expense').map((r) => r.id), { ownership })}
+                                        />
+                                        <div className="flex flex-col">
+                                            {group.items.map((row) => (
+                                                <ExpenseRow
+                                                    key={row.id}
+                                                    row={row}
+                                                    couple={couple}
+                                                    categories={categories}
+                                                    showDate={groupBy !== 'day'}
+                                                    selected={selected.has(row.id)}
+                                                    onToggleSelect={() => toggleSelect(row.id)}
+                                                    onChange={(patch) => changeRow(row, patch)}
+                                                    onEdit={() => setModal({ show: true, row: rows.find((r) => r.id === row.id) })}
+                                                    onToggleIgnore={() => toggleIgnore(row)}
+                                                    onDelete={() => destroy(row)}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </Card>
+            </section>
+
+            <SaveBar count={Object.keys(drafts).length} saving={saving} onSave={saveDrafts} onDiscard={() => setDrafts({})} />
+
+            <ExpenseModal
+                show={modal.show}
+                row={modal.row}
+                rows={rows}
+                onClose={() => setModal({ show: false, row: null })}
+                couple={couple}
+                categories={categories}
+                fixedExpenses={fixedExpenses}
+                defaultDate={defaultDate}
+            />
+
+            <ExportPdfModal
+                show={exportOpen}
+                onClose={() => setExportOpen(false)}
+                availableMonths={availableMonths}
+                currentMonth={cycle.month}
+                couple={couple}
+            />
+        </AppLayout>
+    );
+}
+
+function GroupHeader({ group, groupBy, couple, onOwnershipAll }) {
+    const hasExpenses = group.items.some((r) => r.kind === 'expense');
+
+    return (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-2 pb-1 pt-1.5">
+            <span className="text-[12px] font-semibold text-text/70">{groupBy === 'day' ? dayHeader(group.key) : group.key}</span>
+            <span className="text-[11.5px] text-text/40">
+                {group.items.length} · {money(group.total)}
+            </span>
+            {groupBy === 'category' && hasExpenses && (
+                <div className="ml-auto flex items-center gap-1 text-[11px] text-text/40">
+                    Todos:
+                    {ownershipOptions(couple).map((option) => (
+                        <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => onOwnershipAll(option.value)}
+                            className={`rounded-full px-2 py-[2px] font-medium transition-[filter] hover:brightness-125 ${OWNERSHIP_BADGE[option.value]}`}
+                        >
+                            {option.label}
+                        </button>
+                    ))}
+                </div>
             )}
-        </AuthenticatedLayout>
+        </div>
+    );
+}
+
+function BulkBar({ count, categories, couple, aiRunning, onCategory, onOwnership, onAi, onClear }) {
+    return (
+        <div className="flex flex-wrap items-center gap-2.5 rounded-[14px] bg-teal/12 px-3.5 py-2.5 shadow-[inset_0_0_0_1px_rgb(var(--color-accent-rgb)/0.35)]">
+            <span className="text-[13px] font-medium">{count} selecionado{count > 1 ? 's' : ''}</span>
+            <select
+                defaultValue=""
+                onChange={(e) => { if (e.target.value !== '') onCategory(e.target.value === 'none' ? null : Number(e.target.value)); e.target.value = ''; }}
+                aria-label="Definir categoria"
+                className="rounded-[8px] border-0 bg-text/8 py-1.5 pl-2.5 pr-8 text-[12.5px] text-text focus:ring-1 focus:ring-teal/50"
+            >
+                <option value="" className="bg-surface">Definir categoria…</option>
+                <option value="none" className="bg-surface">Sem categoria</option>
+                {categories.map((c) => <option key={c.id} value={c.id} className="bg-surface">{c.name}</option>)}
+            </select>
+            <div className="flex items-center gap-1 text-[12px] text-text/60">
+                Quem paga:
+                {ownershipOptions(couple).map((option) => (
+                    <button key={option.value} type="button" onClick={() => onOwnership(option.value)} className={`rounded-full px-2.5 py-1 text-[11.5px] font-medium hover:brightness-125 ${OWNERSHIP_BADGE[option.value]}`}>
+                        {option.label}
+                    </button>
+                ))}
+            </div>
+            <Button type="button" variant="ghost" onClick={onAi} disabled={aiRunning}>
+                <Sparkles size={14} strokeWidth={2.2} /> {aiRunning ? 'Categorizando…' : 'Categorizar com IA'}
+            </Button>
+            <button type="button" onClick={onClear} className="ml-auto text-[12px] text-text/55 hover:text-text">Limpar seleção</button>
+        </div>
+    );
+}
+
+function SettlementCard({ settlement, partner, me }) {
+    const due = settlement.due;
+    const owes = due > 0.009 ? `${partner} te deve` : due < -0.009 ? `Você deve a ${partner}` : 'Tudo acertado';
+
+    return (
+        <Card className="flex flex-[1.2_1_280px] flex-col gap-3">
+            <div className="flex items-center gap-2">
+                <IconBadge><ArrowLeftRight size={13} strokeWidth={2.2} className="stroke-strong-accent" /></IconBadge>
+                <span className="text-[13px] font-semibold tracking-[-.01em]">Acerto com {partner}</span>
+            </div>
+            <div>
+                <div className="text-[11.5px] text-text/55">{owes}</div>
+                <div className={`font-heading text-[24px] font-medium tracking-[-.02em] ${due < -0.009 ? 'text-red' : ''}`}>{money(Math.abs(due))}</div>
+            </div>
+            <div className="text-[12px] leading-relaxed text-text/50">
+                Parte de {partner} no que {me} pagou neste mês e nas contas fixas do próximo, menos a parte de {me} no que {partner} pagou.
+            </div>
+        </Card>
     );
 }

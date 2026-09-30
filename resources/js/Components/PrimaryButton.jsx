@@ -1,3 +1,4 @@
+// Botão de ação principal (mesmo do "Salvar alterações" das Configurações).
 export default function PrimaryButton({
     className = '',
     disabled,
@@ -7,11 +8,7 @@ export default function PrimaryButton({
     return (
         <button
             {...props}
-            className={
-                `inline-flex items-center rounded-md border border-transparent bg-gray-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white transition duration-150 ease-in-out hover:bg-gray-700 focus:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 active:bg-gray-900 ${
-                    disabled && 'opacity-25'
-                } ` + className
-            }
+            className={`inline-flex items-center justify-center gap-1.5 rounded-[9px] bg-teal/80 px-[18px] py-2.5 font-heading text-[13px] font-medium text-text transition-colors hover:bg-teal/70 focus:outline-none focus:ring-2 focus:ring-teal/50 disabled:pointer-events-none disabled:opacity-60 ${className}`}
             disabled={disabled}
         >
             {children}

@@ -1,40 +1,34 @@
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
+import AppLayout from '@/Layouts/AppLayout';
+import Card from '@/Components/ui/Card';
+import PageHeader from '@/Components/ui/PageHeader';
+import SectionLabel from '@/Components/ui/SectionLabel';
 import DeleteUserForm from './Partials/DeleteUserForm';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm';
 
 export default function Edit({ mustVerifyEmail, status }) {
     return (
-        <AuthenticatedLayout
-            header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Profile
-                </h2>
-            }
-            breadcrumbs={[{ label: 'Perfil' }]}
-        >
-            <Head title="Profile" />
+        <AppLayout title="Minha conta">
+            <PageHeader eyebrow="Acesso" title="Minha conta" description="Seu login no Sovinna: nome, e-mail e senha." />
 
-            <div className="py-12">
-                <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                    <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
-                        <UpdateProfileInformationForm
-                            mustVerifyEmail={mustVerifyEmail}
-                            status={status}
-                            className="max-w-xl"
-                        />
-                    </div>
+            <section className="flex flex-col gap-4">
+                <SectionLabel title="Dados de acesso" />
+                <section className="grid grid-cols-[repeat(auto-fit,minmax(340px,1fr))] items-start gap-[clamp(14px,1.6vw,20px)]">
+                    <Card hover={false}>
+                        <UpdateProfileInformationForm mustVerifyEmail={mustVerifyEmail} status={status} />
+                    </Card>
+                    <Card hover={false}>
+                        <UpdatePasswordForm />
+                    </Card>
+                </section>
+            </section>
 
-                    <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
-                        <UpdatePasswordForm className="max-w-xl" />
-                    </div>
-
-                    <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
-                        <DeleteUserForm className="max-w-xl" />
-                    </div>
-                </div>
-            </div>
-        </AuthenticatedLayout>
+            <section className="flex flex-col gap-4">
+                <SectionLabel title="Zona de perigo" />
+                <Card hover={false}>
+                    <DeleteUserForm />
+                </Card>
+            </section>
+        </AppLayout>
     );
 }

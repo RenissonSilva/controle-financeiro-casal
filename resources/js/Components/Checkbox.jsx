@@ -3,10 +3,7 @@ export default function Checkbox({ className = '', ...props }) {
         <input
             {...props}
             type="checkbox"
-            className={
-                'rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500 ' +
-                className
-            }
+            className={`h-4 w-4 rounded border-text/25 bg-transparent text-teal focus:ring-teal/40 focus:ring-offset-0 ${className}`}
         />
     );
 }

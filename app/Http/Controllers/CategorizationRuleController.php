@@ -2,105 +2,108 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Category;
 use App\Models\CategorizationRule;
 use App\Models\Expense;
-use App\Models\Setting;
+use App\Services\OpenFinance\ExpenseReclassifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Inertia\Response;
+use Illuminate\Validation\Rule;
 
 class CategorizationRuleController extends Controller
 {
-    public function index(): Response
+    // As regras são editadas na tela de Configurações.
+    public function index(): RedirectResponse
     {
-        $settings = Setting::current();
-
-        return Inertia::render('CategorizationRules', [
-            'rules' => CategorizationRule::with('category')
-                ->orderBy('pattern')
-                ->get()
-                ->map(fn (CategorizationRule $rule) => [
-                    'id'          => $rule->id,
-                    'pattern'     => $rule->pattern,
-                    'amount'      => $rule->amount,
-                    'category_id' => $rule->category_id,
-                    'category'    => $rule->category->name,
-                    'ownership'   => $rule->ownership,
-                ]),
-            'categories' => Category::orderBy('name')->get(['id', 'name', 'color']),
-            'settings'   => [
-                'payer1_name' => $settings->payer1_name,
-                'payer2_name' => $settings->payer2_name,
-            ],
-        ]);
+        return redirect()->route('settings.show');
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, ExpenseReclassifier $reclassifier): RedirectResponse
     {
-        $data = $this->validateRule($request);
+        $rule = CategorizationRule::create($this->validateRule($request));
 
-        CategorizationRule::create($data);
+        if ($rule->action === CategorizationRule::ACTION_IGNORE) {
+            $reclassifier->run();
+        }
 
-        return back()->with('success', 'Regra criada com sucesso.');
+        return back()->with('success', 'Regra criada.');
     }
 
-    public function update(Request $request, CategorizationRule $categorizationRule): RedirectResponse
+    public function update(Request $request, CategorizationRule $categorizationRule, ExpenseReclassifier $reclassifier): RedirectResponse
     {
-        $data = $this->validateRule($request);
+        $wasIgnore = $categorizationRule->action === CategorizationRule::ACTION_IGNORE;
+        $categorizationRule->update($this->validateRule($request));
 
-        $categorizationRule->update($data);
+        if ($wasIgnore || $categorizationRule->action === CategorizationRule::ACTION_IGNORE) {
+            $reclassifier->run();
+        }
 
-        return back()->with('success', 'Regra atualizada com sucesso.');
+        return back()->with('success', 'Regra atualizada.');
     }
 
-    public function destroy(CategorizationRule $categorizationRule): RedirectResponse
+    public function destroy(CategorizationRule $categorizationRule, ExpenseReclassifier $reclassifier): RedirectResponse
     {
+        $wasIgnore = $categorizationRule->action === CategorizationRule::ACTION_IGNORE;
         $categorizationRule->delete();
+
+        // Lançamentos que só estavam fora dos cálculos por causa dessa regra voltam a contar.
+        if ($wasIgnore) {
+            $reclassifier->run();
+        }
 
         return back()->with('success', 'Regra removida.');
     }
 
     /**
-     * Reaplica todas as regras às despesas já existentes (de qualquer status),
-     * sobrescrevendo categoria e pagador de quem bater com alguma regra.
+     * Reaplica as regras a todos os lançamentos: as de "ignorar" reclassificam; as de
+     * categorizar sobrescrevem categoria e quem paga das despesas que baterem.
      */
-    public function apply(): RedirectResponse
+    public function apply(ExpenseReclassifier $reclassifier): RedirectResponse
     {
+        $reclassifier->run();
+
+        $rules = CategorizationRule::where('action', CategorizationRule::ACTION_CATEGORIZE)->get();
         $applied = 0;
 
-        Expense::all()->each(function (Expense $expense) use (&$applied) {
-            $rule = CategorizationRule::matchFor($expense->description, $expense->amount);
+        Expense::where('kind', Expense::KIND_EXPENSE)->chunkById(500, function ($expenses) use ($rules, &$applied) {
+            foreach ($expenses as $expense) {
+                $rule = CategorizationRule::matchForExpense($expense, $rules);
 
-            if (!$rule) {
-                return;
+                if (! $rule) {
+                    continue;
+                }
+
+                $expense->update([
+                    'category_id' => $rule->category_id,
+                    'ownership' => $rule->ownership,
+                    'category_source' => 'rule',
+                    'status' => 'categorized',
+                ]);
+                $applied++;
             }
-
-            $expense->update([
-                'category_id' => $rule->category_id,
-                'ownership'   => $rule->ownership,
-                'status'      => 'categorized',
-            ]);
-
-            $applied++;
         });
 
         return back()->with(
             'success',
             $applied > 0
-                ? "{$applied} despesa(s) categorizada(s) automaticamente pelas regras."
-                : 'Nenhuma despesa correspondeu às regras existentes.'
+                ? "{$applied} lançamento(s) categorizado(s) pelas regras."
+                : 'Nenhum lançamento correspondeu às regras de categoria.'
         );
     }
 
     private function validateRule(Request $request): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'pattern'     => ['required', 'string', 'max:255'],
+            'action'      => ['required', Rule::in([CategorizationRule::ACTION_CATEGORIZE, CategorizationRule::ACTION_IGNORE])],
             'amount'      => ['nullable', 'numeric', 'min:0.01'],
-            'category_id' => ['required', 'integer', 'exists:categories,id'],
+            'category_id' => ['nullable', 'required_if:action,categorize', 'integer', 'exists:categories,id'],
             'ownership'   => ['required', 'in:payer1,payer2,both'],
         ]);
+
+        if ($data['action'] === CategorizationRule::ACTION_IGNORE) {
+            $data['category_id'] = null;
+        }
+
+        return $data;
     }
 }

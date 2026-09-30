@@ -18,13 +18,18 @@
         </include>
     </source>
     <php>
-        <env name="APP_ENV" value="testing"/>
+        <!-- Nunca carregar o cache de configuração (php artisan config:cache) nos testes: ele
+             ignora as variáveis abaixo e faria o RefreshDatabase apagar o banco real. -->
+        <env name="APP_CONFIG_CACHE" value="bootstrap/cache/config.phpunit-never-exists.php" force="true"/>
+        <env name="APP_ENV" value="testing" force="true"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value=":memory:"/>
+        <!-- Banco próprio dos testes (o PHP daqui não tem pdo_sqlite). O RefreshDatabase
+             recria as tabelas dele a cada execução — nunca aponte para o banco real. -->
+        <env name="DB_CONNECTION" value="mysql" force="true"/>
+        <env name="DB_DATABASE" value="controle_financeiro_testing" force="true"/>
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>

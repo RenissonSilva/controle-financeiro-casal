@@ -1,16 +1,24 @@
 import AppLayout from '@/Layouts/AppLayout';
 import Card from '@/Components/ui/Card';
 import SectionHeader from '@/Components/ui/SectionHeader';
+import SectionLabel from '@/Components/ui/SectionLabel';
 import Button from '@/Components/ui/Button';
 import Modal from '@/Components/ui/Modal';
 import Field from '@/Components/ui/Field';
 import Select from '@/Components/ui/Select';
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import Segmented from '@/Components/ui/Segmented';
+import SaveBar from '@/Components/ui/SaveBar';
+import Toast from '@/Components/ui/Toast';
+import { Head, router, useForm } from '@inertiajs/react';
+import axios from 'axios';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     Wallet, CreditCard, Tag, ListFilter, Plus, Pencil, Trash2, RefreshCw,
-    Search, Minus, Check, Clock,
+    Search, Minus, Landmark, ExternalLink, KeyRound,
 } from 'lucide-react';
+import { relativeTime } from '@/lib/format';
+
+const PLUGGY_CONNECT_SCRIPT_URL = 'https://cdn.pluggy.ai/pluggy-connect/v2.8.2/pluggy-connect.js';
 
 const OWNERSHIP_BADGE = {
     payer1: 'bg-green/16 text-green',
@@ -20,26 +28,35 @@ const OWNERSHIP_BADGE = {
 const OWNERSHIP_CYCLE = ['both', 'payer1', 'payer2'];
 const PALETA = ['#f0a04b', '#e2703a', '#5ec1e0', '#a78bfa', '#43c39a', '#8fa3b0', '#f0576b', '#dcee8e', '#43a9ab', '#c9a0dc'];
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-const REF_SALARIO = 1000;
-const EMPTY_RULE = { pattern: '', amount: '', category_id: '', ownership: 'both' };
+const EMPTY_RULE = { pattern: '', action: 'categorize', amount: '', category_id: '', ownership: 'both' };
+const GENERAL_KEYS = [
+    'payer1_name', 'payer2_name', 'payer1_salary', 'payer2_salary', 'card_closing_day',
+    'income_grace_days',
+];
+
+const CONNECTION_STATUS = {
+    UPDATED: { label: 'Atualizada', className: 'bg-green/16 text-green' },
+    UPDATING: { label: 'Atualizando', className: 'bg-teal/16 text-strong-accent' },
+    LOGIN_ERROR: { label: 'Erro de login', className: 'bg-red/16 text-red' },
+    OUTDATED: { label: 'Desatualizada', className: 'bg-red/16 text-red' },
+    WAITING_USER_INPUT: { label: 'Aguardando você', className: 'bg-lime/16 text-lime' },
+};
 
 const pad2 = (n) => String(n).padStart(2, '0');
 const fmt = (v) => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const firstName = (name) => (name || '').trim().split(' ')[0] || '?';
 const clonar = (o) => JSON.parse(JSON.stringify(o));
 
+// Ciclo vigente hoje: antes do dia de fechamento, ainda é o ciclo que começou no mês anterior.
 function cycleInfo(closingDay) {
     const day = Math.min(28, Math.max(1, Number(closingDay) || 1));
     const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), day);
+    const monthOffset = now.getDate() < day ? -1 : 0;
+    const start = new Date(now.getFullYear(), now.getMonth() + monthOffset, day);
     const end = new Date(start.getFullYear(), start.getMonth() + 1, day - 1);
-    const exampleInside = new Date(start.getFullYear(), start.getMonth(), day);
-    const exampleOutside = new Date(start.getFullYear(), start.getMonth() + 1, day);
     return {
         startLabel: `${pad2(start.getDate())} ${MESES[start.getMonth()]}`,
         endLabel: `${pad2(end.getDate())} ${MESES[end.getMonth()]}`,
-        exampleInsideLabel: `${pad2(exampleInside.getDate())}/${pad2(exampleInside.getMonth() + 1)}`,
-        exampleOutsideLabel: `${pad2(exampleOutside.getDate())}/${pad2(exampleOutside.getMonth() + 1)}`,
     };
 }
 
@@ -52,21 +69,15 @@ function buildBase(settings, categories, rules) {
         payer1_salary: settings.payer1_salary,
         payer2_salary: settings.payer2_salary,
         card_closing_day: settings.card_closing_day,
+        income_grace_days: settings.income_grace_days,
         categories: categories.map((c) => ({ ...c })),
         rules: rules.map((r) => ({ ...r })),
     };
 }
 
 function computeDiff(draft, base) {
-    const generalKeys = ['payer1_name', 'payer2_name', 'payer1_salary', 'payer2_salary', 'card_closing_day'];
-    const generalChanged = generalKeys.some((k) => String(draft[k]) !== String(base[k]));
-    const generalPayload = {
-        payer1_name: draft.payer1_name,
-        payer2_name: draft.payer2_name,
-        payer1_salary: draft.payer1_salary,
-        payer2_salary: draft.payer2_salary,
-        card_closing_day: draft.card_closing_day,
-    };
+    const generalChanged = GENERAL_KEYS.some((k) => JSON.stringify(draft[k]) !== JSON.stringify(base[k]) && String(draft[k]) !== String(base[k]));
+    const generalPayload = Object.fromEntries(GENERAL_KEYS.map((k) => [k, draft[k]]));
 
     const baseCatById = new Map(base.categories.map((c) => [c.id, c]));
     const draftCatIds = new Set();
@@ -119,12 +130,33 @@ function reconcileRules(freshRules, oldBaseRules, draftRules) {
     return result;
 }
 
+function useScript(src) {
+    const [loaded, setLoaded] = useState(false);
+
+    useEffect(() => {
+        const existing = document.querySelector(`script[src="${src}"]`);
+        if (existing) {
+            if (window.PluggyConnect) setLoaded(true);
+            else existing.addEventListener('load', () => setLoaded(true));
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = src;
+        script.async = true;
+        script.onload = () => setLoaded(true);
+        document.body.appendChild(script);
+    }, [src]);
+
+    return loaded;
+}
+
 // ─── Modal de criação/edição de regra ─────────────────────────────────────────
 function RuleModal({ rule, show, categories, ownershipOptions, onClose }) {
     const isEditing = Boolean(rule);
     const { data, setData, post, put, processing, errors } = useForm(
         rule
-            ? { pattern: rule.pattern, amount: rule.amount ?? '', category_id: rule.category_id, ownership: rule.ownership }
+            ? { pattern: rule.pattern, action: rule.action ?? 'categorize', amount: rule.amount ?? '', category_id: rule.category_id ?? '', ownership: rule.ownership }
             : EMPTY_RULE
     );
 
@@ -150,8 +182,26 @@ function RuleModal({ rule, show, categories, ownershipOptions, onClose }) {
                     error={errors.pattern}
                 />
                 <p className="-mt-2 text-[11.5px] text-text/45">
-                    Aplica quando a descrição da despesa contiver esse trecho, em qualquer posição.
+                    Aplica quando a descrição (ou o nome de quem recebeu o Pix) contiver esse trecho, sem diferenciar maiúsculas e acentos.
                 </p>
+
+                <div>
+                    <span className="mb-1.5 block text-[12.5px] font-medium text-text/70">O que fazer</span>
+                    <Segmented
+                        value={data.action}
+                        onChange={(action) => setData('action', action)}
+                        options={[
+                            { value: 'categorize', label: 'Categorizar' },
+                            { value: 'ignore', label: 'Ignorar nos cálculos' },
+                        ]}
+                        className="w-fit"
+                    />
+                    {data.action === 'ignore' && (
+                        <p className="mt-1.5 text-[11.5px] text-text/45">
+                            Para dinheiro que não é gasto de verdade — ex: Pix para uma conta sua em outro banco.
+                        </p>
+                    )}
+                </div>
 
                 <Field
                     label="Valor (R$)"
@@ -164,21 +214,25 @@ function RuleModal({ rule, show, categories, ownershipOptions, onClose }) {
                     error={errors.amount}
                 />
 
-                <Select
-                    label="Categoria"
-                    value={data.category_id}
-                    onChange={(e) => setData('category_id', e.target.value)}
-                    options={[{ value: '', label: '— Selecione —' }, ...categories.map((c) => ({ value: c.id, label: c.name }))]}
-                    error={errors.category_id}
-                />
+                {data.action === 'categorize' && (
+                    <>
+                        <Select
+                            label="Categoria"
+                            value={data.category_id}
+                            onChange={(e) => setData('category_id', e.target.value)}
+                            options={[{ value: '', label: '— Selecione —' }, ...categories.map((c) => ({ value: c.id, label: c.name }))]}
+                            error={errors.category_id}
+                        />
 
-                <Select
-                    label="Pagador"
-                    value={data.ownership}
-                    onChange={(e) => setData('ownership', e.target.value)}
-                    options={ownershipOptions}
-                    error={errors.ownership}
-                />
+                        <Select
+                            label="Pagador"
+                            value={data.ownership}
+                            onChange={(e) => setData('ownership', e.target.value)}
+                            options={ownershipOptions}
+                            error={errors.ownership}
+                        />
+                    </>
+                )}
 
                 <div className="mt-1 flex justify-end gap-2.5">
                     <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
@@ -192,7 +246,7 @@ function RuleModal({ rule, show, categories, ownershipOptions, onClose }) {
 }
 
 // ─── Card de pagador (avatar + nome editável + renda + cota) ──────────────────
-function PayerCard({ name, onNameChange, salary, onSalaryChange, percentLabel, avatarClass, percentClass, cotaLabel, cotaValue, error }) {
+function PayerCard({ name, onNameChange, salary, onSalaryChange, percentLabel, avatarClass, percentClass, error }) {
     const initial = (name.trim()[0] || '?').toUpperCase();
     return (
         <div className="rounded-[14px] bg-text/[0.04] p-4 shadow-[inset_0_0_0_1px_rgb(var(--color-text-rgb)/0.08)]">
@@ -225,7 +279,7 @@ function PayerCard({ name, onNameChange, salary, onSalaryChange, percentLabel, a
                 </div>
             </div>
 
-            {error && <p className="mt-1.5 text-[11.5px] text-red-400/90">{error}</p>}
+            {error && <p className="mt-1.5 text-[11.5px] text-red">{error}</p>}
         </div>
     );
 }
@@ -273,7 +327,7 @@ function CategoryRow({ category, editing, onToggleEdit, onRename, onColorChange,
             <button type="button" onClick={onToggleEdit} aria-label="Renomear categoria" className="grid h-7 w-7 flex-none place-items-center rounded-full text-text/50 transition-colors hover:bg-text/10 hover:text-text">
                 <Pencil size={13} strokeWidth={2.2} />
             </button>
-            <button type="button" onClick={onDelete} aria-label="Excluir categoria" className="grid h-7 w-7 flex-none place-items-center rounded-full text-text/50 transition-colors hover:bg-text/10 hover:text-red-400">
+            <button type="button" onClick={onDelete} aria-label="Excluir categoria" className="grid h-7 w-7 flex-none place-items-center rounded-full text-text/50 transition-colors hover:bg-text/10 hover:text-red">
                 <Trash2 size={13} strokeWidth={2.2} />
             </button>
         </div>
@@ -282,46 +336,124 @@ function CategoryRow({ category, editing, onToggleEdit, onRename, onColorChange,
 
 // ─── Linha de regra (dono cíclico, editar via modal, excluir) ─────────────────
 function RuleRow({ rule, onCycleOwner, onEdit, onDelete, ownershipLabel }) {
+    const ignores = rule.action === 'ignore';
+
     return (
         <div className="flex items-center gap-2.5 rounded-[12px] px-1.5 py-2 transition-colors hover:bg-text/6">
             <div className="min-w-0 flex-1">
                 <div className="truncate text-[13px] font-medium">{rule.pattern}</div>
                 <div className="truncate text-[11px] text-text/45">
-                    {rule.category} · {rule.amount != null ? fmt(rule.amount) : 'qualquer valor'}
+                    {ignores ? 'ignora nos cálculos' : rule.category} · {rule.amount != null ? fmt(rule.amount) : 'qualquer valor'}
                 </div>
             </div>
-            <button
-                type="button"
-                onClick={onCycleOwner}
-                title="Alternar responsável"
-                className={`flex-none rounded-full px-2 py-[3px] text-[11px] font-medium transition-[filter] hover:brightness-125 ${OWNERSHIP_BADGE[rule.ownership]}`}
-            >
-                {ownershipLabel(rule.ownership)}
-            </button>
+            {ignores ? (
+                <span className="flex-none rounded-full bg-text/8 px-2 py-[3px] text-[11px] font-medium text-text/55">Ignorar</span>
+            ) : (
+                <button
+                    type="button"
+                    onClick={onCycleOwner}
+                    title="Alternar responsável"
+                    className={`flex-none rounded-full px-2 py-[3px] text-[11px] font-medium transition-[filter] hover:brightness-125 ${OWNERSHIP_BADGE[rule.ownership]}`}
+                >
+                    {ownershipLabel(rule.ownership)}
+                </button>
+            )}
             <button type="button" onClick={onEdit} aria-label="Editar regra" className="grid h-7 w-7 flex-none place-items-center rounded-full text-text/50 transition-colors hover:bg-text/10 hover:text-text">
                 <Pencil size={13} strokeWidth={2.2} />
             </button>
-            <button type="button" onClick={onDelete} aria-label="Excluir regra" className="grid h-7 w-7 flex-none place-items-center rounded-full text-text/50 transition-colors hover:bg-text/10 hover:text-red-400">
+            <button type="button" onClick={onDelete} aria-label="Excluir regra" className="grid h-7 w-7 flex-none place-items-center rounded-full text-text/50 transition-colors hover:bg-text/10 hover:text-red">
                 <Trash2 size={13} strokeWidth={2.2} />
             </button>
         </div>
     );
 }
 
-// ─── Rótulo de seção (eyebrow + linha esmaecida), como no mockup ──────────────
-function SectionLabel({ title }) {
+// ─── Stepper numérico (dia de fechamento, dias de tolerância) ─────────────────
+function Stepper({ value, onStep, label, width = 'w-[52px]' }) {
     return (
-        <div className="flex items-baseline gap-3">
-            <h2 className="font-heading text-[13px] font-medium uppercase tracking-[.1em] text-text/55">{title}</h2>
-            <div className="h-px min-w-[40px] flex-1 bg-[linear-gradient(90deg,rgb(var(--color-text-rgb)/0.16),transparent_90%)]" />
+        <div className="inline-flex items-center gap-1 rounded-[12px] bg-[#0c1620] p-[5px] shadow-[inset_0_0_0_1px_rgb(var(--color-accent-rgb)/0.28)]">
+            <button type="button" onClick={() => onStep(-1)} aria-label={`${label}: diminuir`} className="grid h-[34px] w-[34px] flex-none place-items-center rounded-[9px] text-text/75 transition-colors hover:bg-text/8 hover:text-text">
+                <Minus size={16} strokeWidth={2.4} />
+            </button>
+            <span className={`${width} text-center font-heading text-[22px] font-medium tabular-nums text-text`}>{pad2(value)}</span>
+            <button type="button" onClick={() => onStep(1)} aria-label={`${label}: aumentar`} className="grid h-[34px] w-[34px] flex-none place-items-center rounded-[9px] text-text/75 transition-colors hover:bg-text/8 hover:text-text">
+                <Plus size={16} strokeWidth={2.4} />
+            </button>
+        </div>
+    );
+}
+
+// ─── Conexão Open Finance ─────────────────────────────────────────────────────
+function ConnectionCard({ connection, ownershipOptions, onReconnect }) {
+    const [syncing, setSyncing] = useState(false);
+    const status = CONNECTION_STATUS[connection.status] ?? { label: connection.status, className: 'bg-text/8 text-text/60' };
+    const needsLogin = ['LOGIN_ERROR', 'OUTDATED', 'WAITING_USER_INPUT'].includes(connection.status);
+
+    const sync = () => {
+        setSyncing(true);
+        router.post(route('openFinance.items.sync', connection.id), {}, { preserveScroll: true, onFinish: () => setSyncing(false) });
+    };
+
+    const remove = () => {
+        if (confirm(`Remover a conexão "${connection.connector_name ?? 'banco'}"? Os lançamentos já importados continuam no sistema.`)) {
+            router.delete(route('openFinance.items.destroy', connection.id), { preserveScroll: true });
+        }
+    };
+
+    return (
+        <div className="rounded-[14px] bg-text/[0.04] p-4 shadow-[inset_0_0_0_1px_rgb(var(--color-text-rgb)/0.08)]">
+            <div className="flex flex-wrap items-center gap-2.5">
+                <span className="font-heading text-[16px] font-medium">{connection.connector_name ?? 'Banco'}</span>
+                <span className={`rounded-full px-2 py-[2px] text-[11px] font-medium ${status.className}`}>{status.label}</span>
+                <span className="text-[12px] text-text/45">sincronizado {relativeTime(connection.last_synced_at)}</span>
+                <div className="ml-auto flex items-center gap-1.5 text-[12px] text-text/55">
+                    Conta de
+                    <select
+                        value={connection.owner}
+                        onChange={(e) => router.put(route('openFinance.items.update', connection.id), { owner: e.target.value }, { preserveScroll: true })}
+                        className="rounded-[8px] border-0 bg-text/8 py-1 pl-2 pr-7 text-[12px] text-text focus:ring-1 focus:ring-teal/50"
+                    >
+                        {ownershipOptions.filter((o) => o.value !== 'both').map((o) => <option key={o.value} value={o.value} className="bg-surface">{o.label}</option>)}
+                    </select>
+                </div>
+            </div>
+
+            {connection.last_sync_error && (
+                <p className="mt-2 rounded-[8px] bg-red/10 px-2.5 py-1.5 text-[12px] text-red">Última sincronização falhou: {connection.last_sync_error}</p>
+            )}
+
+            {connection.accounts.length > 0 && (
+                <div className="mt-3 flex flex-col gap-1">
+                    {connection.accounts.map((account) => (
+                        <div key={account.id} className="flex items-center gap-2.5 rounded-[10px] px-1.5 py-1.5 text-[13px]">
+                            {account.type === 'CREDIT' ? <CreditCard size={14} className="text-text/50" /> : <Landmark size={14} className="text-text/50" />}
+                            <span className="min-w-0 flex-1 truncate">{account.type === 'CREDIT' ? 'Cartão de crédito' : 'Conta'} · {account.name}{account.number ? ` · ${account.number}` : ''}</span>
+                            {account.type === 'BANK' && <span className="tabular-nums text-text/70">{fmt(account.balance)}</span>}
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Button type="button" variant="secondary" onClick={sync} disabled={syncing}>
+                    <RefreshCw size={14} strokeWidth={2.2} className={syncing ? 'animate-spin' : ''} /> {syncing ? 'Sincronizando…' : 'Sincronizar agora'}
+                </Button>
+                {needsLogin && (
+                    <Button type="button" variant="ghost" onClick={() => onReconnect(connection)}>
+                        <KeyRound size={14} strokeWidth={2.2} /> Reconectar
+                    </Button>
+                )}
+                <Button href={route('openFinance.items.show', connection.id)} variant="ghost">
+                    <ExternalLink size={14} strokeWidth={2.2} /> Ver dados
+                </Button>
+                <button type="button" onClick={remove} className="ml-auto text-[12.5px] text-text/45 hover:text-red">Remover conexão</button>
+            </div>
         </div>
     );
 }
 
 // ─── Página principal ─────────────────────────────────────────────────────────
-export default function Settings({ settings, categories, rules }) {
-    const { flash } = usePage().props;
-
+export default function Settings({ settings, categories, rules, connections, useSandbox }) {
     const [base, setBase] = useState(() => buildBase(settings, categories, rules));
     const [draft, setDraft] = useState(() => buildBase(settings, categories, rules));
     const [saving, setSaving] = useState(false);
@@ -330,7 +462,7 @@ export default function Settings({ settings, categories, rules }) {
     const [novaCategoria, setNovaCategoria] = useState('');
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState('all');
-    const [toast, setToast] = useState(null);
+    const [errorToast, setErrorToast] = useState(null);
     const toastTimer = useRef(null);
 
     // Ressincroniza quando os props do Inertia mudam (ex: regra criada/editada
@@ -349,20 +481,21 @@ export default function Settings({ settings, categories, rules }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [settings, categories, rules]);
 
-    const showToast = (message) => {
-        setToast(message);
+    // As mensagens de sucesso vêm do toast global do layout; aqui só o resumo de falha.
+    const showError = (message) => {
+        setErrorToast(message);
         clearTimeout(toastTimer.current);
-        toastTimer.current = setTimeout(() => setToast(null), 2600);
+        toastTimer.current = setTimeout(() => setErrorToast(null), 4000);
     };
     useEffect(() => () => clearTimeout(toastTimer.current), []);
+
+    // Chegou por um link "#contas" (ex: da Home): rola até a seção.
     useEffect(() => {
-        if (flash?.success && !saving) showToast(flash.success);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [flash?.success]);
+        if (window.location.hash) document.querySelector(window.location.hash)?.scrollIntoView({ behavior: 'smooth' });
+    }, []);
 
     const diff = useMemo(() => computeDiff(draft, base), [draft, base]);
     const changesCount = diffCount(diff);
-    const isDirty = changesCount > 0;
 
     const ownershipOptions = [
         { value: 'payer1', label: draft.payer1_name || 'Pagador 1' },
@@ -382,7 +515,7 @@ export default function Settings({ settings, categories, rules }) {
     });
 
     const salvar = async () => {
-        if (saving || !isDirty) return;
+        if (saving || !changesCount) return;
         setSaving(true);
         setErrors({});
 
@@ -399,7 +532,7 @@ export default function Settings({ settings, categories, rules }) {
         })));
         diff.rulesToDelete.forEach((rule) => steps.push(() => req('delete', route('categorizationRules.destroy', rule.id))));
         diff.rulesToUpdate.forEach((rule) => steps.push(() => req('put', route('categorizationRules.update', rule.id), {
-            pattern: rule.pattern, amount: rule.amount, category_id: rule.category_id, ownership: rule.ownership,
+            pattern: rule.pattern, action: rule.action, amount: rule.amount, category_id: rule.category_id, ownership: rule.ownership,
         })));
 
         let ok = true;
@@ -409,7 +542,7 @@ export default function Settings({ settings, categories, rules }) {
         }
 
         setSaving(false);
-        showToast(ok ? 'Configurações salvas' : 'Não foi possível salvar tudo — confira os campos e tente de novo.');
+        if (!ok) showError('Não foi possível salvar tudo — confira os campos e tente de novo.');
     };
 
     const discard = () => {
@@ -435,6 +568,7 @@ export default function Settings({ settings, categories, rules }) {
         if (next > 28) next = 1;
         return { ...d, card_closing_day: next };
     });
+    const stepGrace = (delta) => setDraft((d) => ({ ...d, income_grace_days: Math.min(15, Math.max(0, (Number(d.income_grace_days) || 0) + delta)) }));
     const cycle = cycleInfo(draft.card_closing_day);
 
     // ---- Categorias ----
@@ -502,9 +636,44 @@ export default function Settings({ settings, categories, rules }) {
     };
 
     const applyRules = () => {
-        if (!confirm('Isso vai revisar todas as despesas já lançadas e recategorizar as que baterem com alguma regra. Continuar?')) return;
+        if (!confirm('Isso vai revisar todos os lançamentos já existentes: os que baterem com uma regra de categoria são recategorizados, e as regras de "ignorar" são reaplicadas. Continuar?')) return;
         setApplying(true);
         router.post(route('categorizationRules.apply'), {}, { preserveScroll: true, onFinish: () => setApplying(false) });
+    };
+
+    // ---- Open Finance ----
+    const scriptLoaded = useScript(PLUGGY_CONNECT_SCRIPT_URL);
+    const [newOwner, setNewOwner] = useState('payer1');
+    const [connecting, setConnecting] = useState(false);
+
+    const openPluggy = async (existing = null) => {
+        setConnecting(true);
+        try {
+            // Reconectar usa um token amarrado à conexão existente (o widget só pede o login de novo).
+            const { data } = await axios.post(route('openFinance.connectToken'), existing ? { item_id: existing.item_id } : {});
+            const pluggyConnect = new window.PluggyConnect({
+                connectToken: data.accessToken,
+                includeSandbox: useSandbox,
+                ...(existing ? { updateItem: existing.item_id } : {}),
+                onSuccess: (itemData) => {
+                    router.post(route('openFinance.items.store'), {
+                        item_id: itemData.item.id,
+                        connector_name: itemData.item.connector?.name ?? null,
+                        owner: existing?.owner ?? newOwner,
+                    }, { preserveScroll: true });
+                },
+                onError: (error) => {
+                    console.error('Pluggy Connect error', error);
+                    showError('Não foi possível conectar ao banco. Tente novamente.');
+                },
+            });
+            pluggyConnect.init();
+        } catch (error) {
+            console.error(error);
+            showError('Não foi possível iniciar a conexão. Verifique as credenciais do Pluggy no .env.');
+        } finally {
+            setConnecting(false);
+        }
     };
 
     return (
@@ -515,7 +684,7 @@ export default function Settings({ settings, categories, rules }) {
                 <p className="mb-2 font-heading text-[12px] uppercase tracking-[.12em] text-text/60">Conta compartilhada</p>
                 <h1 className="text-[clamp(28px,3vw,36px)] font-medium tracking-[-.02em]">Configurações</h1>
                 <p className="mt-1 max-w-[52ch] text-[13px] text-text/50">
-                    Como a despesa é dividida entre vocês, quando o mês financeiro vira e para onde cada gasto vai.
+                    Como a despesa é dividida entre vocês, quando o mês financeiro vira, de onde vêm os dados e para onde cada gasto vai.
                 </p>
             </section>
 
@@ -574,18 +743,8 @@ export default function Settings({ settings, categories, rules }) {
 
                     <div className="mt-4 flex flex-wrap items-center gap-[clamp(20px,3vw,40px)]">
                         <div className="min-w-[240px] flex-1">
-                            <div className="inline-flex items-center gap-1 rounded-[12px] bg-[#0c1620] p-[5px] shadow-[inset_0_0_0_1px_rgb(var(--color-accent-rgb)/0.28)]">
-                                <button type="button" onClick={() => stepDay(-1)} aria-label="Dia anterior" className="grid h-[34px] w-[34px] flex-none place-items-center rounded-[9px] text-text/75 transition-colors hover:bg-text/8 hover:text-text">
-                                    <Minus size={16} strokeWidth={2.4} />
-                                </button>
-                                <span className="w-[52px] text-center font-heading text-[22px] font-medium tabular-nums text-text">
-                                    {pad2(draft.card_closing_day)}
-                                </span>
-                                <button type="button" onClick={() => stepDay(1)} aria-label="Dia seguinte" className="grid h-[34px] w-[34px] flex-none place-items-center rounded-[9px] text-text/75 transition-colors hover:bg-text/8 hover:text-text">
-                                    <Plus size={16} strokeWidth={2.4} />
-                                </button>
-                            </div>
-                            {errors.card_closing_day && <p className="mt-1 text-[11.5px] text-red-400/90">{errors.card_closing_day}</p>}
+                            <Stepper value={draft.card_closing_day} onStep={stepDay} label="Dia de fechamento" />
+                            {errors.card_closing_day && <p className="mt-1 text-[11.5px] text-red">{errors.card_closing_day}</p>}
                         </div>
 
                         <div className="min-w-[260px] flex-1 rounded-[14px] bg-text/[0.04] p-[18px] shadow-[inset_0_0_0_1px_rgb(var(--color-text-rgb)/0.08)]">
@@ -596,6 +755,50 @@ export default function Settings({ settings, categories, rules }) {
                                 <span>{cycle.endLabel}</span>
                             </div>
                         </div>
+                    </div>
+
+                    <div className="mt-5 flex flex-wrap items-center gap-[clamp(20px,3vw,40px)] border-t border-text/8 pt-5">
+                        <div className="min-w-[240px] flex-1">
+                            <Stepper value={draft.income_grace_days} onStep={stepGrace} label="Dias de tolerância da receita" />
+                            {errors.income_grace_days && <p className="mt-1 text-[11.5px] text-red">{errors.income_grace_days}</p>}
+                        </div>
+                        <p className="min-w-[260px] flex-1 text-[13px] leading-[1.5] text-text/55">
+                            <strong className="font-medium text-text/80">Receita antecipada:</strong> o que entrar até {draft.income_grace_days} dia(s) antes do fechamento
+                            conta no mês seguinte — ex: salário que caiu no dia 3 com fechamento no dia 5.
+                        </p>
+                    </div>
+                </Card>
+            </section>
+
+            {/* Contas conectadas */}
+            <section className="flex flex-col gap-4">
+                <SectionLabel title="Contas conectadas" id="contas" />
+                <Card className="flex flex-col gap-4">
+                    <SectionHeader
+                        icon={<Landmark size={13} strokeWidth={2.2} className="stroke-strong-accent" />}
+                        title="Open Finance"
+                        subtitle="Transações, saldos e investimentos chegam pelo Pluggy. A Home sincroniza sozinha quando os dados têm mais de 6 horas."
+                    />
+
+                    {connections.length === 0 ? (
+                        <p className="py-4 text-center text-[13px] text-text/50">Nenhum banco conectado ainda.</p>
+                    ) : (
+                        connections.map((connection) => (
+                            <ConnectionCard key={connection.id} connection={connection} ownershipOptions={ownershipOptions} onReconnect={openPluggy} />
+                        ))
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-2.5">
+                        <span className="text-[12.5px] text-text/55">Nova conexão de</span>
+                        <Segmented
+                            size="sm"
+                            value={newOwner}
+                            onChange={setNewOwner}
+                            options={ownershipOptions.filter((o) => o.value !== 'both').map((o) => ({ ...o, label: firstName(o.label) }))}
+                        />
+                        <Button type="button" variant="secondary" onClick={() => openPluggy()} disabled={!scriptLoaded || connecting}>
+                            <Plus size={14} strokeWidth={2.2} /> {connecting ? 'Abrindo…' : !scriptLoaded ? 'Carregando…' : 'Conectar banco'}
+                        </Button>
                     </div>
                 </Card>
             </section>
@@ -610,7 +813,7 @@ export default function Settings({ settings, categories, rules }) {
                             title="Categorias"
                             action={
                                 <span className="text-[12.5px] text-text/45">
-                                    {draft.categories.length} categorias · {totalExpensesCount.toLocaleString('pt-BR')} despesas
+                                    {draft.categories.length} categorias · {totalExpensesCount.toLocaleString('pt-BR')} lançamentos
                                 </span>
                             }
                         />
@@ -626,18 +829,7 @@ export default function Settings({ settings, categories, rules }) {
                                     className="min-w-0 flex-1 border-0 bg-transparent py-[9px] text-[13.5px] text-text placeholder:text-text/40 focus:outline-none focus:ring-0"
                                 />
                             </div>
-                            <div className="flex gap-0.5 rounded-[10px] bg-text/[0.035] p-[3px] shadow-[inset_0_0_0_1px_rgb(var(--color-text-rgb)/0.09)]">
-                                {categoryFilters.map((f) => (
-                                    <button
-                                        key={f.value}
-                                        type="button"
-                                        onClick={() => setFilter(f.value)}
-                                        className={`rounded-[8px] px-[11px] py-[6px] text-[12.5px] transition-colors ${filter === f.value ? 'bg-teal/28 text-text' : 'text-text/60 hover:bg-text/8'}`}
-                                    >
-                                        {f.label}
-                                    </button>
-                                ))}
-                            </div>
+                            <Segmented value={filter} onChange={setFilter} options={categoryFilters} />
                         </div>
 
                         <div className="scroll-thin mt-1.5 flex max-h-[320px] flex-col overflow-y-auto pr-1">
@@ -690,7 +882,7 @@ export default function Settings({ settings, categories, rules }) {
                             action={<span className="text-[12.5px] text-text/45">{draft.rules.length} ativas</span>}
                         />
                         <p className="mt-1.5 max-w-[46ch] text-[13px] leading-[1.5] text-text/55">
-                            Quando a descrição de uma transação bate com o termo, ela recebe a categoria e o responsável sozinha.
+                            Quando a descrição de uma transação bate com o termo, ela recebe a categoria e o responsável sozinha — ou fica fora dos cálculos.
                         </p>
 
                         <div className="mt-2 flex flex-col">
@@ -722,33 +914,9 @@ export default function Settings({ settings, categories, rules }) {
                 </section>
             </section>
 
-            {isDirty && <div className="h-20" />}
+            <SaveBar count={changesCount} saving={saving} onSave={salvar} onDiscard={discard} />
 
-            {isDirty && (
-                <div className="fixed inset-x-0 bottom-0 z-40 bg-[linear-gradient(180deg,transparent,var(--color-bg)_45%)] px-[clamp(16px,3vw,40px)] pb-[18px] pt-3.5">
-                    <div className="mx-auto flex max-w-[1180px] flex-wrap items-center gap-3.5 rounded-[14px] bg-surface px-4 py-3 shadow-[inset_0_0_0_1px_rgb(var(--color-accent-rgb)/0.4),0_12px_34px_rgba(0,0,0,0.45)]">
-                        <span className="min-w-[180px] flex-1 text-[13.5px] text-text/80">
-                            {changesCount === 1 ? '1 alteração não salva' : `${changesCount} alterações não salvas`}
-                        </span>
-                        <Button type="button" variant="secondary" onClick={discard} disabled={saving}>Descartar</Button>
-                        <button
-                            type="button"
-                            onClick={salvar}
-                            disabled={saving}
-                            className="rounded-[9px] bg-teal/80 px-[18px] py-2.5 font-heading text-[13px] font-medium text-gray transition-colors hover:bg-teal/70 disabled:pointer-events-none disabled:opacity-60"
-                        >
-                            {saving ? 'Salvando...' : 'Salvar alterações'}
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {toast && (
-                <div className="fixed bottom-[26px] left-1/2 z-50 flex -translate-x-1/2 items-center gap-2.5 rounded-full bg-surface px-[18px] py-[11px] text-[13.5px] text-green shadow-[inset_0_0_0_1px_rgb(var(--color-income-rgb)/0.4),0_10px_28px_rgba(0,0,0,0.4)]">
-                    <Check size={15} strokeWidth={2.2} className="stroke-green" />
-                    {toast}
-                </div>
-            )}
+            <Toast message={errorToast} tone="error" />
 
             <RuleModal
                 key={editingRule ? `edit-${editingRule.id}` : 'new'}

@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
@@ -28,34 +31,63 @@ class PluggyService
             ]) ?: null,
         ]);
 
-        $response = Http::withHeaders(['X-API-KEY' => $this->apiKey()])
+        return $this->request()
             ->post("{$this->baseUrl}/connect_token", $payload)
-            ->throw();
-
-        return $response->json('accessToken');
+            ->throw()
+            ->json('accessToken');
     }
 
     public function getItem(string $itemId): array
     {
-        return Http::withHeaders(['X-API-KEY' => $this->apiKey()])
-            ->get("{$this->baseUrl}/items/{$itemId}")
-            ->throw()
-            ->json();
+        return $this->request()->get("{$this->baseUrl}/items/{$itemId}")->throw()->json();
     }
 
     public function deleteItem(string $itemId): void
     {
-        Http::withHeaders(['X-API-KEY' => $this->apiKey()])
-            ->delete("{$this->baseUrl}/items/{$itemId}")
-            ->throw();
+        $this->request()->delete("{$this->baseUrl}/items/{$itemId}")->throw();
     }
 
     public function getAccounts(string $itemId): array
     {
-        return Http::withHeaders(['X-API-KEY' => $this->apiKey()])
+        return $this->request()
             ->get("{$this->baseUrl}/accounts", ['itemId' => $itemId])
             ->throw()
             ->json('results') ?? [];
+    }
+
+    public function getInvestments(string $itemId): array
+    {
+        return $this->request()
+            ->get("{$this->baseUrl}/investments", ['itemId' => $itemId, 'pageSize' => 500])
+            ->throw()
+            ->json('results') ?? [];
+    }
+
+    // Faturas de um cartão (vencimento, fechamento, total). Cada compra aponta para a sua via billId.
+    public function getBills(string $accountId): array
+    {
+        $bills = [];
+        $page = 1;
+
+        do {
+            $response = $this->request()
+                ->get("{$this->baseUrl}/bills", ['accountId' => $accountId, 'page' => $page])
+                ->throw()
+                ->json();
+
+            $bills = [...$bills, ...($response['results'] ?? [])];
+            $page++;
+        } while ($page <= ($response['totalPages'] ?? 1));
+
+        return $bills;
+    }
+
+    // Dados cadastrais do titular (CPF), usados para reconhecer transferências para si mesmo.
+    public function getIdentity(string $itemId): ?array
+    {
+        $response = $this->request()->get("{$this->baseUrl}/identity", ['itemId' => $itemId]);
+
+        return $response->successful() ? $response->json() : null;
     }
 
     /**
@@ -76,7 +108,7 @@ class PluggyService
         ]);
 
         while ($url) {
-            $request = Http::withHeaders(['X-API-KEY' => $this->apiKey()]);
+            $request = $this->request();
 
             // `$next` já vem com a querystring completa (incl. accountId) — passar um $query
             // vazio junto faz o client sobrescrever a query da URL e perder o accountId.
@@ -92,6 +124,15 @@ class PluggyService
         }
 
         return $transactions;
+    }
+
+    // Repete só falhas transitórias (rede, 5xx, 429); erro de requisição (4xx) sobe direto.
+    private function request(): PendingRequest
+    {
+        return Http::withHeaders(['X-API-KEY' => $this->apiKey()])
+            ->timeout(60)
+            ->retry(2, 1000, fn (\Throwable $e) => $e instanceof ConnectionException
+                || ($e instanceof RequestException && ($e->response->serverError() || $e->response->status() === 429)), throw: false);
     }
 
     private function apiKey(): string

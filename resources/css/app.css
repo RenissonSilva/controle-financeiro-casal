@@ -30,7 +30,9 @@
  */
 :root {
     --color-bg: #0e1c28;
+    --color-bg-rgb: 14 28 40;
     --color-surface: #152a38;
+    --color-surface-rgb: 21 42 56;
     --color-text: #eef7f8;
     --color-text-rgb: 223 238 240;
     --color-accent: #43a9ab;

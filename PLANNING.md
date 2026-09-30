@@ -1,7 +1,57 @@
 # PLANNING.md — Controle Financeiro Casal
 
-> Documento de referência para o MVP. Última atualização: 2026-08-08 (fluxo principal
-> de uso e vigência de despesas fixas).
+> Documento de referência para o MVP. Última atualização: 2026-09-29 (migração de todas as
+> telas para o visual Sovinna e integração completa com o Open Finance — ver seção 0, que
+> prevalece sobre as seções antigas onde houver conflito).
+
+## 0. Decisões de 2026-09-29 (migração Sovinna + Open Finance)
+
+**Quem usa:** só o Reni (pagador 1). A Lua não tem login nem banco conectado; gastos pagos
+por ela entram como lançamento manual "pago por Lua".
+
+**O que conta como despesa (TransactionClassifier):**
+- Cartão: compra = despesa; estorno = despesa com sinal invertido; "Pagamento recebido" e
+  "Estorno de pagamento" = ignorados (é a fatura sendo paga).
+- Conta: "Pagamento de fatura" = ignorado (as compras do cartão já contam); aplicação/resgate
+  = ignorado; transferência para o próprio CPF = ignorada; demais saídas = despesa; demais
+  entradas = receita (estorno de débito abate despesa). Pix com a Lua **não** vira acerto
+  sozinho (o reconhecimento pelo CPF/CNPJ dela foi removido): o acerto é marcado à mão no
+  lançamento.
+- Moeda estrangeira vale o valor cobrado em R$ (`amountInAccountCurrency`).
+- Regras de categorização ganharam a ação "Ignorar nos cálculos".
+
+**Mês financeiro:** continua o ciclo do cartão (fechamento dia 5: "Setembro" = 05/09–04/10),
+mas cada lançamento guarda sua `competence`. Compra de cartão usa a fatura real do Pluggy
+(bate ao centavo com a fatura); receita que chega até N dias (padrão 5) antes do ciclo conta
+no ciclo seguinte (salário adiantado).
+
+**Home (Dashboard):** dados reais. Saldo Total = conta + investimentos (histórico
+reconstruído pelas transações); Fluxo de Caixa = receitas do Reni × parte do Reni nas
+despesas; card novo "Acerto com Lua"; Meta = meta principal com progresso pelo saldo
+investido; Saúde financeira com nota 0–100 (50% poupança dos últimos 30 dias, 30% meses de
+reserva, 20% uso do limite do cartão). A Home sincroniza sozinha quando os dados têm mais de
+6 h.
+
+**Acerto do casal:** só o mês: quanto a Lua deve = parte da Lua no que o Reni pagou + parte da
+Lua nas contas fixas do **próximo** ciclo − parte do Reni no que a Lua pagou. O acerto do fim do
+mês é o dinheiro das contas do começo do mês seguinte (2026-09-30): por isso os pagamentos de
+contas fixas do próprio ciclo ficam fora (já cobertos pelo acerto anterior) e as fixas do ciclo
+seguinte entram pelo valor real, se já pagas, ou pela estimativa. Pix trocados entre os dois não
+abatem nada (sem saldo corrido, sem mês inicial, sem saldo inicial manual). Lançamentos
+marcados como "Acerto" só ficam fora de receitas e despesas.
+
+**Contas fixas:** reconhecem o pagamento pelo CPF/CNPJ do Pix (ou trecho da descrição) no
+mesmo mês financeiro; conta paga = vinculada ao lançamento e contada uma vez só. Vínculo
+manual e "desfazer vínculo" disponíveis.
+
+**Menu:** Dashboard · Lançamentos · Contas fixas · Metas · Configurações. Conexões Open
+Finance, categorias e regras ficam em Configurações. Import de CSV removido
+(`maatwebsite/excel` saiu do projeto).
+
+**Sem fila:** sincronização e IA (Groq `openai/gpt-oss-120b`) rodam na própria requisição
+(~3 s por sincronização); não é mais preciso manter `queue:work`. O comando
+`php artisan openfinance:sync` faz a sincronização pelo terminal e está agendado para 06:30
+(requer o cron do `schedule:run` em produção).
 
 ## 1. Objetivo
 

@@ -5,25 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\Category;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Inertia\Response;
 
 class CategoryController extends Controller
 {
-    public function index(): Response
+    // As categorias são editadas na tela de Configurações.
+    public function index(): RedirectResponse
     {
-        return Inertia::render('Categories', [
-            'categories' => Category::withCount('expenses')
-                ->orderBy('name')
-                ->get()
-                ->map(fn (Category $category) => [
-                    'id'                => $category->id,
-                    'name'              => $category->name,
-                    'color'             => $category->color,
-                    'default_ownership' => $category->default_ownership,
-                    'expenses_count'    => $category->expenses_count,
-                ]),
-        ]);
+        return redirect()->route('settings.show');
     }
 
     public function store(Request $request): RedirectResponse

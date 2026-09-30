@@ -12,7 +12,7 @@ export default function Select({ label, error, options = [], className = '', sel
                     </option>
                 ))}
             </select>
-            {error && <p className="mt-1 text-[11.5px] text-red-400/90">{error}</p>}
+            {error && <p className="mt-1 text-[11.5px] text-red">{error}</p>}
         </div>
     );
 }

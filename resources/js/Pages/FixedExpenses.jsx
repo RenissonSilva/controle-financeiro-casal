@@ -1,332 +1,430 @@
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import AppLayout from '@/Layouts/AppLayout';
+import Card from '@/Components/ui/Card';
+import Button from '@/Components/ui/Button';
+import Modal from '@/Components/ui/Modal';
+import Field from '@/Components/ui/Field';
+import Select from '@/Components/ui/Select';
+import PageHeader from '@/Components/ui/PageHeader';
+import SectionLabel from '@/Components/ui/SectionLabel';
+import CycleSwitcher from '@/Components/ui/CycleSwitcher';
+import OwnershipToggle from '@/Components/ui/OwnershipToggle';
+import IconBadge from '@/Components/ui/IconBadge';
+import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
+import { router, useForm, usePage } from '@inertiajs/react';
+import axios from 'axios';
 import { useEffect, useState } from 'react';
-import { X, Plus } from 'lucide-react';
+import { AlertTriangle, CalendarClock, Check, CircleDashed, Link2, Link2Off, MoreHorizontal, Pencil, Plus, Trash2, Wallet, CheckCircle2, Hourglass } from 'lucide-react';
+import { dayMonth, formatDocument, money } from '@/lib/format';
+import { OWNERSHIP_BADGE, ownershipLabel } from '@/lib/ownership';
 
-const OWNERSHIP_OPTIONS = [
-    { value: 'payer1', label: 'Reni' },
-    { value: 'payer2', label: 'Lua' },
-    { value: 'both',   label: 'Nós' },
-];
-
-const OWNERSHIP_BADGE = {
-    payer1: 'bg-emerald-100 text-emerald-700',
-    payer2: 'bg-rose-100 text-rose-700',
-    both:   'bg-amber-100 text-amber-700',
+const STATUS = {
+    paid: { label: 'Paga', icon: Check, className: 'bg-green/16 text-green' },
+    upcoming: { label: 'A vencer', icon: CalendarClock, className: 'bg-teal/16 text-strong-accent' },
+    late: { label: 'Não encontrada', icon: AlertTriangle, className: 'bg-red/16 text-red' },
 };
 
-const fmt = (v) =>
-    Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+export default function FixedExpenses({ cycle, fixedExpenses, totals, payees, categories }) {
+    const { couple } = usePage().props;
+    const [editing, setEditing] = useState({ show: false, item: null });
+    const [linking, setLinking] = useState(null);
 
-const EMPTY_FORM = { description: '', amount: '', variable_amount: false, due_day: '', start_date: '', end_date: '', category_id: '', ownership: 'both', active: true };
+    const inCycle = fixedExpenses.filter((f) => f.active && f.occurrence);
+    const outside = fixedExpenses.filter((f) => !f.active || !f.occurrence);
 
-// ─── Modal de criação/edição de despesa fixa ──────────────────────────────────
-function FixedExpenseFormModal({ categories, fixedExpense, onClose }) {
-    const isEditing = Boolean(fixedExpense);
-    const { data, setData, post, put, processing, errors, reset } = useForm(
-        fixedExpense
-            ? {
-                  description:     fixedExpense.description,
-                  amount:          fixedExpense.amount,
-                  variable_amount: fixedExpense.variable_amount,
-                  due_day:         fixedExpense.due_day,
-                  start_date:      fixedExpense.start_date ?? '',
-                  end_date:        fixedExpense.end_date ?? '',
-                  category_id:     fixedExpense.category_id ?? '',
-                  ownership:       fixedExpense.ownership,
-                  active:          fixedExpense.active,
-              }
-            : EMPTY_FORM
-    );
-
-    const submit = (e) => {
-        e.preventDefault();
-        const options = {
-            preserveScroll: true,
-            onSuccess: () => { reset(); onClose(); },
-        };
-
-        if (isEditing) {
-            put(route('fixedExpenses.update', fixedExpense.id), options);
-        } else {
-            post(route('fixedExpenses.store'), options);
+    const remove = (item) => {
+        if (confirm(`Remover a conta fixa "${item.description}"? Os pagamentos continuam em Lançamentos.`)) {
+            router.delete(route('fixedExpenses.destroy', item.id), { preserveScroll: true });
         }
     };
 
-    useEffect(() => {
-        const handler = (e) => { if (e.key === 'Escape') onClose(); };
-        window.addEventListener('keydown', handler);
-        return () => window.removeEventListener('keydown', handler);
-    }, [onClose]);
+    const unlink = (item) => {
+        if (confirm('Desfazer o vínculo? Essa cobrança não será mais reconhecida automaticamente neste mês.')) {
+            router.post(route('fixedExpenses.unlink', item.id), { month: cycle.month }, { preserveScroll: true });
+        }
+    };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-            <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
-                <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-                    <h2 className="text-base font-semibold text-gray-800">
-                        {isEditing ? 'Editar Despesa Fixa' : 'Nova Despesa Fixa'}
-                    </h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-                        <X className="h-5 w-5" strokeWidth={2} />
-                    </button>
-                </div>
+        <AppLayout title="Contas fixas">
+            <PageHeader
+                eyebrow="Mês financeiro"
+                title="Contas fixas"
+                description="Aluguel, contas e assinaturas. Quando o pagamento chega pelo banco, a conta fica paga sozinha — e conta uma vez só."
+                actions={<CycleSwitcher cycle={cycle} routeName="fixedExpenses.index" />}
+            />
 
-                <form onSubmit={submit} className="space-y-4 px-6 py-5">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Descrição *</label>
-                        <input
-                            type="text"
-                            autoFocus
-                            value={data.description}
-                            onChange={(e) => setData('description', e.target.value)}
-                            placeholder="Ex: Aluguel"
-                            className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none ${errors.description ? 'border-red-400' : 'border-gray-300'}`}
-                        />
-                        {errors.description && <p className="mt-1 text-xs text-red-500">{errors.description}</p>}
-                    </div>
+            <section className="flex flex-wrap items-stretch gap-[clamp(14px,1.6vw,20px)]">
+                <SummaryCard icon={<Wallet size={13} strokeWidth={2.2} className="stroke-strong-accent" />} label="Previsto no mês" value={totals.planned} />
+                <SummaryCard icon={<CheckCircle2 size={13} strokeWidth={2.2} className="stroke-green" />} label="Já pago" value={totals.paid} valueClass="text-green" />
+                <SummaryCard icon={<Hourglass size={13} strokeWidth={2.2} className="stroke-red" />} label="Falta pagar" value={totals.pending} valueClass={totals.pending > 0 ? 'text-red' : 'text-text'} tone="expense" />
+            </section>
 
-                    <div className="grid grid-cols-2 gap-3">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">
-                                {data.variable_amount ? 'Valor estimado (R$) *' : 'Valor (R$) *'}
-                            </label>
-                            <input
-                                type="number"
-                                min="0.01"
-                                step="0.01"
-                                value={data.amount}
-                                onChange={(e) => setData('amount', e.target.value)}
-                                className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none ${errors.amount ? 'border-red-400' : 'border-gray-300'}`}
-                            />
-                            {errors.amount && <p className="mt-1 text-xs text-red-500">{errors.amount}</p>}
-                        </div>
+            <section className="flex flex-col gap-4">
+                <SectionLabel
+                    title={`Contas de ${cycle.label.split(' de ')[0].toLowerCase()}`}
+                    action={
+                        <Button type="button" variant="secondary" onClick={() => setEditing({ show: true, item: null })}>
+                            <Plus size={14} strokeWidth={2.2} /> Nova conta fixa
+                        </Button>
+                    }
+                />
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Dia da cobrança *</label>
-                            <input
-                                type="number"
-                                min="1"
-                                max="31"
-                                value={data.due_day}
-                                onChange={(e) => setData('due_day', e.target.value)}
-                                placeholder="Ex: 10"
-                                className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none ${errors.due_day ? 'border-red-400' : 'border-gray-300'}`}
-                            />
-                            {errors.due_day && <p className="mt-1 text-xs text-red-500">{errors.due_day}</p>}
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Início da cobrança</label>
-                            <input
-                                type="date"
-                                value={data.start_date}
-                                onChange={(e) => setData('start_date', e.target.value)}
-                                className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none ${errors.start_date ? 'border-red-400' : 'border-gray-300'}`}
-                            />
-                            {errors.start_date && <p className="mt-1 text-xs text-red-500">{errors.start_date}</p>}
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Fim da cobrança</label>
-                            <input
-                                type="date"
-                                value={data.end_date}
-                                onChange={(e) => setData('end_date', e.target.value)}
-                                className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none ${errors.end_date ? 'border-red-400' : 'border-gray-300'}`}
-                            />
-                            {errors.end_date && <p className="mt-1 text-xs text-red-500">{errors.end_date}</p>}
-                        </div>
-                    </div>
-                    <p className="-mt-2 text-xs text-gray-400">
-                        Opcional. Use para financiamentos ou assinaturas com prazo definido — fora do período, a cobrança some das próximas previsões.
-                    </p>
-
-                    <label className="flex items-start gap-2 text-sm text-gray-700">
-                        <input
-                            type="checkbox"
-                            checked={data.variable_amount}
-                            onChange={(e) => setData('variable_amount', e.target.checked)}
-                            className="mt-0.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                        />
-                        <span>
-                            Valor variável (ex: conta de luz, água)
-                            <span className="block text-xs text-gray-400">
-                                O valor acima vira uma estimativa. No Dashboard você poderá ajustar o valor real de cada mês.
-                            </span>
-                        </span>
-                    </label>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Categoria</label>
-                        <select
-                            value={data.category_id}
-                            onChange={(e) => setData('category_id', e.target.value)}
-                            className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none ${errors.category_id ? 'border-red-400' : 'border-gray-300'}`}
-                        >
-                            <option value="">— Sem categoria —</option>
-                            {categories.map((c) => (
-                                <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                        </select>
-                        {errors.category_id && <p className="mt-1 text-xs text-red-500">{errors.category_id}</p>}
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Pagador *</label>
-                        <div className="mt-2 flex gap-2">
-                            {OWNERSHIP_OPTIONS.map((opt) => (
-                                <button
-                                    key={opt.value}
-                                    type="button"
-                                    onClick={() => setData('ownership', opt.value)}
-                                    className={`flex-1 rounded-lg border py-2 text-xs font-medium transition-colors ${
-                                        data.ownership === opt.value
-                                            ? OWNERSHIP_BADGE[opt.value] + ' border-transparent'
-                                            : 'border-gray-300 text-gray-500 hover:bg-gray-50'
-                                    }`}
-                                >
-                                    {opt.label}
-                                </button>
+                <Card hover={false} className="p-3">
+                    {inCycle.length === 0 ? (
+                        <p className="py-12 text-center text-[13px] text-text/50">Nenhuma conta fixa cobrada neste mês.</p>
+                    ) : (
+                        <div className="flex flex-col">
+                            {inCycle.map((item) => (
+                                <FixedRow
+                                    key={item.id}
+                                    item={item}
+                                    couple={couple}
+                                    payees={payees}
+                                    onEdit={() => setEditing({ show: true, item })}
+                                    onLink={() => setLinking(item)}
+                                    onUnlink={() => unlink(item)}
+                                    onRemove={() => remove(item)}
+                                />
                             ))}
                         </div>
-                        {errors.ownership && <p className="mt-1 text-xs text-red-500">{errors.ownership}</p>}
-                    </div>
+                    )}
+                </Card>
+            </section>
 
-                    <label className="flex items-center gap-2 text-sm text-gray-700">
-                        <input
-                            type="checkbox"
-                            checked={data.active}
-                            onChange={(e) => setData('active', e.target.checked)}
-                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                        />
-                        Ativa (aparece nas próximas cobranças do dashboard)
-                    </label>
+            {outside.length > 0 && (
+                <section className="flex flex-col gap-4">
+                    <SectionLabel title="Fora deste mês ou inativas" />
+                    <Card hover={false} className="p-3">
+                        {outside.map((item) => (
+                            <FixedRow key={item.id} item={item} couple={couple} payees={payees} muted onEdit={() => setEditing({ show: true, item })} onRemove={() => remove(item)} />
+                        ))}
+                    </Card>
+                </section>
+            )}
 
-                    <div className="flex justify-end gap-3 pt-1">
-                        <button type="button" onClick={onClose} className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">
-                            Cancelar
-                        </button>
-                        <button type="submit" disabled={processing} className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60">
-                            {processing ? 'Salvando...' : isEditing ? 'Salvar' : 'Criar Despesa Fixa'}
-                        </button>
-                    </div>
-                </form>
+            <FixedExpenseModal
+                show={editing.show}
+                item={editing.item}
+                onClose={() => setEditing({ show: false, item: null })}
+                categories={categories}
+                payees={payees}
+                couple={couple}
+            />
+
+            <LinkPaymentModal item={linking} month={cycle.month} onClose={() => setLinking(null)} />
+        </AppLayout>
+    );
+}
+
+function SummaryCard({ icon, label, value, valueClass = 'text-text', tone = 'accent' }) {
+    return (
+        <Card className="flex flex-[1_1_220px] items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+                <IconBadge tone={tone}>{icon}</IconBadge>
+                <span className="text-[13px] font-semibold tracking-[-.01em]">{label}</span>
             </div>
+            <span className={`font-heading text-[20px] font-semibold tracking-[-.02em] ${valueClass}`}>{money(value)}</span>
+        </Card>
+    );
+}
+
+function matcherLabel(item, payees) {
+    if (item.match_document) {
+        const payee = payees.find((p) => p.document === item.match_document);
+        return `Pix para ${payee?.name ?? formatDocument(item.match_document)}`;
+    }
+    if (item.match_pattern) return `descrição contém "${item.match_pattern}"`;
+    return null;
+}
+
+function FixedRow({ item, couple, payees, muted = false, onEdit, onLink, onUnlink, onRemove }) {
+    const occurrence = item.occurrence;
+    const status = occurrence ? STATUS[occurrence.status] : null;
+    const Icon = status?.icon ?? CircleDashed;
+    const matcher = matcherLabel(item, payees);
+
+    return (
+        <div className={`flex flex-wrap items-center gap-3 rounded-[12px] px-2 py-2.5 transition-colors hover:bg-text/5 sm:flex-nowrap ${muted ? 'opacity-60' : ''}`}>
+            <span className={`grid h-8 w-8 flex-none place-items-center rounded-full ${status?.className ?? 'bg-text/8 text-text/45'}`} title={status?.label}>
+                <Icon size={15} strokeWidth={2.3} />
+            </span>
+
+            <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[13.5px] font-medium">{item.description}</span>
+                    {item.category && (
+                        <span className="inline-flex items-center gap-1.5 text-[11.5px] text-text/55">
+                            <span className="h-2 w-2 rounded-full" style={{ background: item.color }} />
+                            {item.category}
+                        </span>
+                    )}
+                    <span className={`rounded-full px-2 py-[1px] text-[11px] font-medium ${OWNERSHIP_BADGE[item.ownership]}`}>{ownershipLabel(couple, item.ownership)}</span>
+                    {!item.active && <span className="rounded-full bg-text/8 px-2 py-[1px] text-[11px] text-text/50">Inativa</span>}
+                </div>
+                <div className="mt-0.5 truncate text-[11.5px] text-text/45">
+                    {occurrence?.payment ? (
+                        <>Paga em {dayMonth(occurrence.payment.date)} · {occurrence.payment.description}</>
+                    ) : occurrence ? (
+                        <>Vence {dayMonth(occurrence.due_date)} · {status?.label.toLowerCase()}</>
+                    ) : (
+                        <>Todo dia {item.due_day}{item.start_date || item.end_date ? ' · fora da vigência neste mês' : ''}</>
+                    )}
+                    {' · '}
+                    {matcher ? (
+                        <span>reconhece: {matcher}</span>
+                    ) : (
+                        <button type="button" onClick={onEdit} className="text-lime hover:underline">definir como reconhecer o pagamento</button>
+                    )}
+                </div>
+            </div>
+
+            <OccurrenceAmount item={item} />
+
+            <Menu as="div" className="relative flex-none">
+                <MenuButton aria-label="Ações" className="grid h-7 w-7 place-items-center rounded-full text-text/45 transition-colors hover:bg-text/10 hover:text-text">
+                    <MoreHorizontal size={15} strokeWidth={2.2} />
+                </MenuButton>
+                <MenuItems anchor="bottom end" className="z-50 mt-1 w-56 rounded-[12px] bg-surface p-1.5 text-[13px] text-text shadow-[inset_0_0_0_1px_rgb(var(--color-text-rgb)/0.1),0_12px_32px_rgba(0,0,0,0.45)] focus:outline-none">
+                    <MenuItem>
+                        <button type="button" onClick={onEdit} className="flex w-full items-center gap-2 rounded-[8px] px-2.5 py-2 text-left data-[focus]:bg-text/8">
+                            <Pencil size={13} className="text-text/60" /> Editar
+                        </button>
+                    </MenuItem>
+                    {occurrence && !occurrence.payment && onLink && (
+                        <MenuItem>
+                            <button type="button" onClick={onLink} className="flex w-full items-center gap-2 rounded-[8px] px-2.5 py-2 text-left data-[focus]:bg-text/8">
+                                <Link2 size={13} className="text-text/60" /> Vincular pagamento
+                            </button>
+                        </MenuItem>
+                    )}
+                    {occurrence?.payment && onUnlink && (
+                        <MenuItem>
+                            <button type="button" onClick={onUnlink} className="flex w-full items-center gap-2 rounded-[8px] px-2.5 py-2 text-left data-[focus]:bg-text/8">
+                                <Link2Off size={13} className="text-text/60" /> Desfazer vínculo
+                            </button>
+                        </MenuItem>
+                    )}
+                    <MenuItem>
+                        <button type="button" onClick={onRemove} className="flex w-full items-center gap-2 rounded-[8px] px-2.5 py-2 text-left text-red data-[focus]:bg-text/8">
+                            <Trash2 size={13} /> Remover
+                        </button>
+                    </MenuItem>
+                </MenuItems>
+            </Menu>
         </div>
     );
 }
 
-// ─── Página principal ─────────────────────────────────────────────────────────
-export default function FixedExpenses({ fixedExpenses, categories }) {
-    const { flash } = usePage().props;
-    const [showModal, setShowModal] = useState(false);
-    const [editingExpense, setEditingExpense] = useState(null);
+// Valor do mês. Conta variável ainda não paga: clique para informar o valor real do mês.
+function OccurrenceAmount({ item }) {
+    const occurrence = item.occurrence;
+    const [editing, setEditing] = useState(false);
+    const [value, setValue] = useState(occurrence?.planned_amount ?? item.amount);
 
-    const openCreate = () => { setEditingExpense(null); setShowModal(true); };
-    const openEdit = (expense) => { setEditingExpense(expense); setShowModal(true); };
-    const closeModal = () => { setShowModal(false); setEditingExpense(null); };
+    if (!occurrence) {
+        return <span className="w-[130px] flex-none text-right text-[13px] tabular-nums text-text/50">{item.variable_amount ? '≈ ' : ''}{money(item.amount)}</span>;
+    }
 
-    const handleDelete = (expense) => {
-        if (!confirm(`Remover a despesa fixa "${expense.description}"?`)) return;
-        router.delete(route('fixedExpenses.destroy', expense.id), { preserveScroll: true });
-    };
+    if (occurrence.payment) {
+        const diff = occurrence.payment.amount - occurrence.planned_amount;
+        return (
+            <div className="w-[130px] flex-none text-right">
+                <div className="text-[13px] font-semibold tabular-nums">{money(occurrence.payment.amount)}</div>
+                {Math.abs(diff) >= 0.01 && (
+                    <div className="text-[10.5px] text-text/40">previsto {money(occurrence.planned_amount)}</div>
+                )}
+            </div>
+        );
+    }
 
-    const total = fixedExpenses.filter((e) => e.active).reduce((sum, e) => sum + Number(e.amount), 0);
+    if (!item.variable_amount) {
+        return <span className="w-[130px] flex-none text-right text-[13px] font-semibold tabular-nums">{money(occurrence.amount)}</span>;
+    }
+
+    if (editing) {
+        const save = (e) => {
+            e.preventDefault();
+            router.put(route('fixedExpenses.occurrence.update', item.id), { due_date: occurrence.due_date, amount: value }, { preserveScroll: true, onSuccess: () => setEditing(false) });
+        };
+
+        return (
+            <form onSubmit={save} className="w-[130px] flex-none">
+                <input
+                    type="number" min="0.01" step="0.01" autoFocus value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                    onBlur={() => setEditing(false)}
+                    className="w-full rounded-[8px] border border-text/16 bg-[#213d51] px-2 py-1 text-right text-[13px] text-text focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal/50"
+                />
+            </form>
+        );
+    }
 
     return (
-        <AuthenticatedLayout
-            header={<h2 className="text-xl font-semibold text-gray-800">Despesas Fixas</h2>}
-            breadcrumbs={[{ label: 'Despesas Fixas' }]}
-        >
-            <Head title="Despesas Fixas" />
-
-            {showModal && (
-                <FixedExpenseFormModal categories={categories} fixedExpense={editingExpense} onClose={closeModal} />
-            )}
-
-            {flash?.success && (
-                <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-                    {flash.success}
-                </div>
-            )}
-
-            <p className="mb-4 max-w-2xl text-sm text-gray-500">
-                Cadastre as despesas fixas mensais (aluguel, assinaturas, financiamentos...). Elas aparecem
-                automaticamente no dashboard como expectativa de cobrança, com base no dia informado.
-            </p>
-
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <p className="text-sm text-gray-500">
-                    Total mensal ativo: <span className="font-semibold text-gray-800">{fmt(total)}</span>
-                </p>
+        <div className="flex w-[130px] flex-none flex-col items-end">
+            <button type="button" onClick={() => { setValue(occurrence.amount); setEditing(true); }} title="Clique para informar o valor real deste mês" className="text-[13px] font-semibold tabular-nums hover:underline">
+                {occurrence.has_amount_override ? '' : '≈ '}{money(occurrence.amount)}
+            </button>
+            {occurrence.has_amount_override ? (
                 <button
-                    onClick={openCreate}
-                    className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+                    type="button"
+                    onClick={() => router.delete(route('fixedExpenses.occurrence.destroy', occurrence.occurrence_id), { preserveScroll: true })}
+                    className="text-[10.5px] text-text/40 hover:text-strong-accent hover:underline"
                 >
-                    <Plus className="h-4 w-4" strokeWidth={2} />
-                    Nova Despesa Fixa
+                    ajustado · voltar à estimativa
                 </button>
-            </div>
-
-            {fixedExpenses.length === 0 ? (
-                <div className="rounded-xl border border-gray-200 bg-white py-16 text-center shadow-sm">
-                    <p className="text-gray-400">Nenhuma despesa fixa cadastrada ainda.</p>
-                    <button onClick={openCreate} className="mt-3 text-sm text-indigo-500 underline">
-                        Criar a primeira despesa fixa
-                    </button>
-                </div>
             ) : (
-                <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead className="bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500">
-                                <tr>
-                                    <th className="px-4 py-3 text-left">Descrição</th>
-                                    <th className="px-4 py-3 text-right">Valor</th>
-                                    <th className="px-4 py-3 text-center">Dia</th>
-                                    <th className="px-4 py-3 text-left">Categoria</th>
-                                    <th className="px-4 py-3 text-left">Pagador</th>
-                                    <th className="px-4 py-3 text-center">Status</th>
-                                    <th className="px-4 py-3" />
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {fixedExpenses.map((expense) => (
-                                    <tr key={expense.id} className={`hover:bg-gray-50 ${!expense.active ? 'opacity-50' : ''}`}>
-                                        <td className="px-4 py-3 font-medium text-gray-800">{expense.description}</td>
-                                        <td className="whitespace-nowrap px-4 py-3 text-right text-gray-600">
-                                            {expense.variable_amount && <span title="Valor estimado, pode variar mês a mês" className="mr-1 text-gray-400">≈</span>}
-                                            {fmt(expense.amount)}
-                                        </td>
-                                        <td className="px-4 py-3 text-center text-gray-600">{expense.due_day}</td>
-                                        <td className="px-4 py-3 text-gray-700">{expense.category ?? <span className="text-gray-400">—</span>}</td>
-                                        <td className="px-4 py-3">
-                                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${OWNERSHIP_BADGE[expense.ownership]}`}>
-                                                {OWNERSHIP_OPTIONS.find((o) => o.value === expense.ownership)?.label}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-center">
-                                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${expense.active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
-                                                {expense.active ? 'Ativa' : 'Inativa'}
-                                            </span>
-                                        </td>
-                                        <td className="whitespace-nowrap px-4 py-3 text-right">
-                                            <button onClick={() => openEdit(expense)} className="mr-3 text-xs text-indigo-500 hover:text-indigo-700">
-                                                Editar
-                                            </button>
-                                            <button onClick={() => handleDelete(expense)} className="text-xs text-red-400 hover:text-red-600">
-                                                Remover
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                <span className="text-[10.5px] text-text/40">estimado</span>
+            )}
+        </div>
+    );
+}
+
+const EMPTY = {
+    description: '', amount: '', variable_amount: false, due_day: '', start_date: '', end_date: '',
+    category_id: '', ownership: 'both', match_document: '', match_pattern: '', active: true,
+};
+
+function FixedExpenseModal({ show, item, onClose, categories, payees, couple }) {
+    const isEditing = Boolean(item);
+    const { data, setData, post, put, transform, processing, errors, clearErrors } = useForm(EMPTY);
+
+    useEffect(() => {
+        if (!show) return;
+        clearErrors();
+        setData(item ? {
+            description: item.description, amount: item.amount, variable_amount: item.variable_amount, due_day: item.due_day,
+            start_date: item.start_date ?? '', end_date: item.end_date ?? '', category_id: item.category_id ?? '', ownership: item.ownership,
+            match_document: item.match_document ?? '', match_pattern: item.match_pattern ?? '', active: item.active,
+        } : EMPTY);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [show, item?.id]);
+
+    const knownPayee = payees.some((p) => p.document === data.match_document);
+    const matcherMode = data.match_document ? 'document' : data.match_pattern ? 'pattern' : 'none';
+
+    const submit = (e) => {
+        e.preventDefault();
+        transform((d) => ({ ...d, category_id: d.category_id || null, start_date: d.start_date || null, end_date: d.end_date || null }));
+        const options = { preserveScroll: true, onSuccess: onClose };
+        isEditing ? put(route('fixedExpenses.update', item.id), options) : post(route('fixedExpenses.store'), options);
+    };
+
+    return (
+        <Modal show={show} onClose={onClose} title={isEditing ? 'Editar conta fixa' : 'Nova conta fixa'} maxWidth="lg">
+            <form onSubmit={submit} className="flex flex-col gap-4">
+                <Field label="Descrição" autoFocus value={data.description} onChange={(e) => setData('description', e.target.value)} placeholder="Ex: Aluguel" error={errors.description} />
+
+                <div className="grid grid-cols-2 gap-3">
+                    <Field
+                        label={data.variable_amount ? 'Valor estimado (R$)' : 'Valor (R$)'}
+                        type="number" min="0.01" step="0.01"
+                        value={data.amount} onChange={(e) => setData('amount', e.target.value)} error={errors.amount}
+                    />
+                    <Field label="Dia da cobrança" type="number" min="1" max="31" value={data.due_day} onChange={(e) => setData('due_day', e.target.value)} placeholder="Ex: 10" error={errors.due_day} />
+                </div>
+
+                <label className="flex items-start gap-2.5 text-[13px]">
+                    <input type="checkbox" checked={data.variable_amount} onChange={(e) => setData('variable_amount', e.target.checked)} className="mt-0.5 h-4 w-4 rounded border-text/25 bg-transparent text-teal focus:ring-teal/40 focus:ring-offset-0" />
+                    <span>
+                        Valor muda todo mês (luz, água…)
+                        <span className="block text-[11.5px] text-text/45">O valor acima vira estimativa até o pagamento real chegar.</span>
+                    </span>
+                </label>
+
+                <div>
+                    <span className="mb-1.5 block text-[12.5px] font-medium text-text/70">Como reconhecer o pagamento no banco</span>
+                    <select
+                        value={matcherMode === 'document' ? (knownPayee ? data.match_document : '__doc') : matcherMode === 'pattern' ? '__pattern' : ''}
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '__pattern') { setData((d) => ({ ...d, match_document: '', match_pattern: d.match_pattern || d.description })); }
+                            else if (value === '') { setData((d) => ({ ...d, match_document: '', match_pattern: '' })); }
+                            else if (value !== '__doc') { setData((d) => ({ ...d, match_document: value, match_pattern: '' })); }
+                        }}
+                        className="w-full rounded-[10px] border border-text/16 bg-[#213d51] px-3 py-2 text-[13.5px] text-text focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal/50"
+                    >
+                        <option value="" className="bg-surface">Não reconhecer (só previsão)</option>
+                        {payees.map((p) => (
+                            <option key={p.document} value={p.document} className="bg-surface">
+                                Pix para {p.name} · {p.count}× · último {money(p.last_amount)}
+                            </option>
+                        ))}
+                        {matcherMode === 'document' && !knownPayee && <option value="__doc" className="bg-surface">CPF/CNPJ {formatDocument(data.match_document)}</option>}
+                        <option value="__pattern" className="bg-surface">Por um trecho da descrição…</option>
+                    </select>
+                    {matcherMode === 'pattern' && (
+                        <Field className="mt-2" value={data.match_pattern} onChange={(e) => setData('match_pattern', e.target.value)} placeholder='Ex: NEW LINK' error={errors.match_pattern} />
+                    )}
+                    <p className="mt-1.5 text-[11.5px] text-text/45">O pagamento é procurado no mesmo mês financeiro da cobrança.</p>
+                </div>
+
+                <Select
+                    label="Categoria"
+                    value={data.category_id}
+                    onChange={(e) => setData('category_id', e.target.value)}
+                    options={[{ value: '', label: '— Sem categoria —' }, ...categories.map((c) => ({ value: c.id, label: c.name }))]}
+                    error={errors.category_id}
+                />
+
+                <div>
+                    <span className="mb-1.5 block text-[12.5px] font-medium text-text/70">De quem é a conta</span>
+                    <OwnershipToggle size="md" value={data.ownership} onChange={(value) => setData('ownership', value)} couple={couple} />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                    <Field label="Começa em" type="date" value={data.start_date} onChange={(e) => setData('start_date', e.target.value)} error={errors.start_date} />
+                    <Field label="Termina em" type="date" value={data.end_date} onChange={(e) => setData('end_date', e.target.value)} error={errors.end_date} />
+                </div>
+                <p className="-mt-2 text-[11.5px] text-text/45">Opcional. Sem início, vale a partir deste mês; sem fim, não expira.</p>
+
+                <label className="flex items-center gap-2.5 text-[13px]">
+                    <input type="checkbox" checked={data.active} onChange={(e) => setData('active', e.target.checked)} className="h-4 w-4 rounded border-text/25 bg-transparent text-teal focus:ring-teal/40 focus:ring-offset-0" />
+                    Ativa
+                </label>
+
+                <div className="mt-1 flex justify-end gap-2.5">
+                    <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
+                    <Button type="submit" variant="secondary" disabled={processing}>{processing ? 'Salvando...' : isEditing ? 'Salvar' : 'Criar conta fixa'}</Button>
+                </div>
+            </form>
+        </Modal>
+    );
+}
+
+// Escolher na mão qual lançamento pagou a conta deste mês.
+function LinkPaymentModal({ item, month, onClose }) {
+    const [rows, setRows] = useState(null);
+
+    useEffect(() => {
+        if (!item) return;
+        setRows(null);
+        axios.get(route('fixedExpenses.candidates', item.id), { params: { month } }).then(({ data }) => setRows(data.rows));
+    }, [item, month]);
+
+    const link = (row) => router.post(route('fixedExpenses.link', item.id), { month, expense_id: row.id }, { preserveScroll: true, onSuccess: onClose });
+
+    return (
+        <Modal show={Boolean(item)} onClose={onClose} title={item ? `Qual lançamento pagou "${item.description}"?` : ''} maxWidth="lg">
+            {rows === null ? (
+                <p className="py-8 text-center text-[13px] text-text/50">Carregando…</p>
+            ) : rows.length === 0 ? (
+                <p className="py-8 text-center text-[13px] text-text/50">Nenhuma despesa livre neste mês.</p>
+            ) : (
+                <div className="scroll-thin -mx-2 flex max-h-[420px] flex-col overflow-y-auto">
+                    {rows.map((row) => (
+                        <button key={row.id} type="button" onClick={() => link(row)} className="flex items-center gap-3 rounded-[10px] px-2 py-2 text-left hover:bg-text/6">
+                            <span className="w-[42px] flex-none text-xs text-text/50">{dayMonth(row.date)}</span>
+                            <span className="min-w-0 flex-1">
+                                <span className="block truncate text-[13px] font-medium">{row.name}</span>
+                                <span className="block truncate text-[11px] text-text/45">{[row.prefix, row.category].filter(Boolean).join(' · ')}</span>
+                            </span>
+                            <span className="text-[13px] font-semibold tabular-nums">{money(row.amount)}</span>
+                        </button>
+                    ))}
                 </div>
             )}
-        </AuthenticatedLayout>
+            <div className="mt-3 flex justify-end">
+                <Button type="button" variant="ghost" onClick={onClose}>Fechar</Button>
+            </div>
+        </Modal>
     );
 }
