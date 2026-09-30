@@ -1,13 +1,14 @@
-// Cabeçalho das telas internas: eyebrow + título + descrição curta, ações à direita.
+// Cabeçalho das telas: título + descrição curta, ações à direita.
+// `eyebrow` (opcional) fica acima do título — usado para o "‹ voltar".
 export default function PageHeader({ eyebrow, title, description, actions }) {
     return (
-        <section className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-                {eyebrow && <p className="mb-2 font-heading text-[12px] uppercase tracking-[.12em] text-text/60">{eyebrow}</p>}
-                <h1 className="text-[clamp(28px,3vw,36px)] font-medium tracking-[-.02em]">{title}</h1>
-                {description && <p className="mt-1 max-w-[56ch] text-[13px] text-text/50">{description}</p>}
+        <header className="flex flex-wrap items-center justify-between gap-4">
+            <div className="min-w-0">
+                {eyebrow && <div className="mb-1.5 text-[13px] text-muted">{eyebrow}</div>}
+                <h1 className="text-[26px] font-semibold tracking-[-0.02em] [text-wrap:balance]">{title}</h1>
+                {description && <p className="mt-1 max-w-[64ch] text-[14px] text-muted">{description}</p>}
             </div>
-            {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
-        </section>
+            {actions && <div className="flex flex-wrap items-center gap-3 max-[560px]:w-full">{actions}</div>}
+        </header>
     );
 }

@@ -55,14 +55,14 @@ export default function Login({ status, canResetPassword }) {
                     <InputError message={errors.password} className="mt-1.5" />
                 </div>
 
-                <label className="flex items-center gap-2 text-[13px] text-text/70">
+                <label className="flex items-center gap-2 text-[13px] text-secondary">
                     <Checkbox name="remember" checked={data.remember} onChange={(e) => setData('remember', e.target.checked)} />
                     Manter conectado
                 </label>
 
                 <div className="mt-1 flex items-center justify-between gap-3">
                     {canResetPassword ? (
-                        <Link href={route('password.request')} className="text-[12.5px] text-text/55 underline-offset-2 hover:text-text hover:underline">
+                        <Link href={route('password.request')} className="text-[13px] text-muted underline-offset-2 hover:text-text hover:underline">
                             Esqueceu a senha?
                         </Link>
                     ) : <span />}

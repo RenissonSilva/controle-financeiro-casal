@@ -1,16 +1,16 @@
 import { firstName } from '@/lib/format';
 
-// Cores de "quem paga" — as mesmas das Configurações (Reni verde, Lua coral, Nós teal).
+// Cores de "quem paga": cada pessoa tem a cor do avatar (payer1 azul, payer2 laranja); "Nós" usa o limão.
 export const OWNERSHIP_BADGE = {
-    payer1: 'bg-green/16 text-green',
-    payer2: 'bg-red/16 text-red',
-    both: 'bg-teal/16 text-strong-accent',
+    payer1: 'bg-person1/14 text-person1',
+    payer2: 'bg-person2/14 text-person2',
+    both: 'bg-accent/12 text-accent',
 };
 
 export const OWNERSHIP_DOT = {
-    payer1: 'bg-green',
-    payer2: 'bg-red',
-    both: 'bg-strong-accent',
+    payer1: 'bg-person1',
+    payer2: 'bg-person2',
+    both: 'bg-accent',
 };
 
 export const OWNERSHIP_CYCLE = ['both', 'payer1', 'payer2'];

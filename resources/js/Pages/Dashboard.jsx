@@ -1,72 +1,65 @@
 import AppLayout from '@/Layouts/AppLayout';
 import Card from '@/Components/ui/Card';
-import SectionHeader from '@/Components/ui/SectionHeader';
+import Button from '@/Components/ui/Button';
+import PageHeader from '@/Components/ui/PageHeader';
+import CycleSwitcher from '@/Components/ui/CycleSwitcher';
 import ProgressBar from '@/Components/ui/ProgressBar';
-import TransactionRow from '@/Components/ui/TransactionRow';
-import DonutChart from '@/Components/ui/DonutChart';
 import GaugeArc from '@/Components/ui/GaugeArc';
-import { theme } from '@/theme/tokens';
+import MerchantLogo from '@/Components/ui/MerchantLogo';
+import { lighten, theme, tint } from '@/theme/tokens';
 import { Link, router, usePage } from '@inertiajs/react';
 import axios from 'axios';
 import { useEffect, useState } from 'react';
-import { CreditCard, ArrowUp, ArrowDown, Target, Wallet, Clock, PieChart, History, ArrowLeftRight, RefreshCw } from 'lucide-react';
-import { dayMonth, deadlineLabel, firstName, money, moneyParts, moneyShort, monthName, relativeTime } from '@/lib/format';
+import { ArrowDown, ArrowLeftRight, ArrowUp, ChevronRight, Plus, RefreshCw, Target } from 'lucide-react';
+import { dayMonthLabel, daysUntil, deadlineLabel, firstName, money, moneyShort, monthName, parseDate, relativeTime } from '@/lib/format';
 
-// Tom do selo/medidor conforme a nota da saúde financeira.
+// Status da saúde financeira: cor do arco e do rótulo.
 const HEALTH_TONE = {
-    Excelente: { text: 'text-green', dot: 'bg-strong-accent shadow-[0_0_10px_2px_rgb(var(--color-strong-accent-rgb)/0.7)]' },
-    Boa: { text: 'text-green', dot: 'bg-strong-accent shadow-[0_0_10px_2px_rgb(var(--color-strong-accent-rgb)/0.7)]' },
-    Atenção: { text: 'text-lime', dot: 'bg-lime shadow-[0_0_10px_2px_rgb(var(--color-soft-text-rgb)/0.6)]' },
-    Crítica: { text: 'text-red', dot: 'bg-red shadow-[0_0_10px_2px_rgb(var(--color-expense-rgb)/0.6)]' },
+    Excelente: { text: 'text-accent', arc: 'stroke-accent' },
+    Boa: { text: 'text-accent', arc: 'stroke-accent' },
+    Atenção: { text: 'text-warning', arc: 'stroke-warning' },
+    Crítica: { text: 'text-red', arc: 'stroke-red' },
 };
 
-// Pontos do saldo → caminho do sparkline no mesmo viewBox 220×44 do mockup.
-function sparkline(points) {
-    if (!points?.length) return null;
+const MONTHS_UPPER = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 
-    const values = points.map((p) => p.total);
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const span = max - min || 1;
-    const step = 220 / Math.max(points.length - 1, 1);
-    const coords = values.map((v, i) => [Math.round(i * step), Math.round(34 - ((v - min) / span) * 28)]);
-    const line = coords.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x} ${y}`).join(' ');
-
-    return { line, area: `${line} L220 44 L0 44Z`, last: coords[coords.length - 1] };
-}
-
-// Top 4 categorias + "Outras" (a rosca fica legível com muitas categorias pequenas).
-function donutData(items, total) {
+// Top 4 categorias + "Outras" (a lista fica legível com muitas categorias pequenas).
+function categoryRows(items, total) {
     const positives = items.filter((c) => c.value > 0);
     const top = positives.slice(0, 4);
     const rest = positives.slice(4).reduce((sum, c) => sum + c.value, 0);
-    const slices = rest > 0 ? [...top, { name: 'Outras', color: theme.chartDeep, value: rest }] : top;
+    const slices = rest > 0 ? [...top, { name: 'Outras', color: theme.catOutras, value: rest }] : top;
     const base = total > 0 ? total : slices.reduce((sum, c) => sum + c.value, 0) || 1;
+    const max = Math.max(...slices.map((c) => c.value), 1);
 
     return slices.map((c) => ({
-        nome: c.name,
-        cor: c.color || theme.chartMid,
-        valor: Math.round(c.value * 100) / 100,
-        pct: `${Math.round((c.value / base) * 100)}%`,
+        name: c.name,
+        color: c.color || theme.catFallback,
+        value: c.value,
+        share: (c.value / base) * 100,
+        width: (c.value / max) * 100,
     }));
 }
 
+// Etiqueta de categoria da tabela: cor da categoria, ou neutra para receita/acerto/sem categoria.
 function historyRow(row, couple) {
     const partner = firstName(couple?.payer2_name);
     const isIn = row.direction === 'in';
 
-    let categoria = row.category;
-    if (row.kind === 'income') categoria = 'Receita';
-    if (row.kind === 'settlement') categoria = isIn ? `Acerto · ${partner} pagou` : `Acerto · para ${partner}`;
-    if (row.kind === 'expense' && isIn) categoria = `Estorno${row.category ? ` · ${row.category}` : ''}`;
+    let label = row.category || 'Sem categoria';
+    let color = row.color;
+    if (row.kind === 'income') [label, color] = ['Receita', theme.accent];
+    if (row.kind === 'settlement') [label, color] = [isIn ? `Acerto · ${partner} pagou` : `Acerto · para ${partner}`, null];
+    if (row.kind === 'expense' && isIn) label = `Estorno${row.category ? ` · ${row.category}` : ''}`;
 
     return {
         key: row.id,
-        date: dayMonth(row.date),
-        nome: row.name,
-        categoria: categoria || 'Sem categoria',
-        valor: money(row.amount),
-        tipo: isIn ? 'receita' : 'despesa',
+        date: dayMonthLabel(row.date),
+        name: row.name,
+        label,
+        color,
+        value: `${isIn ? '+' : '−'}${money(row.amount)}`,
+        isIn,
         merchant: row.kind === 'settlement' ? null : row.merchant,
     };
 }
@@ -94,322 +87,435 @@ function useAutoSync(sync) {
 export default function Dashboard({ greetingName, cycle, health, balance, cashFlow, goal, upcoming, categories, history, settlement, sync }) {
     const { couple } = usePage().props;
     const [syncState, runSync] = useAutoSync(sync);
-    const tone = HEALTH_TONE[health?.label] ?? HEALTH_TONE.Boa;
     const partner = firstName(couple?.payer2_name);
-
-    const [balanceInt, balanceCents] = moneyParts(balance?.total ?? 0);
-    const spark = sparkline(balance?.points);
-    const change = balance?.change_percent;
-    const flowTotal = (cashFlow.income || 0) + (cashFlow.expenses || 0);
-    const incomeWidth = flowTotal > 0 ? Math.round((cashFlow.income / flowTotal) * 100) : 50;
-    const estimated = cashFlow.estimated_balance;
-    const donut = donutData(categories.items, categories.total);
+    const monthParams = cycle.is_current ? {} : { month: cycle.month };
+    const syncStatus = <SyncStatus sync={sync} state={syncState} onSync={runSync} />;
 
     return (
-        <AppLayout title="Dashboard">
-            {/* Hero Section */}
-            <section className="flex flex-wrap items-center justify-between gap-5">
-                <div>
-                    <h1 className="mb-2.5 text-[clamp(34px,4.5vw,52px)] font-medium leading-[1.02] tracking-[-.03em]">
-                        Bem-vindo, <span className="text-strong-accent">{greetingName}</span>
-                    </h1>
-                    <div className="inline-flex items-center gap-2 rounded-full bg-teal/12 py-[5px] pl-2.5 pr-3.5 shadow-[inset_0_0_0_1px_rgb(var(--color-accent-rgb)/0.35)] backdrop-blur">
-                        <span className={`h-[7px] w-[7px] rounded-full ${tone.dot}`} />
-                        <span className={`text-[13px] ${tone.text}`}>
-                            {health ? health.message : 'Conecte seu banco para acompanhar sua saúde financeira'}
-                        </span>
-                    </div>
+        <AppLayout title="Dashboard" sync={syncStatus}>
+            <PageHeader
+                title={`Bem-vindo, ${greetingName}`}
+                description={
+                    <>
+                        Visão geral de {cycle.label.charAt(0).toLowerCase() + cycle.label.slice(1)}
+                        <span className="mt-1 flex desk:hidden">{syncStatus}</span>
+                    </>
+                }
+                actions={
+                    <>
+                        <CycleSwitcher cycle={cycle} routeName="dashboard" />
+                        <Button variant="primary" href={route('expenses.index', { ...monthParams, new: 1 })} className="max-[560px]:flex-1">
+                            <Plus size={14} strokeWidth={2.2} /> Novo lançamento
+                        </Button>
+                    </>
+                }
+            />
+
+            <Kpis balance={balance} cashFlow={cashFlow} cycle={cycle} />
+
+            <div className="grid grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] gap-5 max-[1100px]:grid-cols-1">
+                <CategoriesCard categories={categories} />
+
+                <div className="flex min-w-0 flex-col gap-5">
+                    <SettleCard settlement={settlement} partner={partner} cycle={cycle} monthParams={monthParams} />
+                    <HealthCard health={health} />
                 </div>
 
-                {/* Saúde financeira (Glass Badge Pill) */}
-                <Card
-                    bg={false}
-                    title={health ? healthTitle(health) : undefined}
-                    className="flex items-center gap-[18px] rounded-[20px] bg-[linear-gradient(135deg,var(--color-health-card-grad-start)_0%,rgb(var(--color-text-rgb)/0.03)_100%)] px-[22px] py-3 shadow-[inset_0_0_0_1px_rgb(var(--color-accent-rgb)/0.25),0_12px_32px_-8px_rgba(0,0,0,0.25)] backdrop-blur-md"
-                >
-                    <GaugeArc score={health?.score ?? 0} />
-                    <div>
-                        <div className="text-[13.5px] font-semibold tracking-[-.01em]">Saúde financeira</div>
-                        <div className={`mt-px text-xs font-semibold ${tone.text}`}>{health ? `${health.label} · 30 dias` : 'Sem dados ainda'}</div>
-                    </div>
-                </Card>
-            </section>
+                <HistoryCard history={history} couple={couple} />
 
-            <section className="mt-[clamp(14px,2vw,24px)] flex flex-wrap items-center justify-between gap-[clamp(14px,1.6vw,20px)]">
-                <SyncStatus sync={sync} state={syncState} onSync={runSync} />
-                <div className="text-xs uppercase tracking-[.12em] text-text/70">{cycle.label}</div>
-            </section>
+                <div className="flex min-w-0 flex-col gap-5">
+                    <UpcomingCard upcoming={upcoming} />
+                    <GoalCard goal={goal} />
+                </div>
+            </div>
+        </AppLayout>
+    );
+}
 
-            {/* Top Row: Saldo Total (Hero), Fluxo de Caixa, Acerto, Meta */}
-            <section className="flex flex-wrap items-stretch gap-[clamp(14px,1.6vw,20px)]">
-                {/* Saldo Total - Hero Card */}
-                <Card
-                    bg={false}
-                    className="relative flex flex-[1_1_240px] flex-col justify-between overflow-hidden bg-[linear-gradient(135deg,rgb(var(--color-accent-rgb)/0.32)_0%,var(--color-hero-card-grad-start)_50%,var(--color-surface)_100%)]"
-                >
-                    <div className="relative z-[1]">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-[7px] text-xs font-semibold text-text">
-                                <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-full bg-teal/16">
-                                    <CreditCard size={13} strokeWidth={2.2} className="stroke-strong-accent" />
-                                </span>
-                                Saldo Total
-                            </div>
-                            <span className="rounded-full bg-[linear-gradient(90deg,var(--color-strong-accent),var(--color-accent))] px-2.5 py-[3px] text-[11px] font-bold text-bg shadow-[0_2px_8px_rgba(0,0,0,0.25)]">
-                                Principal
-                            </span>
-                        </div>
-                        {balance ? (
-                            <>
-                                <div
-                                    title={`Conta ${money(balance.accounts)} + investimentos ${money(balance.investments)}`}
-                                    className="mt-3.5 font-heading text-[clamp(28px,2.8vw,38px)] font-semibold leading-none tracking-[-.03em] text-text [text-shadow:0_2px_12px_rgba(0,0,0,0.3)]"
-                                >
-                                    {balanceInt}<span className="text-[.55em] opacity-80">{balanceCents}</span>
-                                </div>
-                                {change != null && (
-                                    <div className={`mt-2.5 flex items-center gap-2 text-[12.5px] ${change >= 0 ? 'text-green' : 'text-red'}`}>
-                                        <span
-                                            className={`inline-flex items-center gap-[3px] rounded-md bg-black/40 px-2 py-[2px] font-semibold ${
-                                                change >= 0 ? 'shadow-[inset_0_0_0_1px_var(--color-income)]' : 'shadow-[inset_0_0_0_1px_var(--color-expense)]'
-                                            }`}
-                                        >
-                                            {change >= 0 ? '▲' : '▼'} {Math.abs(change).toFixed(1).replace('.', ',')}%
-                                        </span>
-                                        <span className="font-medium text-text/65">vs. {monthName(balance.previous_month)}</span>
-                                    </div>
-                                )}
-                            </>
-                        ) : (
-                            <div className="mt-3.5 text-[13px] leading-[1.5] text-text/60">
-                                Conecte sua conta em{' '}
-                                <Link href={route('settings.show') + '#contas'} className="text-strong-accent underline-offset-2 hover:underline">
-                                    Configurações
-                                </Link>{' '}
-                                para ver o saldo real.
-                            </div>
-                        )}
-                    </div>
-                    {spark && (
-                        <svg viewBox="0 0 220 44" preserveAspectRatio="none" className="relative z-[1] mt-4 h-[38px] w-full overflow-visible">
-                            <defs>
-                                <linearGradient id="sovinna-spark" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0" stopColor={theme.strongAccent} stopOpacity=".65" />
-                                    <stop offset="1" stopColor={theme.strongAccent} stopOpacity="0" />
-                                </linearGradient>
-                            </defs>
-                            <path d={spark.area} fill="url(#sovinna-spark)" />
-                            <path d={spark.line} fill="none" className="stroke-strong-accent" strokeWidth={2.2} strokeLinejoin="round" strokeLinecap="round" />
-                            <circle cx={spark.last[0]} cy={spark.last[1]} r="3.8" className="fill-strong-accent" />
-                        </svg>
-                    )}
-                </Card>
+function CardHead({ children, className = '' }) {
+    return <div className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 ${className}`}>{children}</div>;
+}
 
-                {/* Fluxo do Mês (Painel Unificado para Receitas & Despesas) */}
-                <Card className="flex flex-[2_1_440px] flex-col justify-between">
-                    <div className="mb-3 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-full bg-teal/16">
-                                <Wallet size={13} strokeWidth={2.2} className="stroke-strong-accent" />
-                            </span>
-                            <span className="text-[13px] font-semibold tracking-[-.01em] text-text">Fluxo de Caixa</span>
-                        </div>
-                        <div
-                            className="text-[11.5px] text-text/50"
-                            title={cashFlow.pending_fixed > 0 ? `Já desconta ${money(cashFlow.pending_fixed)} de contas fixas que ainda vão sair (sua parte)` : undefined}
-                        >
-                            Balanço estimado:{' '}
-                            <strong className={`font-semibold ${estimated >= 0 ? 'text-green' : 'text-red'}`}>
-                                {estimated >= 0 ? '+' : '−'}{money(Math.abs(estimated))}
-                            </strong>
-                        </div>
-                    </div>
+function CardTitle({ id, children, className = '' }) {
+    return <h2 id={id} className={`m-0 flex items-center gap-2 text-[15px] font-semibold ${className}`}>{children}</h2>;
+}
 
-                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
-                        <div className="flex items-center gap-2.5">
-                            <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-full bg-teal/16">
-                                <ArrowUp size={13} strokeWidth={2.5} className="stroke-green" />
-                            </span>
-                            <div>
-                                <div className="text-[11.5px] text-text/55">Receitas</div>
-                                <div className="font-heading text-[19px] font-semibold tracking-[-.02em] text-green">{money(cashFlow.income)}</div>
-                            </div>
-                        </div>
+function CardLink({ href, children, className = 'text-secondary hover:text-text' }) {
+    return (
+        <Link href={href} className={`inline-flex min-h-8 items-center gap-1 text-[13px] font-medium no-underline ${className}`}>
+            {children} <ChevronRight size={14} strokeWidth={2} />
+        </Link>
+    );
+}
 
-                        <div className="w-px self-stretch bg-text/10" />
+// ---------- KPIs ----------
+function Kpis({ balance, cashFlow, cycle }) {
+    const change = balance?.change_percent;
+    const income = cashFlow.income || 0;
+    const expenses = cashFlow.expenses || 0;
+    const spentShare = income > 0 ? (expenses / income) * 100 : null;
+    const estimated = cashFlow.estimated_balance;
+    const monthOf = monthName(cycle.month);
 
-                        <div className="flex items-center justify-end gap-2.5 text-right">
-                            <div>
-                                <div className="text-[11.5px] text-text/55" title="Seus gastos individuais + sua parte dos compartilhados">
-                                    Despesas <span className="text-text/35">· sua parte</span>
-                                </div>
-                                <div className="font-heading text-[19px] font-semibold tracking-[-.02em] text-red">{money(cashFlow.expenses)}</div>
-                            </div>
-                            <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-full bg-red/16">
-                                <ArrowDown size={13} strokeWidth={2.5} className="stroke-red" />
-                            </span>
-                        </div>
-                    </div>
+    return (
+        <section aria-label="Resumo do mês" className="grid grid-cols-4 gap-px overflow-hidden rounded-2xl border border-line bg-line max-[1280px]:grid-cols-2 max-[560px]:grid-cols-1">
+            <Kpi label="Saldo total" tag="Principal">
+                {balance ? (
+                    <>
+                        <KpiValue title={`Conta ${money(balance.accounts)} + investimentos ${money(balance.investments)}`}>{money(balance.total)}</KpiValue>
+                        <KpiFoot>
+                            {change != null ? (
+                                <>
+                                    <span className={`inline-flex items-center gap-[3px] rounded-md px-2 py-[2px] font-semibold ${change >= 0 ? 'bg-accent/12 text-accent' : 'bg-red/14 text-red'}`}>
+                                        {change >= 0 ? <ArrowUp size={12} strokeWidth={2.5} /> : <ArrowDown size={12} strokeWidth={2.5} />}
+                                        {Math.abs(change).toFixed(1).replace('.', ',')}%
+                                    </span>
+                                    vs. {monthName(balance.previous_month)}
+                                </>
+                            ) : (
+                                'Conta + investimentos'
+                            )}
+                        </KpiFoot>
+                    </>
+                ) : (
+                    <>
+                        <KpiValue className="text-muted">—</KpiValue>
+                        <KpiFoot>
+                            <Link href={route('settings.show') + '#contas'} className="text-secondary underline-offset-2 hover:text-text hover:underline">
+                                Conectar banco
+                            </Link>
+                        </KpiFoot>
+                    </>
+                )}
+            </Kpi>
 
-                    <div className="mt-4">
-                        <div className="flex h-1.5 overflow-hidden rounded-full bg-text/8">
-                            <div className="h-full rounded-l-full bg-green [transition:width_1s_ease]" style={{ width: `${incomeWidth}%` }} />
-                            <div className="h-full rounded-r-full bg-red/85" style={{ width: `${100 - incomeWidth}%` }} />
-                        </div>
-                    </div>
-                </Card>
+            <Kpi label="Receitas">
+                <KpiValue>{money(income)}</KpiValue>
+                <KpiFoot>Entradas de {monthOf}</KpiFoot>
+            </Kpi>
 
-                {/* Acerto do casal */}
-                <Card className="flex flex-[1_1_260px] flex-col justify-between gap-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-full bg-teal/16">
-                                <ArrowLeftRight size={13} strokeWidth={2.2} className="stroke-strong-accent" />
-                            </span>
-                            <span className="text-[13px] font-semibold tracking-[-.01em] text-text">Acerto com {partner}</span>
-                        </div>
-                        <Link href={route('settlement.index', { month: cycle.month })} className="text-xs font-semibold text-strong-accent hover:underline">
-                            Detalhes
-                        </Link>
-                    </div>
-
-                    <div>
-                        <div className="text-[11.5px] text-text/55">
-                            {settlement.due > 0.009 ? `${partner} te deve` : settlement.due < -0.009 ? `Você deve a ${partner}` : 'Tudo acertado'}
-                        </div>
-                        <div className={`font-heading text-[clamp(24px,2.4vw,28px)] font-medium tracking-[-.02em] ${settlement.due < -0.009 ? 'text-red' : 'text-text'}`}>
-                            {money(Math.abs(settlement.due))}
-                        </div>
-                    </div>
-
-                    <div className="text-xs text-text/45">Lançamentos do mês + contas fixas do próximo</div>
-                </Card>
-
-                {/* Meta · Investimentos */}
-                <Card className="flex flex-[1.2_1_300px] flex-col gap-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <span className="grid h-[26px] w-[26px] flex-none place-items-center rounded-full bg-teal/16">
-                                <Target size={13} strokeWidth={2.2} className="stroke-strong-accent" />
-                            </span>
-                            <span className="text-[13px] font-semibold tracking-[-.01em] text-text">Meta · {goal ? goal.name : 'Investimentos'}</span>
-                        </div>
-                        {goal && <span className="text-xs font-bold text-strong-accent">{Math.round(goal.percent)}%</span>}
-                    </div>
-
-                    {goal ? (
+            <Kpi label="Despesas · sua parte" title="Seus gastos individuais + sua parte dos compartilhados">
+                <KpiValue>{money(expenses)}</KpiValue>
+                <KpiFoot>
+                    {spentShare != null ? (
                         <>
-                            <div className="flex flex-wrap items-baseline gap-2">
-                                <span className="font-heading text-[clamp(24px,2.4vw,28px)] font-medium tracking-[-.02em] text-text">{moneyShort(goal.current)}</span>
-                                <span className="text-xs text-text/45">
-                                    de {moneyShort(goal.target)}
-                                    {goal.deadline && ` · até ${deadlineLabel(goal.deadline)}`}
-                                </span>
-                            </div>
-
-                            <ProgressBar value={goal.percent} />
+                            <span className="h-1 w-16 flex-none overflow-hidden rounded-sm bg-track">
+                                <span className="block h-full bg-red" style={{ width: `${Math.min(100, spentShare)}%` }} />
+                            </span>
+                            {Math.round(spentShare)}% da receita
                         </>
                     ) : (
-                        <p className="text-[13px] leading-[1.5] text-text/60">
-                            Defina quanto vocês querem juntar — o progresso usa o saldo investido no banco.{' '}
-                            <Link href={route('goals.index')} className="text-strong-accent hover:underline">Criar meta</Link>
-                        </p>
+                        'Sem receita no mês'
                     )}
-                </Card>
-            </section>
+                </KpiFoot>
+            </Kpi>
 
-            {/* Bottom Row: Próximas Despesas, Despesas Por Categoria, Histórico */}
-            <section className="grid grid-cols-[repeat(auto-fit,minmax(290px,1fr))] items-stretch gap-[clamp(14px,1.6vw,20px)]">
-                {/* Próximas despesas */}
-                <Card className="flex flex-col">
-                    <SectionHeader
-                        className="mb-3"
-                        icon={<Clock size={13} strokeWidth={2.2} className="stroke-strong-accent" />}
-                        title="Próximas despesas"
-                        action={
-                            <span className="rounded-full bg-teal/12 px-[9px] py-[3px] text-[11px] font-medium text-strong-accent">
-                                {upcoming.length} {upcoming.length === 1 ? 'gasto' : 'gastos'}
-                            </span>
-                        }
-                    />
-                    <div className="scroll-thin flex max-h-[220px] flex-col gap-1 overflow-y-auto pr-1">
-                        {upcoming.length === 0 ? (
-                            <EmptyLine>Todas as contas fixas deste mês já foram pagas.</EmptyLine>
-                        ) : (
-                            upcoming.map((item) => (
-                                <TransactionRow
-                                    key={item.key}
-                                    date={dayMonth(item.date)}
-                                    nome={item.name}
-                                    categoria={[
-                                        item.category,
-                                        item.status === 'late' ? 'pagamento não encontrado' : null,
-                                        item.estimated && item.status !== 'open' ? 'valor estimado' : null,
-                                    ].filter(Boolean).join(' · ')}
-                                    valor={money(item.amount)}
-                                    tipo="despesa"
-                                    merchant={item.merchant}
-                                />
-                            ))
-                        )}
+            <Kpi label="Balanço estimado">
+                <KpiValue className={estimated >= 0 ? 'text-accent' : 'text-red'}>
+                    {estimated >= 0 ? '+' : '−'}{money(Math.abs(estimated))}
+                </KpiValue>
+                <KpiFoot title={cashFlow.pending_fixed > 0 ? `Já desconta ${money(cashFlow.pending_fixed)} de contas fixas que ainda vão sair (sua parte)` : undefined}>
+                    {cashFlow.pending_fixed > 0 ? `Receitas − despesas − fixas a pagar` : 'Receitas − despesas'}
+                </KpiFoot>
+            </Kpi>
+        </section>
+    );
+}
+
+function Kpi({ label, tag, title, children }) {
+    return (
+        <div className="flex min-w-0 flex-col gap-2.5 bg-surface px-6 py-[22px]" title={title}>
+            <div className="flex items-center justify-between gap-2 text-[13px] text-muted">
+                <span>{label}</span>
+                {tag && <span className="rounded-full border border-line-strong px-2 py-[2px] text-[11px] text-secondary">{tag}</span>}
+            </div>
+            {children}
+        </div>
+    );
+}
+
+function KpiValue({ className = '', title, children }) {
+    return <div title={title} className={`whitespace-nowrap text-[30px] font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums ${className}`}>{children}</div>;
+}
+
+function KpiFoot({ title, children }) {
+    return <div title={title} className="flex items-center gap-2 text-[13px] text-muted">{children}</div>;
+}
+
+// ---------- Despesas por categoria ----------
+function CategoriesCard({ categories }) {
+    const rows = categoryRows(categories.items, categories.total);
+
+    return (
+        <Card className="flex flex-col gap-5" aria-labelledby="cat-title">
+            <CardHead>
+                <CardTitle id="cat-title">Despesas por categoria</CardTitle>
+                <span className="text-[13px] text-muted">
+                    Sua parte · <strong className="font-medium tabular-nums text-text">{money(categories.total)}</strong>
+                </span>
+            </CardHead>
+
+            {rows.length === 0 ? (
+                <EmptyLine>Nenhuma despesa neste mês ainda.</EmptyLine>
+            ) : (
+                <>
+                    <div className="flex h-3 gap-[3px]" aria-hidden="true">
+                        {rows.map((c) => (
+                            <span key={c.name} className="rounded-[3px]" style={{ flex: `${c.share} 1 0`, background: c.color }} />
+                        ))}
                     </div>
-                </Card>
+                    <ul className="m-0 list-none p-0">
+                        {rows.map((c) => (
+                            <li
+                                key={c.name}
+                                title={money(c.value)}
+                                className="grid h-[42px] grid-cols-[160px_minmax(0,1fr)_56px] items-center gap-4 border-t border-line-soft max-[560px]:grid-cols-[108px_minmax(0,1fr)_44px] max-[560px]:gap-3"
+                            >
+                                <span className="flex min-w-0 items-center gap-2.5">
+                                    <span className="h-2 w-2 flex-none rounded-[2px]" style={{ background: c.color }} />
+                                    <span className="truncate">{c.name}</span>
+                                </span>
+                                <span className="h-1.5 overflow-hidden rounded-[3px] bg-line-soft">
+                                    <span className="block h-full origin-left rounded-[3px] [animation:riseBar_.8s_cubic-bezier(.2,.8,.2,1)]" style={{ width: `${c.width}%`, background: c.color }} />
+                                </span>
+                                <span className="text-right font-mono text-[13px]">{Math.round(c.share)}%</span>
+                            </li>
+                        ))}
+                    </ul>
+                </>
+            )}
+        </Card>
+    );
+}
 
-                {/* Despesas por categoria */}
-                <Card className="flex flex-col">
-                    <SectionHeader
-                        className="mb-2.5"
-                        icon={<PieChart size={13} strokeWidth={2.2} className="stroke-strong-accent" />}
-                        title="Despesas por categoria"
-                    />
-                    {donut.length === 0 ? (
-                        <EmptyLine>Nenhuma despesa neste mês ainda.</EmptyLine>
-                    ) : (
-                        <DonutChart data={donut} totalLabel="Sua parte" totalValue={moneyShort(categories.total)} valueFormatter={money} />
-                    )}
-                </Card>
+// ---------- Acerto (card de destaque) ----------
+function SettleCard({ settlement, partner, cycle, monthParams }) {
+    const due = settlement.due;
+    const owes = due > 0.009 ? `${partner} te deve` : due < -0.009 ? `Você deve a ${partner}` : 'Tudo acertado';
 
-                {/* Histórico de gastos */}
-                <Card className="flex flex-col">
-                    <SectionHeader
-                        className="mb-3"
-                        icon={<History size={13} strokeWidth={2.2} className="stroke-strong-accent" />}
-                        title="Histórico de movimentações"
-                    />
-                    <div className="scroll-thin flex max-h-[220px] flex-col gap-1 overflow-y-auto pr-1">
-                        {history.length === 0 ? (
-                            <EmptyLine>Nenhuma movimentação ainda.</EmptyLine>
-                        ) : (
-                            history.map((row) => {
-                                const h = historyRow(row, couple);
-                                return <TransactionRow key={h.key} date={h.date} nome={h.nome} categoria={h.categoria} valor={h.valor} tipo={h.tipo} merchant={h.merchant} />;
-                            })
-                        )}
-                    </div>
-                </Card>
-            </section>
-        </AppLayout>
+    return (
+        <Card bg={false} className="flex flex-col gap-3.5 border border-accent bg-accent text-on-accent" aria-labelledby="settle-title">
+            <CardHead>
+                <CardTitle id="settle-title" className="text-[14px]">
+                    <ArrowLeftRight size={14} strokeWidth={2} /> Acerto com {partner}
+                </CardTitle>
+                <CardLink href={route('settlement.index', { month: cycle.month })} className="font-semibold text-on-accent hover:opacity-80">
+                    Detalhes
+                </CardLink>
+            </CardHead>
+            <div>
+                <span className="block text-[14px] text-on-accent-2">{owes}</span>
+                <span className="block text-[42px] font-semibold leading-[1.1] tracking-[-0.035em] tabular-nums max-[560px]:text-[36px]">
+                    {money(Math.abs(due))}
+                </span>
+            </div>
+            <p className="m-0 text-[13px] leading-[1.45] text-on-accent-2">Lançamentos do mês + contas fixas do próximo</p>
+            <Button variant="dark" href={route('expenses.index', { ...monthParams, new: 'settlement' })} className="self-start">
+                Registrar acerto
+            </Button>
+        </Card>
+    );
+}
+
+// ---------- Saúde financeira ----------
+function HealthCard({ health }) {
+    const tone = HEALTH_TONE[health?.label] ?? HEALTH_TONE.Boa;
+
+    return (
+        <Card className="flex flex-row items-center gap-5 px-6 py-5" title={health ? healthTitle(health) : undefined} aria-labelledby="health-title">
+            <GaugeArc score={health?.score ?? 0} tone={tone.arc} />
+            <div className="flex flex-col gap-0.5">
+                <h2 id="health-title" className="m-0 text-[13px] font-normal text-muted">Saúde financeira</h2>
+                {health ? (
+                    <>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-[28px] font-semibold tracking-[-0.02em] tabular-nums">{health.score}%</span>
+                            <span className={`text-[13px] font-semibold ${tone.text}`}>{health.label}</span>
+                        </div>
+                        <span className="text-[12px] text-muted">Últimos 30 dias</span>
+                    </>
+                ) : (
+                    <>
+                        <span className="text-[28px] font-semibold tracking-[-0.02em] text-muted">—</span>
+                        <span className="text-[12px] text-muted">Conecte seu banco para acompanhar</span>
+                    </>
+                )}
+            </div>
+        </Card>
     );
 }
 
 function healthTitle(health) {
     const { savings, reserve, card } = health.parts;
     return [
+        health.message,
         savings && `Sobrou ${savings.rate.toString().replace('.', ',')}% da renda nos últimos 30 dias`,
         reserve && `Reserva: ${reserve.months.toString().replace('.', ',')} meses de gastos`,
         card && `Limite do cartão usado: ${card.usage.toString().replace('.', ',')}%`,
     ].filter(Boolean).join('\n');
 }
 
+// ---------- Últimas movimentações ----------
+function HistoryCard({ history, couple }) {
+    const th = 'sticky top-0 z-[1] bg-surface pb-2.5 text-left text-[12px] font-medium text-muted shadow-[inset_0_-1px_0_var(--color-line)]';
+
+    return (
+        <Card className="flex flex-col gap-4" aria-labelledby="tx-title">
+            <CardHead>
+                <CardTitle id="tx-title">Últimas movimentações</CardTitle>
+                <CardLink href={route('expenses.index')}>Ver todas</CardLink>
+            </CardHead>
+
+            {history.length === 0 ? (
+                <EmptyLine>Nenhuma movimentação ainda.</EmptyLine>
+            ) : (
+                <div className="scroll-thin max-h-[420px] overflow-auto">
+                    <table className="w-full table-fixed border-collapse text-[14px]">
+                        <thead>
+                            <tr>
+                                <th scope="col" className={`${th} w-[90px] max-[560px]:w-[64px]`}>Data</th>
+                                <th scope="col" className={th}>Descrição</th>
+                                <th scope="col" className={`${th} w-[140px] max-[560px]:hidden`}>Categoria</th>
+                                <th scope="col" className={`${th} w-[110px] text-right max-[560px]:w-[100px]`}>Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {history.map((raw) => {
+                                const row = historyRow(raw, couple);
+                                return (
+                                    <tr key={row.key} className="border-b border-line-row last:border-b-0">
+                                        <td className="whitespace-nowrap py-3 pr-2 align-middle font-mono text-[13px] text-secondary">{row.date}</td>
+                                        <td className="py-3 pr-3 align-middle">
+                                            <span className="flex min-w-0 items-center gap-3 font-medium">
+                                                {row.merchant ? <MerchantLogo merchant={row.merchant} /> : <Monogram name={row.name} />}
+                                                <span className="min-w-0 truncate" title={row.name}>{row.name}</span>
+                                            </span>
+                                        </td>
+                                        <td className="py-3 pr-2 align-middle max-[560px]:hidden">
+                                            <CategoryPill label={row.label} color={row.color} />
+                                        </td>
+                                        <td className={`whitespace-nowrap py-3 text-right align-middle font-mono text-[13px] ${row.isIn ? 'text-accent' : ''}`}>{row.value}</td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </Card>
+    );
+}
+
+function Monogram({ name }) {
+    return (
+        <span className="grid h-8 w-8 flex-none place-items-center rounded-lg bg-inset text-[12px] font-semibold text-secondary">
+            {(name || '?').trim().charAt(0).toUpperCase()}
+        </span>
+    );
+}
+
+function CategoryPill({ label, color }) {
+    const style = color ? { background: tint(color, 0.12), color: lighten(color, 0.3) } : undefined;
+    return (
+        <span title={label} className={`inline-block max-w-[140px] truncate whitespace-nowrap rounded-full px-[9px] py-[3px] align-middle text-[12px] ${color ? '' : 'bg-inset text-secondary'}`} style={style}>
+            {label}
+        </span>
+    );
+}
+
+// ---------- Próximas despesas ----------
+function UpcomingCard({ upcoming }) {
+    return (
+        <Card className="flex flex-col gap-4" aria-labelledby="bills-title">
+            <CardHead>
+                <CardTitle id="bills-title">Próximas despesas</CardTitle>
+                <span className="rounded-full bg-inset px-2 py-[2px] text-[12px] text-secondary">{upcoming.length}</span>
+            </CardHead>
+
+            {upcoming.length === 0 ? (
+                <EmptyLine>Todas as contas fixas deste mês já foram pagas.</EmptyLine>
+            ) : (
+                <div className="scroll-thin -mr-2 flex max-h-[296px] flex-col gap-4 overflow-y-auto pr-2">
+                    {upcoming.map((item) => <Bill key={item.key} item={item} />)}
+                </div>
+            )}
+        </Card>
+    );
+}
+
+function Bill({ item }) {
+    const date = parseDate(item.date);
+    const days = daysUntil(item.date);
+    const when = item.status === 'late' ? 'atrasada' : days === 0 ? 'hoje' : days === 1 ? 'amanhã' : days > 0 ? `em ${days} dias` : `há ${-days} dias`;
+    const sub = [item.category, item.status === 'late' ? 'pagamento não encontrado' : null, item.estimated && item.status !== 'open' ? 'valor estimado' : null]
+        .filter(Boolean)
+        .join(' · ');
+
+    return (
+        <div className="flex items-center gap-3.5 max-[560px]:flex-wrap">
+            <div className="flex h-14 w-[52px] flex-none flex-col items-center justify-center gap-px rounded-[10px] bg-inset">
+                <b className="text-[20px] font-semibold leading-none">{date.getDate()}</b>
+                <small className="text-[11px] tracking-[0.06em] text-muted">{MONTHS_UPPER[date.getMonth()]}</small>
+            </div>
+            <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
+                <span className="truncate text-[14px] font-medium">{item.name}</span>
+                <span className="truncate text-[12px] text-muted">{sub}</span>
+            </div>
+            <div className="flex flex-col items-end gap-[3px] max-[560px]:w-full max-[560px]:flex-row-reverse max-[560px]:items-baseline max-[560px]:justify-between max-[560px]:border-t max-[560px]:border-line-row max-[560px]:pt-3">
+                <span className="whitespace-nowrap font-mono text-[14px] text-red">−{money(item.amount)}</span>
+                <span className={`text-[12px] ${item.status === 'late' ? 'text-red' : 'text-muted'}`}>{when}</span>
+            </div>
+        </div>
+    );
+}
+
+// ---------- Meta ----------
+function GoalCard({ goal }) {
+    return (
+        <Card className="flex flex-1 flex-col gap-3" aria-labelledby="goal-title">
+            <CardHead>
+                <CardTitle id="goal-title">
+                    <Target size={16} strokeWidth={1.75} className="text-muted" />
+                    Meta · {goal ? goal.name : 'Investimentos'}
+                </CardTitle>
+                {goal && <span className="text-[13px] font-semibold tabular-nums text-accent">{Math.round(goal.percent)}%</span>}
+            </CardHead>
+
+            {goal ? (
+                <>
+                    <div className="flex flex-wrap items-baseline gap-2">
+                        <span className="text-[28px] font-semibold tracking-[-0.02em] tabular-nums">{moneyShort(goal.current)}</span>
+                        <span className="text-[13px] text-muted">
+                            de {moneyShort(goal.target)}
+                            {goal.deadline && ` · até ${deadlineLabel(goal.deadline)}`}
+                        </span>
+                    </div>
+                    <ProgressBar value={goal.percent} />
+                    <CardLink href={route('goals.index')} className="self-start text-secondary hover:text-text">Ver metas</CardLink>
+                </>
+            ) : (
+                <>
+                    <p className="m-0 max-w-[46ch] text-[13px] leading-[1.5] text-muted">
+                        Defina quanto vocês querem juntar — o progresso usa o saldo investido no banco.
+                    </p>
+                    <Button variant="secondary" href={route('goals.index', { new: 1 })} className="mt-1 self-start">
+                        <Plus size={14} strokeWidth={2} /> Criar meta
+                    </Button>
+                </>
+            )}
+        </Card>
+    );
+}
+
 function EmptyLine({ children }) {
-    return <p className="px-2.5 py-6 text-center text-[12.5px] text-text/45">{children}</p>;
+    return <p className="m-0 py-6 text-center text-[13px] text-muted">{children}</p>;
 }
 
 function SyncStatus({ sync, state, onSync }) {
     if (!sync.has_connection) {
         return (
-            <Link href={route('settings.show') + '#contas'} className="text-xs text-text/50 hover:text-text/80">
-                Nenhum banco conectado · conectar
+            <Link href={route('settings.show') + '#contas'} className="inline-flex items-center gap-2 text-[12px] text-muted no-underline hover:text-text">
+                <RefreshCw size={14} strokeWidth={2} className="flex-none" /> Nenhum banco conectado · conectar
             </Link>
         );
     }
@@ -420,9 +526,9 @@ function SyncStatus({ sync, state, onSync }) {
             onClick={onSync}
             disabled={state.running}
             title={state.error || 'Buscar transações novas no banco'}
-            className={`inline-flex items-center gap-1.5 text-xs transition-colors ${state.error ? 'text-red' : 'text-text/50 hover:text-text/80'}`}
+            className={`inline-flex items-center gap-2 text-left text-[12px] transition-colors ${state.error ? 'text-red' : 'text-muted hover:text-text'}`}
         >
-            <RefreshCw size={12} strokeWidth={2.2} className={state.running ? 'animate-spin' : ''} />
+            <RefreshCw size={14} strokeWidth={2} className={`flex-none ${state.running ? 'animate-spin' : ''}`} />
             {state.running ? 'Sincronizando com o banco…' : state.error ? 'Falha ao sincronizar · tentar de novo' : `Sincronizado ${relativeTime(sync.last_synced_at)}`}
         </button>
     );

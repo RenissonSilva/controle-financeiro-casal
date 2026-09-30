@@ -58,6 +58,26 @@ export const monthShort = (month) => {
     return `${MONTHS_SHORT[m - 1]}/${String(y).slice(2)}`;
 };
 
+// '2026-09' → 'Set 2026'
+export const monthCompact = (month) => {
+    const [y, m] = month.split('-').map(Number);
+    const name = MONTHS_SHORT[m - 1];
+    return `${name.charAt(0).toUpperCase()}${name.slice(1)} ${y}`;
+};
+
+// '2026-09-10' → '10 set' (mesmo que dayMonthShort, sem zero à esquerda) — datas das tabelas.
+export const dayMonthLabel = (value) => {
+    const d = parseDate(value);
+    return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
+};
+
+// Dias de hoje até a data ('2026-10-14' → 14). Negativo = já passou.
+export const daysUntil = (value) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Math.round((parseDate(value) - today) / 86400000);
+};
+
 export const monthName = (month) => MONTHS[Number(month.split('-')[1]) - 1];
 
 // '2026-12-31' → 'dez/26'

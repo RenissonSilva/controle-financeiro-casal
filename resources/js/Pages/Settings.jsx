@@ -1,6 +1,7 @@
 import AppLayout from '@/Layouts/AppLayout';
 import Card from '@/Components/ui/Card';
 import SectionHeader from '@/Components/ui/SectionHeader';
+import PageHeader from '@/Components/ui/PageHeader';
 import SectionLabel from '@/Components/ui/SectionLabel';
 import Button from '@/Components/ui/Button';
 import Modal from '@/Components/ui/Modal';
@@ -18,16 +19,13 @@ import {
     Search, Minus, Landmark, ExternalLink, KeyRound,
 } from 'lucide-react';
 import { relativeTime } from '@/lib/format';
+import { OWNERSHIP_BADGE } from '@/lib/ownership';
 
 const PLUGGY_CONNECT_SCRIPT_URL = 'https://cdn.pluggy.ai/pluggy-connect/v2.8.2/pluggy-connect.js';
 
-const OWNERSHIP_BADGE = {
-    payer1: 'bg-green/16 text-green',
-    payer2: 'bg-red/16 text-red',
-    both:   'bg-teal/16 text-strong-accent',
-};
 const OWNERSHIP_CYCLE = ['both', 'payer1', 'payer2'];
-const PALETA = ['#f0a04b', '#e2703a', '#5ec1e0', '#a78bfa', '#43c39a', '#8fa3b0', '#f0576b', '#dcee8e', '#43a9ab', '#c9a0dc'];
+// Cores sugeridas para categorias novas — as das categorias do tema Noite + complementares.
+const PALETA = ['#7AA2FF', '#FF9F5A', '#B69CFF', '#4FD1C5', '#F5B94A', '#FF7AA8', '#8BD17C', '#6FB7FF', '#E0A86B', '#6B7280'];
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const EMPTY_RULE = { pattern: '', action: 'categorize', amount: '', category_id: '', ownership: 'both' };
 const GENERAL_KEYS = [
@@ -36,11 +34,11 @@ const GENERAL_KEYS = [
 ];
 
 const CONNECTION_STATUS = {
-    UPDATED: { label: 'Atualizada', className: 'bg-green/16 text-green' },
-    UPDATING: { label: 'Atualizando', className: 'bg-teal/16 text-strong-accent' },
-    LOGIN_ERROR: { label: 'Erro de login', className: 'bg-red/16 text-red' },
-    OUTDATED: { label: 'Desatualizada', className: 'bg-red/16 text-red' },
-    WAITING_USER_INPUT: { label: 'Aguardando você', className: 'bg-lime/16 text-lime' },
+    UPDATED: { label: 'Atualizada', className: 'bg-accent/12 text-accent' },
+    UPDATING: { label: 'Atualizando', className: 'bg-inset text-secondary' },
+    LOGIN_ERROR: { label: 'Erro de login', className: 'bg-red/14 text-red' },
+    OUTDATED: { label: 'Desatualizada', className: 'bg-red/14 text-red' },
+    WAITING_USER_INPUT: { label: 'Aguardando você', className: 'bg-warning/14 text-warning' },
 };
 
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -182,12 +180,12 @@ function RuleModal({ rule, show, categories, ownershipOptions, onClose }) {
                     placeholder="Ex: hbomax"
                     error={errors.pattern}
                 />
-                <p className="-mt-2 text-[11.5px] text-text/45">
+                <p className="-mt-2 text-[12px] text-muted">
                     Aplica quando a descrição (ou o nome de quem recebeu o Pix) contiver esse trecho, sem diferenciar maiúsculas e acentos.
                 </p>
 
                 <div>
-                    <span className="mb-1.5 block text-[12.5px] font-medium text-text/70">O que fazer</span>
+                    <span className="mb-1.5 block text-[13px] font-medium text-secondary">O que fazer</span>
                     <Segmented
                         value={data.action}
                         onChange={(action) => setData('action', action)}
@@ -198,7 +196,7 @@ function RuleModal({ rule, show, categories, ownershipOptions, onClose }) {
                         className="w-fit"
                     />
                     {data.action === 'ignore' && (
-                        <p className="mt-1.5 text-[11.5px] text-text/45">
+                        <p className="mt-1.5 text-[12px] text-muted">
                             Para dinheiro que não é gasto de verdade — ex: Pix para uma conta sua em outro banco.
                         </p>
                     )}
@@ -235,7 +233,7 @@ function RuleModal({ rule, show, categories, ownershipOptions, onClose }) {
 
                 <div className="mt-1 flex justify-end gap-2.5">
                     <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-                    <Button type="submit" variant="secondary" disabled={processing}>
+                    <Button type="submit" variant="primary" disabled={processing}>
                         {processing ? 'Salvando...' : isEditing ? 'Salvar' : 'Criar regra'}
                     </Button>
                 </div>
@@ -248,37 +246,37 @@ function RuleModal({ rule, show, categories, ownershipOptions, onClose }) {
 function PayerCard({ name, onNameChange, salary, onSalaryChange, percentLabel, avatarClass, percentClass, error }) {
     const initial = (name.trim()[0] || '?').toUpperCase();
     return (
-        <div className="rounded-[14px] bg-text/[0.04] p-4 shadow-[inset_0_0_0_1px_rgb(var(--color-text-rgb)/0.08)]">
+        <div className="rounded-[14px] border border-line bg-bg/40 p-4">
             <div className="flex items-center gap-2.5">
-                <div className={`grid h-8 w-8 flex-none place-items-center rounded-full text-[12.5px] font-semibold ${avatarClass}`}>
+                <div className={`grid h-8 w-8 flex-none place-items-center rounded-full text-[13px] font-semibold ${avatarClass}`}>
                     {initial}
                 </div>
                 <input
                     value={name}
                     onChange={onNameChange}
                     aria-label="Nome do pagador"
-                    className="-ml-2 min-w-0 flex-1 rounded-lg border-0 bg-transparent px-2 py-1.5 font-heading text-[16px] font-medium tracking-[-.01em] text-text transition-colors hover:bg-text/6 focus:bg-text/8 focus:outline-none"
+                    className="-ml-2 min-w-0 flex-1 rounded-lg border-0 bg-transparent px-2 py-1.5 text-[16px] font-semibold text-text transition-colors hover:bg-raised focus:bg-raised focus:outline-none focus:ring-0"
                 />
-                <div className={`flex-none text-right font-heading text-[19px] font-medium tracking-[-.02em] tabular-nums ${percentClass}`}>
+                <div className={`flex-none text-right text-[20px] font-semibold tracking-[-0.02em] tabular-nums ${percentClass}`}>
                     {percentLabel}
                 </div>
             </div>
 
             <div className="mt-4 flex flex-col gap-1.5">
-                <span className="text-[12px] text-text/60">Renda mensal</span>
-                <div className="flex items-center gap-1 rounded-[10px] bg-[#0c1620] px-3.5 shadow-[inset_0_0_0_1px_rgb(var(--color-accent-rgb)/0.28)] focus-within:shadow-[inset_0_0_0_1px_var(--color-accent)]">
-                    <span className="text-[13px] text-text/50">R$</span>
+                <span className="text-[13px] text-muted">Renda mensal</span>
+                <div className="flex h-11 items-center gap-1 rounded-[10px] border border-line-strong bg-bg px-3.5 focus-within:border-accent">
+                    <span className="text-[13px] text-muted">R$</span>
                     <MoneyInput
                         prefix={false}
                         value={salary}
                         onChange={onSalaryChange}
                         aria-label="Renda mensal"
-                        className="min-w-0 flex-1 border-0 bg-transparent py-2.5 text-[15px] tabular-nums text-text focus:outline-none focus:ring-0"
+                        className="min-w-0 flex-1 border-0 bg-transparent px-1 py-0 font-mono text-[15px] text-text focus:outline-none focus:ring-0"
                     />
                 </div>
             </div>
 
-            {error && <p className="mt-1.5 text-[11.5px] text-red">{error}</p>}
+            {error && <p className="mt-1.5 text-[12px] text-red">{error}</p>}
         </div>
     );
 }
@@ -286,9 +284,9 @@ function PayerCard({ name, onNameChange, salary, onSalaryChange, percentLabel, a
 // ─── Linha de categoria (dot de cor, nome inline, dono cíclico) ───────────────
 function CategoryRow({ category, editing, onToggleEdit, onRename, onColorChange, onCycleOwner, onDelete, ownershipLabel }) {
     return (
-        <div className="flex items-center gap-2.5 rounded-[12px] px-1.5 py-2 transition-colors hover:bg-text/6">
-            <span className="relative h-2.5 w-2.5 flex-none">
-                <span className="absolute inset-0 rounded-full" style={{ background: category.color, boxShadow: `0 0 6px ${category.color}` }} />
+        <div className="flex min-h-[44px] items-center gap-2.5 rounded-[10px] px-2 py-1.5 transition-colors hover:bg-raised">
+            <span className="relative h-3 w-3 flex-none" title="Trocar cor">
+                <span className="absolute inset-0 rounded-[3px]" style={{ background: category.color }} />
                 <input
                     type="color"
                     value={category.color}
@@ -306,28 +304,28 @@ function CategoryRow({ category, editing, onToggleEdit, onRename, onColorChange,
                     onBlur={onToggleEdit}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') e.currentTarget.blur(); }}
                     aria-label="Nome da categoria"
-                    className="min-w-0 flex-1 rounded-[7px] border-0 bg-[#213d51] px-2 py-[3px] text-[14px] text-text shadow-[inset_0_0_0_1px_var(--color-accent)] focus:outline-none"
+                    className="min-w-0 flex-1 rounded-[8px] border border-accent bg-bg px-2 py-1 text-[14px] text-text focus:outline-none focus:ring-0"
                 />
             ) : (
-                <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{category.name}</span>
+                <span className="min-w-0 flex-1 truncate text-[14px] font-medium">{category.name}</span>
             )}
 
             <button
                 type="button"
                 onClick={onCycleOwner}
                 title="Alternar responsável"
-                className={`flex-none rounded-full px-2 py-[3px] text-[11px] font-medium transition-[filter] hover:brightness-125 ${OWNERSHIP_BADGE[category.default_ownership]}`}
+                className={`flex-none rounded-full px-2 py-[3px] text-[12px] font-medium transition-[filter] hover:brightness-125 ${OWNERSHIP_BADGE[category.default_ownership]}`}
             >
                 {ownershipLabel(category.default_ownership)}
             </button>
 
-            <span className="w-16 flex-none text-right text-[11px] text-text/40">{category.expenses_count} desp.</span>
+            <span className="w-16 flex-none text-right font-mono text-[12px] text-muted">{category.expenses_count} desp.</span>
 
-            <button type="button" onClick={onToggleEdit} aria-label="Renomear categoria" className="grid h-7 w-7 flex-none place-items-center rounded-full text-text/50 transition-colors hover:bg-text/10 hover:text-text">
-                <Pencil size={13} strokeWidth={2.2} />
+            <button type="button" onClick={onToggleEdit} aria-label="Renomear categoria" className="grid h-8 w-8 flex-none place-items-center rounded-lg text-muted transition-colors hover:bg-inset hover:text-text">
+                <Pencil size={16} strokeWidth={1.75} />
             </button>
-            <button type="button" onClick={onDelete} aria-label="Excluir categoria" className="grid h-7 w-7 flex-none place-items-center rounded-full text-text/50 transition-colors hover:bg-text/10 hover:text-red">
-                <Trash2 size={13} strokeWidth={2.2} />
+            <button type="button" onClick={onDelete} aria-label="Excluir categoria" className="grid h-8 w-8 flex-none place-items-center rounded-lg text-muted transition-colors hover:bg-inset hover:text-red">
+                <Trash2 size={16} strokeWidth={1.75} />
             </button>
         </div>
     );
@@ -338,30 +336,30 @@ function RuleRow({ rule, onCycleOwner, onEdit, onDelete, ownershipLabel }) {
     const ignores = rule.action === 'ignore';
 
     return (
-        <div className="flex items-center gap-2.5 rounded-[12px] px-1.5 py-2 transition-colors hover:bg-text/6">
+        <div className="flex min-h-[44px] items-center gap-2.5 rounded-[10px] px-2 py-1.5 transition-colors hover:bg-raised">
             <div className="min-w-0 flex-1">
-                <div className="truncate text-[13px] font-medium">{rule.pattern}</div>
-                <div className="truncate text-[11px] text-text/45">
+                <div className="truncate text-[14px] font-medium">{rule.pattern}</div>
+                <div className="truncate text-[12px] text-muted">
                     {ignores ? 'ignora nos cálculos' : rule.category} · {rule.amount != null ? fmt(rule.amount) : 'qualquer valor'}
                 </div>
             </div>
             {ignores ? (
-                <span className="flex-none rounded-full bg-text/8 px-2 py-[3px] text-[11px] font-medium text-text/55">Ignorar</span>
+                <span className="flex-none rounded-full bg-inset px-2 py-[3px] text-[12px] font-medium text-muted">Ignorar</span>
             ) : (
                 <button
                     type="button"
                     onClick={onCycleOwner}
                     title="Alternar responsável"
-                    className={`flex-none rounded-full px-2 py-[3px] text-[11px] font-medium transition-[filter] hover:brightness-125 ${OWNERSHIP_BADGE[rule.ownership]}`}
+                    className={`flex-none rounded-full px-2 py-[3px] text-[12px] font-medium transition-[filter] hover:brightness-125 ${OWNERSHIP_BADGE[rule.ownership]}`}
                 >
                     {ownershipLabel(rule.ownership)}
                 </button>
             )}
-            <button type="button" onClick={onEdit} aria-label="Editar regra" className="grid h-7 w-7 flex-none place-items-center rounded-full text-text/50 transition-colors hover:bg-text/10 hover:text-text">
-                <Pencil size={13} strokeWidth={2.2} />
+            <button type="button" onClick={onEdit} aria-label="Editar regra" className="grid h-8 w-8 flex-none place-items-center rounded-lg text-muted transition-colors hover:bg-inset hover:text-text">
+                <Pencil size={16} strokeWidth={1.75} />
             </button>
-            <button type="button" onClick={onDelete} aria-label="Excluir regra" className="grid h-7 w-7 flex-none place-items-center rounded-full text-text/50 transition-colors hover:bg-text/10 hover:text-red">
-                <Trash2 size={13} strokeWidth={2.2} />
+            <button type="button" onClick={onDelete} aria-label="Excluir regra" className="grid h-8 w-8 flex-none place-items-center rounded-lg text-muted transition-colors hover:bg-inset hover:text-red">
+                <Trash2 size={16} strokeWidth={1.75} />
             </button>
         </div>
     );
@@ -370,12 +368,12 @@ function RuleRow({ rule, onCycleOwner, onEdit, onDelete, ownershipLabel }) {
 // ─── Stepper numérico (dia de fechamento, dias de tolerância) ─────────────────
 function Stepper({ value, onStep, label, width = 'w-[52px]' }) {
     return (
-        <div className="inline-flex items-center gap-1 rounded-[12px] bg-[#0c1620] p-[5px] shadow-[inset_0_0_0_1px_rgb(var(--color-accent-rgb)/0.28)]">
-            <button type="button" onClick={() => onStep(-1)} aria-label={`${label}: diminuir`} className="grid h-[34px] w-[34px] flex-none place-items-center rounded-[9px] text-text/75 transition-colors hover:bg-text/8 hover:text-text">
+        <div className="inline-flex h-11 items-center rounded-[10px] border border-line bg-surface">
+            <button type="button" onClick={() => onStep(-1)} aria-label={`${label}: diminuir`} className="grid h-[42px] w-[42px] flex-none place-items-center rounded-[10px] text-secondary transition-colors hover:text-text">
                 <Minus size={16} strokeWidth={2.4} />
             </button>
-            <span className={`${width} text-center font-heading text-[22px] font-medium tabular-nums text-text`}>{pad2(value)}</span>
-            <button type="button" onClick={() => onStep(1)} aria-label={`${label}: aumentar`} className="grid h-[34px] w-[34px] flex-none place-items-center rounded-[9px] text-text/75 transition-colors hover:bg-text/8 hover:text-text">
+            <span className={`${width} text-center font-mono text-[18px] font-medium text-text`}>{pad2(value)}</span>
+            <button type="button" onClick={() => onStep(1)} aria-label={`${label}: aumentar`} className="grid h-[42px] w-[42px] flex-none place-items-center rounded-[10px] text-secondary transition-colors hover:text-text">
                 <Plus size={16} strokeWidth={2.4} />
             </button>
         </div>
@@ -385,7 +383,7 @@ function Stepper({ value, onStep, label, width = 'w-[52px]' }) {
 // ─── Conexão Open Finance ─────────────────────────────────────────────────────
 function ConnectionCard({ connection, ownershipOptions, onReconnect }) {
     const [syncing, setSyncing] = useState(false);
-    const status = CONNECTION_STATUS[connection.status] ?? { label: connection.status, className: 'bg-text/8 text-text/60' };
+    const status = CONNECTION_STATUS[connection.status] ?? { label: connection.status, className: 'bg-inset text-secondary' };
     const needsLogin = ['LOGIN_ERROR', 'OUTDATED', 'WAITING_USER_INPUT'].includes(connection.status);
 
     const sync = () => {
@@ -400,17 +398,17 @@ function ConnectionCard({ connection, ownershipOptions, onReconnect }) {
     };
 
     return (
-        <div className="rounded-[14px] bg-text/[0.04] p-4 shadow-[inset_0_0_0_1px_rgb(var(--color-text-rgb)/0.08)]">
+        <div className="rounded-[14px] border border-line bg-bg/40 p-4">
             <div className="flex flex-wrap items-center gap-2.5">
-                <span className="font-heading text-[16px] font-medium">{connection.connector_name ?? 'Banco'}</span>
-                <span className={`rounded-full px-2 py-[2px] text-[11px] font-medium ${status.className}`}>{status.label}</span>
-                <span className="text-[12px] text-text/45">sincronizado {relativeTime(connection.last_synced_at)}</span>
-                <div className="ml-auto flex items-center gap-1.5 text-[12px] text-text/55">
+                <span className="text-[15px] font-semibold">{connection.connector_name ?? 'Banco'}</span>
+                <span className={`rounded-full px-2 py-[2px] text-[12px] font-medium ${status.className}`}>{status.label}</span>
+                <span className="text-[12px] text-muted">sincronizado {relativeTime(connection.last_synced_at)}</span>
+                <div className="ml-auto flex items-center gap-1.5 text-[12px] text-muted">
                     Conta de
                     <select
                         value={connection.owner}
                         onChange={(e) => router.put(route('openFinance.items.update', connection.id), { owner: e.target.value }, { preserveScroll: true })}
-                        className="rounded-[8px] border-0 bg-text/8 py-1 pl-2 pr-7 text-[12px] text-text focus:ring-1 focus:ring-teal/50"
+                        className="h-9 rounded-[8px] border border-line-strong bg-bg py-0 pl-2.5 pr-8 text-[13px] text-text focus:border-accent focus:ring-0"
                     >
                         {ownershipOptions.filter((o) => o.value !== 'both').map((o) => <option key={o.value} value={o.value} className="bg-surface">{o.label}</option>)}
                     </select>
@@ -418,16 +416,16 @@ function ConnectionCard({ connection, ownershipOptions, onReconnect }) {
             </div>
 
             {connection.last_sync_error && (
-                <p className="mt-2 rounded-[8px] bg-red/10 px-2.5 py-1.5 text-[12px] text-red">Última sincronização falhou: {connection.last_sync_error}</p>
+                <p className="mt-2 rounded-[8px] border border-red/30 bg-red/10 px-2.5 py-1.5 text-[12px] text-red">Última sincronização falhou: {connection.last_sync_error}</p>
             )}
 
             {connection.accounts.length > 0 && (
                 <div className="mt-3 flex flex-col gap-1">
                     {connection.accounts.map((account) => (
                         <div key={account.id} className="flex items-center gap-2.5 rounded-[10px] px-1.5 py-1.5 text-[13px]">
-                            {account.type === 'CREDIT' ? <CreditCard size={14} className="text-text/50" /> : <Landmark size={14} className="text-text/50" />}
+                            {account.type === 'CREDIT' ? <CreditCard size={14} className="text-muted" /> : <Landmark size={14} className="text-muted" />}
                             <span className="min-w-0 flex-1 truncate">{account.type === 'CREDIT' ? 'Cartão de crédito' : 'Conta'} · {account.name}{account.number ? ` · ${account.number}` : ''}</span>
-                            {account.type === 'BANK' && <span className="tabular-nums text-text/70">{fmt(account.balance)}</span>}
+                            {account.type === 'BANK' && <span className="tabular-nums text-secondary">{fmt(account.balance)}</span>}
                         </div>
                     ))}
                 </div>
@@ -445,7 +443,7 @@ function ConnectionCard({ connection, ownershipOptions, onReconnect }) {
                 <Button href={route('openFinance.items.show', connection.id)} variant="ghost">
                     <ExternalLink size={14} strokeWidth={2.2} /> Ver dados
                 </Button>
-                <button type="button" onClick={remove} className="ml-auto text-[12.5px] text-text/45 hover:text-red">Remover conexão</button>
+                <button type="button" onClick={remove} className="ml-auto text-[13px] text-muted hover:text-red">Remover conexão</button>
             </div>
         </div>
     );
@@ -679,20 +677,17 @@ export default function Settings({ settings, categories, rules, connections, use
         <AppLayout title="Configurações">
             <Head title="Configurações" />
 
-            <section>
-                <p className="mb-2 font-heading text-[12px] uppercase tracking-[.12em] text-text/60">Conta compartilhada</p>
-                <h1 className="text-[clamp(28px,3vw,36px)] font-medium tracking-[-.02em]">Configurações</h1>
-                <p className="mt-1 max-w-[52ch] text-[13px] text-text/50">
-                    Como a despesa é dividida entre vocês, quando o mês financeiro vira, de onde vêm os dados e para onde cada gasto vai.
-                </p>
-            </section>
+            <PageHeader
+                title="Configurações"
+                description="Como a despesa é dividida entre vocês, quando o mês financeiro vira, de onde vêm os dados e para onde cada gasto vai."
+            />
 
             {/* Divisão da despesa */}
             <section className="flex flex-col gap-4">
                 <SectionLabel title="Divisão da despesa" />
                 <Card className="flex flex-col gap-5">
                     <SectionHeader
-                        icon={<Wallet size={13} strokeWidth={2.2} className="stroke-strong-accent" />}
+                        icon={<Wallet size={16} strokeWidth={1.75} />}
                         title="Proporção por renda"
                     />
 
@@ -703,8 +698,8 @@ export default function Settings({ settings, categories, rules, connections, use
                             salary={draft.payer1_salary}
                             onSalaryChange={setGeneral('payer1_salary')}
                             percentLabel={`${p1.toFixed(1).replace('.', ',')}%`}
-                            avatarClass="bg-green text-bg"
-                            percentClass="text-teal"
+                            avatarClass="bg-person1 text-on-accent"
+                            percentClass="text-person1"
                             error={errors.payer1_name || errors.payer1_salary}
                         />
                         <PayerCard
@@ -713,19 +708,16 @@ export default function Settings({ settings, categories, rules, connections, use
                             salary={draft.payer2_salary}
                             onSalaryChange={setGeneral('payer2_salary')}
                             percentLabel={`${p2.toFixed(1).replace('.', ',')}%`}
-                            avatarClass="bg-red text-bg"
-                            percentClass="text-lime"
+                            avatarClass="bg-person2 text-on-accent"
+                            percentClass="text-person2"
                             error={errors.payer2_name || errors.payer2_salary}
                         />
                     </div>
 
                     <div>
-                        <div className="flex h-2.5 overflow-hidden rounded-full bg-text/8">
-                            <div
-                                className="bg-[linear-gradient(90deg,var(--color-progress-grad-start),var(--color-progress-grad-end))] transition-[width] duration-300"
-                                style={{ width: `${p1}%` }}
-                            />
-                            <div className="flex-1 bg-[linear-gradient(90deg,var(--color-strong-accent),var(--color-soft-text))]" />
+                        <div className="flex h-3 gap-[3px]">
+                            <div className="rounded-[3px] bg-person1 transition-[flex-grow] duration-300" style={{ flex: `${p1} 1 0` }} />
+                            <div className="rounded-[3px] bg-person2 transition-[flex-grow] duration-300" style={{ flex: `${p2} 1 0` }} />
                         </div>
                     </div>
                 </Card>
@@ -736,33 +728,33 @@ export default function Settings({ settings, categories, rules, connections, use
                 <SectionLabel title="Mês financeiro" />
                 <Card>
                     <SectionHeader
-                        icon={<CreditCard size={13} strokeWidth={2.2} className="stroke-strong-accent" />}
+                        icon={<CreditCard size={16} strokeWidth={1.75} />}
                         title="Fechamento do cartão"
                     />
 
                     <div className="mt-4 flex flex-wrap items-center gap-[clamp(20px,3vw,40px)]">
                         <div className="min-w-[240px] flex-1">
                             <Stepper value={draft.card_closing_day} onStep={stepDay} label="Dia de fechamento" />
-                            {errors.card_closing_day && <p className="mt-1 text-[11.5px] text-red">{errors.card_closing_day}</p>}
+                            {errors.card_closing_day && <p className="mt-1 text-[12px] text-red">{errors.card_closing_day}</p>}
                         </div>
 
-                        <div className="min-w-[260px] flex-1 rounded-[14px] bg-text/[0.04] p-[18px] shadow-[inset_0_0_0_1px_rgb(var(--color-text-rgb)/0.08)]">
-                            <div className="text-[12px] uppercase tracking-[.1em] text-text/50">Ciclo atual</div>
-                            <div className="mt-2.5 flex flex-wrap items-center gap-3 font-heading text-[clamp(17px,2vw,21px)] font-medium tabular-nums tracking-[-.015em]">
+                        <div className="min-w-[260px] flex-1 rounded-[14px] border border-line bg-bg/40 p-[18px]">
+                            <div className="text-[13px] text-muted">Ciclo atual</div>
+                            <div className="mt-2.5 flex flex-wrap items-center gap-3 font-mono text-[18px] font-medium">
                                 <span>{cycle.startLabel}</span>
-                                <span className="h-px min-w-[20px] flex-1 bg-[linear-gradient(90deg,var(--color-accent),var(--color-soft-text))]" />
+                                <span className="h-px min-w-[20px] flex-1 bg-line-strong" />
                                 <span>{cycle.endLabel}</span>
                             </div>
                         </div>
                     </div>
 
-                    <div className="mt-5 flex flex-wrap items-center gap-[clamp(20px,3vw,40px)] border-t border-text/8 pt-5">
+                    <div className="mt-5 flex flex-wrap items-center gap-[clamp(20px,3vw,40px)] border-t border-line pt-5">
                         <div className="min-w-[240px] flex-1">
                             <Stepper value={draft.income_grace_days} onStep={stepGrace} label="Dias de tolerância da receita" />
-                            {errors.income_grace_days && <p className="mt-1 text-[11.5px] text-red">{errors.income_grace_days}</p>}
+                            {errors.income_grace_days && <p className="mt-1 text-[12px] text-red">{errors.income_grace_days}</p>}
                         </div>
-                        <p className="min-w-[260px] flex-1 text-[13px] leading-[1.5] text-text/55">
-                            <strong className="font-medium text-text/80">Receita antecipada:</strong> o que entrar até {draft.income_grace_days} dia(s) antes do fechamento
+                        <p className="min-w-[260px] flex-1 text-[13px] leading-[1.5] text-muted">
+                            <strong className="font-medium text-secondary">Receita antecipada:</strong> o que entrar até {draft.income_grace_days} dia(s) antes do fechamento
                             conta no mês seguinte — ex: salário que caiu no dia 3 com fechamento no dia 5.
                         </p>
                     </div>
@@ -774,13 +766,13 @@ export default function Settings({ settings, categories, rules, connections, use
                 <SectionLabel title="Contas conectadas" id="contas" />
                 <Card className="flex flex-col gap-4">
                     <SectionHeader
-                        icon={<Landmark size={13} strokeWidth={2.2} className="stroke-strong-accent" />}
+                        icon={<Landmark size={16} strokeWidth={1.75} />}
                         title="Open Finance"
                         subtitle="Transações, saldos e investimentos chegam pelo Pluggy. A Home sincroniza sozinha quando os dados têm mais de 6 horas."
                     />
 
                     {connections.length === 0 ? (
-                        <p className="py-4 text-center text-[13px] text-text/50">Nenhum banco conectado ainda.</p>
+                        <p className="py-4 text-center text-[13px] text-muted">Nenhum banco conectado ainda.</p>
                     ) : (
                         connections.map((connection) => (
                             <ConnectionCard key={connection.id} connection={connection} ownershipOptions={ownershipOptions} onReconnect={openPluggy} />
@@ -788,14 +780,14 @@ export default function Settings({ settings, categories, rules, connections, use
                     )}
 
                     <div className="flex flex-wrap items-center gap-2.5">
-                        <span className="text-[12.5px] text-text/55">Nova conexão de</span>
+                        <span className="text-[13px] text-muted">Nova conexão de</span>
                         <Segmented
                             size="sm"
                             value={newOwner}
                             onChange={setNewOwner}
                             options={ownershipOptions.filter((o) => o.value !== 'both').map((o) => ({ ...o, label: firstName(o.label) }))}
                         />
-                        <Button type="button" variant="secondary" onClick={() => openPluggy()} disabled={!scriptLoaded || connecting}>
+                        <Button type="button" variant="primary" onClick={() => openPluggy()} disabled={!scriptLoaded || connecting}>
                             <Plus size={14} strokeWidth={2.2} /> {connecting ? 'Abrindo…' : !scriptLoaded ? 'Carregando…' : 'Conectar banco'}
                         </Button>
                     </div>
@@ -805,27 +797,27 @@ export default function Settings({ settings, categories, rules, connections, use
             {/* Para onde vai cada gasto */}
             <section className="flex flex-col gap-4">
                 <SectionLabel title="Para onde vai cada gasto" />
-                <section className="grid grid-cols-[repeat(auto-fit,minmax(340px,1fr))] items-start gap-[clamp(14px,1.6vw,20px)]">
+                <section className="grid grid-cols-[repeat(auto-fit,minmax(340px,1fr))] items-start gap-5">
                     <Card className="flex flex-col">
                         <SectionHeader
-                            icon={<Tag size={13} strokeWidth={2.2} className="stroke-strong-accent" />}
+                            icon={<Tag size={16} strokeWidth={1.75} />}
                             title="Categorias"
                             action={
-                                <span className="text-[12.5px] text-text/45">
+                                <span className="text-[13px] text-muted">
                                     {draft.categories.length} categorias · {totalExpensesCount.toLocaleString('pt-BR')} lançamentos
                                 </span>
                             }
                         />
 
                         <div className="mt-3.5 flex flex-wrap items-center gap-2">
-                            <div className="flex min-w-[130px] flex-1 items-center gap-2 rounded-[10px] bg-text/[0.04] px-3 shadow-[inset_0_0_0_1px_rgb(var(--color-text-rgb)/0.1)] focus-within:shadow-[inset_0_0_0_1px_var(--color-accent)]">
-                                <Search size={14} strokeWidth={1.9} className="flex-none text-text/45" />
+                            <div className="flex min-w-[130px] flex-1 items-center gap-2 h-11 rounded-[10px] border border-line bg-surface px-3 focus-within:border-accent">
+                                <Search size={14} strokeWidth={1.9} className="flex-none text-muted" />
                                 <input
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                     placeholder="Buscar categoria"
                                     aria-label="Buscar categoria"
-                                    className="min-w-0 flex-1 border-0 bg-transparent py-[9px] text-[13.5px] text-text placeholder:text-text/40 focus:outline-none focus:ring-0"
+                                    className="min-w-0 flex-1 border-0 bg-transparent py-0 text-[14px] text-text placeholder:text-muted/70 focus:outline-none focus:ring-0"
                                 />
                             </div>
                             <Segmented value={filter} onChange={setFilter} options={categoryFilters} />
@@ -833,9 +825,9 @@ export default function Settings({ settings, categories, rules, connections, use
 
                         <div className="scroll-thin mt-1.5 flex max-h-[320px] flex-col overflow-y-auto pr-1">
                             {draft.categories.length === 0 ? (
-                                <p className="py-6 text-center text-[12.5px] text-text/45">Nenhuma categoria cadastrada ainda.</p>
+                                <p className="py-6 text-center text-[13px] text-muted">Nenhuma categoria cadastrada ainda.</p>
                             ) : visibleCategories.length === 0 ? (
-                                <p className="py-6 text-center text-[12.5px] text-text/45">Nenhuma categoria com esse filtro.</p>
+                                <p className="py-6 text-center text-[13px] text-muted">Nenhuma categoria com esse filtro.</p>
                             ) : (
                                 visibleCategories.map((category) => {
                                     const key = category.id ?? category.tempKey;
@@ -856,7 +848,7 @@ export default function Settings({ settings, categories, rules, connections, use
                             )}
                         </div>
 
-                        <div className="mt-3 flex items-center gap-2 rounded-[10px] bg-text/[0.04] px-3 shadow-[inset_0_0_0_1px_rgb(var(--color-strong-accent-rgb)/0.22)] focus-within:shadow-[inset_0_0_0_1px_var(--color-strong-accent)]">
+                        <div className="mt-3 flex h-11 items-center gap-2 rounded-[10px] border border-dashed border-line-strong px-3 focus-within:border-solid focus-within:border-accent">
                             <Plus size={15} className="flex-none stroke-strong-accent" />
                             <input
                                 value={novaCategoria}
@@ -864,10 +856,10 @@ export default function Settings({ settings, categories, rules, connections, use
                                 onKeyDown={(e) => { if (e.key === 'Enter') addCategory(); }}
                                 placeholder="Nova categoria — digite e pressione Enter"
                                 aria-label="Nova categoria"
-                                className="min-w-0 flex-1 border-0 bg-transparent py-2.5 text-[13.5px] text-text placeholder:text-text/40 focus:outline-none"
+                                className="min-w-0 flex-1 border-0 bg-transparent py-0 text-[14px] text-text placeholder:text-muted/70 focus:outline-none focus:ring-0"
                             />
                             {novaCategoria.trim() && (
-                                <button type="button" onClick={addCategory} className="flex-none rounded-[8px] bg-strong-accent px-3 py-1 text-[12.5px] text-bg hover:bg-lime">
+                                <button type="button" onClick={addCategory} className="h-8 flex-none rounded-[8px] bg-accent px-3 text-[13px] font-semibold text-on-accent hover:brightness-[1.06]">
                                     Criar
                                 </button>
                             )}
@@ -876,17 +868,17 @@ export default function Settings({ settings, categories, rules, connections, use
 
                     <Card className="flex flex-col">
                         <SectionHeader
-                            icon={<ListFilter size={13} strokeWidth={2.2} className="stroke-strong-accent" />}
+                            icon={<ListFilter size={16} strokeWidth={1.75} />}
                             title="Regras de categorização"
-                            action={<span className="text-[12.5px] text-text/45">{draft.rules.length} ativas</span>}
+                            action={<span className="text-[13px] text-muted">{draft.rules.length} ativas</span>}
                         />
-                        <p className="mt-1.5 max-w-[46ch] text-[13px] leading-[1.5] text-text/55">
+                        <p className="mt-1.5 max-w-[46ch] text-[13px] leading-[1.5] text-muted">
                             Quando a descrição de uma transação bate com o termo, ela recebe a categoria e o responsável sozinha — ou fica fora dos cálculos.
                         </p>
 
                         <div className="mt-2 flex flex-col">
                             {draft.rules.length === 0 ? (
-                                <p className="py-6 text-center text-[12.5px] text-text/45">Nenhuma regra cadastrada ainda.</p>
+                                <p className="py-6 text-center text-[13px] text-muted">Nenhuma regra cadastrada ainda.</p>
                             ) : (
                                 draft.rules.map((rule) => (
                                     <RuleRow

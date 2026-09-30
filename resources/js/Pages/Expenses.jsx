@@ -10,10 +10,10 @@ import IconBadge from '@/Components/ui/IconBadge';
 import ExpenseRow from '@/Components/expenses/ExpenseRow';
 import ExpenseModal from '@/Components/expenses/ExpenseModal';
 import ExportPdfModal from '@/Components/expenses/ExportPdfModal';
-import { router, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import axios from 'axios';
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeftRight, FileDown, Plus, RefreshCw, Search, Sparkles, Users, Wallet, PieChart, X } from 'lucide-react';
+import { ArrowLeftRight, ChevronRight, FileDown, Plus, RefreshCw, Search, Sparkles, Users, Wallet, PieChart, X } from 'lucide-react';
 import { firstName, money, monthLabel, parseDate, percent, relativeTime } from '@/lib/format';
 import { OWNERSHIP_BADGE, ownershipOptions } from '@/lib/ownership';
 
@@ -47,6 +47,16 @@ export default function Expenses({ cycle, availableMonths, rows, summary, catego
     const [saving, setSaving] = useState(false);
     const [syncing, setSyncing] = useState(false);
     const [aiRunning, setAiRunning] = useState(false);
+
+    // Vindo do Dashboard ("Novo lançamento" / "Registrar acerto"): abre o modal já no tipo certo.
+    useEffect(() => {
+        const url = new URL(window.location.href);
+        const intent = url.searchParams.get('new');
+        if (!intent) return;
+        setModal({ show: true, row: null, kind: intent === 'settlement' ? 'settlement' : 'expense' });
+        url.searchParams.delete('new');
+        window.history.replaceState(window.history.state, '', url);
+    }, []);
 
     // Mudou de mês: descarta rascunho e seleção.
     useEffect(() => {
@@ -171,35 +181,40 @@ export default function Expenses({ cycle, availableMonths, rows, summary, catego
     return (
         <AppLayout title="Lançamentos">
             <PageHeader
-                eyebrow="Mês financeiro"
                 title="Lançamentos"
                 description="Tudo que entrou e saiu no mês. Ajuste categoria e quem paga — o rateio e o acerto são recalculados na hora."
-                actions={<CycleSwitcher cycle={cycle} routeName="expenses.index" />}
+                actions={
+                    <>
+                        <CycleSwitcher cycle={cycle} routeName="expenses.index" />
+                        <Button type="button" variant="primary" onClick={() => setModal({ show: true, row: null })} className="max-[560px]:flex-1">
+                            <Plus size={14} strokeWidth={2.2} /> Novo lançamento
+                        </Button>
+                    </>
+                }
             />
 
             {/* Resumo do mês */}
-            <section className="flex flex-wrap items-stretch gap-[clamp(14px,1.6vw,20px)]">
-                <Card className="flex flex-[1.4_1_320px] flex-col gap-3.5">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <IconBadge><Users size={13} strokeWidth={2.2} className="stroke-strong-accent" /></IconBadge>
-                            <span className="text-[13px] font-semibold tracking-[-.01em]">Total do casal</span>
-                        </div>
-                        <span className="font-heading text-[19px] font-semibold tracking-[-.02em]">{money(split.total)}</span>
+            <section className="grid grid-cols-2 items-stretch gap-5 max-[640px]:grid-cols-1 min-[1600px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)]">
+                <Card className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between gap-3">
+                        <h2 className="flex items-center gap-2 text-[15px] font-semibold">
+                            <IconBadge><Users /></IconBadge> Total do casal
+                        </h2>
+                        <span className="text-[20px] font-semibold tracking-[-0.02em] tabular-nums">{money(split.total)}</span>
                     </div>
-                    <div className="flex h-2 overflow-hidden rounded-full bg-text/8">
-                        <div className="bg-green/85" style={{ width: `${(split.payer1_total / shareTotal) * 100}%` }} />
-                        <div className="flex-1 bg-red/85" />
+                    <div className="flex h-3 gap-[3px]">
+                        <div className="rounded-[3px] bg-person1" style={{ flex: `${(split.payer1_total / shareTotal) * 100} 1 0` }} />
+                        <div className="rounded-[3px] bg-person2" style={{ flex: `${(split.payer2_total / shareTotal) * 100} 1 0` }} />
                     </div>
-                    <div className="grid grid-cols-2 gap-3 text-[12px]">
+                    <div className="grid grid-cols-2 gap-3 text-[13px]">
                         {[
-                            { name: me, total: split.payer1_total, individual: split.payer1_individual, shared: split.payer1_shared, pct: couple?.payer1_percent, dot: 'bg-green' },
-                            { name: partner, total: split.payer2_total, individual: split.payer2_individual, shared: split.payer2_shared, pct: couple?.payer2_percent, dot: 'bg-red' },
+                            { name: me, total: split.payer1_total, individual: split.payer1_individual, shared: split.payer1_shared, pct: couple?.payer1_percent, dot: 'bg-person1' },
+                            { name: partner, total: split.payer2_total, individual: split.payer2_individual, shared: split.payer2_shared, pct: couple?.payer2_percent, dot: 'bg-person2' },
                         ].map((p) => (
-                            <div key={p.name}>
-                                <div className="flex items-center gap-1.5 text-text/60"><span className={`h-2 w-2 rounded-full ${p.dot}`} />{p.name}</div>
-                                <div className="font-heading text-[16px] font-semibold tracking-[-.01em]">{money(p.total)}</div>
-                                <div className="text-[11px] leading-snug text-text/45">
+                            <div key={p.name} className="min-w-0">
+                                <div className="flex items-center gap-2 text-muted"><span className={`h-2 w-2 rounded-[2px] ${p.dot}`} />{p.name}</div>
+                                <div className="mt-0.5 text-[17px] font-semibold tracking-[-0.01em] tabular-nums">{money(p.total)}</div>
+                                <div className="text-[12px] leading-snug text-muted">
                                     {money(p.individual)} individuais + {money(p.shared)} ({percent(p.pct)} de "Nós")
                                 </div>
                             </div>
@@ -207,41 +222,39 @@ export default function Expenses({ cycle, availableMonths, rows, summary, catego
                     </div>
                 </Card>
 
-                <SettlementCard settlement={settlement} partner={partner} me={me} />
+                <SettlementCard settlement={settlement} partner={partner} me={me} month={cycle.month} />
 
-                <Card className="flex flex-[1_1_240px] flex-col justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                        <IconBadge><Wallet size={13} strokeWidth={2.2} className="stroke-strong-accent" /></IconBadge>
-                        <span className="text-[13px] font-semibold tracking-[-.01em]">Seu mês</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
+                <Card className="flex flex-col justify-between gap-4">
+                    <h2 className="flex items-center gap-2 text-[15px] font-semibold">
+                        <IconBadge><Wallet /></IconBadge> Seu mês
+                    </h2>
+                    <div className="flex flex-wrap gap-x-6 gap-y-3">
                         <div>
-                            <div className="text-[11.5px] text-text/55">Receitas</div>
-                            <div className="font-heading text-[17px] font-semibold text-green">{money(flow.income)}</div>
+                            <div className="text-[13px] text-muted">Receitas</div>
+                            <div className="text-[18px] font-semibold tabular-nums">{money(flow.income)}</div>
                         </div>
                         <div>
-                            <div className="text-[11.5px] text-text/55">Sua parte</div>
-                            <div className="font-heading text-[17px] font-semibold text-red">{money(flow.expenses)}</div>
+                            <div className="text-[13px] text-muted">Sua parte</div>
+                            <div className="text-[18px] font-semibold tabular-nums">{money(flow.expenses)}</div>
                         </div>
                     </div>
-                    <div className="text-[12px] text-text/50">
-                        Sobra: <strong className={flow.balance >= 0 ? 'text-green' : 'text-red'}>{money(flow.balance)}</strong>
+                    <div className="text-[13px] text-muted">
+                        Sobra: <strong className={`font-semibold tabular-nums ${flow.balance >= 0 ? 'text-accent' : 'text-red'}`}>{flow.balance >= 0 ? '+' : '−'}{money(Math.abs(flow.balance))}</strong>
                         {flow.pending_fixed > 0 && <> · contas fixas a pagar: {money(flow.pending_fixed)}</>}
                     </div>
                 </Card>
 
-                <Card className="flex flex-[1_1_240px] flex-col gap-2.5">
-                    <div className="flex items-center gap-2">
-                        <IconBadge><PieChart size={13} strokeWidth={2.2} className="stroke-strong-accent" /></IconBadge>
-                        <span className="text-[13px] font-semibold tracking-[-.01em]">Por categoria</span>
-                    </div>
-                    <div className="scroll-thin flex max-h-[120px] flex-col gap-1.5 overflow-y-auto pr-1">
-                        {summary.by_category.length === 0 && <span className="text-[12px] text-text/45">Sem despesas no mês.</span>}
+                <Card className="flex flex-col gap-3">
+                    <h2 className="flex items-center gap-2 text-[15px] font-semibold">
+                        <IconBadge><PieChart /></IconBadge> Por categoria
+                    </h2>
+                    <div className="scroll-thin -mr-2 flex max-h-[128px] flex-col overflow-y-auto pr-2">
+                        {summary.by_category.length === 0 && <span className="text-[13px] text-muted">Sem despesas no mês.</span>}
                         {summary.by_category.map((c) => (
-                            <div key={c.name} className="flex items-center gap-2 text-[12.5px]">
-                                <span className="h-2 w-2 flex-none rounded-full" style={{ background: c.color }} />
+                            <div key={c.name} className="flex items-center gap-2.5 border-t border-line-soft py-[7px] text-[13px] first:border-t-0 first:pt-0">
+                                <span className="h-2 w-2 flex-none rounded-[2px]" style={{ background: c.color }} />
                                 <span className="min-w-0 flex-1 truncate">{c.name}</span>
-                                <span className="tabular-nums text-text/70">{money(c.value)}</span>
+                                <span className="font-mono text-[13px] text-secondary">{money(c.value)}</span>
                             </div>
                         ))}
                     </div>
@@ -263,25 +276,22 @@ export default function Expenses({ cycle, availableMonths, rows, summary, catego
                             <Button type="button" variant="secondary" onClick={() => setExportOpen(true)}>
                                 <FileDown size={14} strokeWidth={2.2} /> PDF
                             </Button>
-                            <Button type="button" variant="secondary" onClick={() => setModal({ show: true, row: null })}>
-                                <Plus size={14} strokeWidth={2.2} /> Lançamento
-                            </Button>
                         </div>
                     }
                 />
 
                 <div className="flex flex-wrap items-center gap-2">
-                    <div className="flex min-w-[180px] flex-1 items-center gap-2 rounded-[10px] bg-text/[0.04] px-3 shadow-[inset_0_0_0_1px_rgb(var(--color-text-rgb)/0.1)] focus-within:shadow-[inset_0_0_0_1px_var(--color-accent)]">
-                        <Search size={14} strokeWidth={1.9} className="flex-none text-text/45" />
+                    <div className="flex min-w-[180px] flex-1 items-center gap-2 h-11 rounded-[10px] border border-line bg-surface px-3 focus-within:border-accent">
+                        <Search size={14} strokeWidth={1.9} className="flex-none text-muted" />
                         <input
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Buscar lançamento"
                             aria-label="Buscar lançamento"
-                            className="min-w-0 flex-1 border-0 bg-transparent py-[9px] text-[13.5px] text-text placeholder:text-text/40 focus:outline-none focus:ring-0"
+                            className="min-w-0 flex-1 border-0 bg-transparent py-0 text-[14px] text-text placeholder:text-muted/70 focus:outline-none focus:ring-0"
                         />
                         {search && (
-                            <button type="button" onClick={() => setSearch('')} aria-label="Limpar busca" className="text-text/45 hover:text-text">
+                            <button type="button" onClick={() => setSearch('')} aria-label="Limpar busca" className="text-muted hover:text-text">
                                 <X size={14} />
                             </button>
                         )}
@@ -302,8 +312,9 @@ export default function Expenses({ cycle, availableMonths, rows, summary, catego
                         <button
                             type="button"
                             onClick={() => setOnlyUncategorized((v) => !v)}
-                            className={`rounded-full px-3 py-[6px] text-[12px] font-medium transition-colors ${
-                                onlyUncategorized ? 'bg-lime/20 text-lime shadow-[inset_0_0_0_1px_rgb(var(--color-soft-text-rgb)/0.5)]' : 'text-lime/80 shadow-[inset_0_0_0_1px_rgb(var(--color-soft-text-rgb)/0.25)] hover:bg-lime/10'
+                            aria-pressed={onlyUncategorized}
+                            className={`h-9 rounded-full border px-3 text-[13px] font-medium transition-colors ${
+                                onlyUncategorized ? 'border-warning/50 bg-warning/14 text-warning' : 'border-warning/25 text-warning/85 hover:bg-warning/8'
                             }`}
                         >
                             Sem categoria · {counts.uncategorized}
@@ -328,24 +339,24 @@ export default function Expenses({ cycle, availableMonths, rows, summary, catego
                 <Card hover={false} className="p-3">
                     {visible.length === 0 ? (
                         <div className="py-14 text-center">
-                            <p className="text-[13px] text-text/50">
+                            <p className="text-[13px] text-muted">
                                 {rows.length === 0 ? 'Nenhum lançamento neste mês.' : 'Nenhum lançamento com esses filtros.'}
                             </p>
                             {rows.length === 0 && (
-                                <button type="button" onClick={() => setModal({ show: true, row: null })} className="mt-3 text-[13px] text-strong-accent hover:underline">
+                                <button type="button" onClick={() => setModal({ show: true, row: null })} className="mt-3 text-[13px] font-medium text-secondary underline-offset-2 hover:text-text hover:underline">
                                     Adicionar um lançamento manual
                                 </button>
                             )}
                         </div>
                     ) : (
                         <>
-                            <div className="flex items-center gap-3 px-2 pb-2 text-[11px] uppercase tracking-[.08em] text-text/40">
+                            <div className="flex items-center gap-3 border-b border-line px-2 pb-2.5 text-[12px] font-medium text-muted">
                                 <input
                                     type="checkbox"
                                     checked={allVisibleSelected}
                                     onChange={toggleSelectAll}
                                     aria-label="Selecionar todos"
-                                    className="h-4 w-4 rounded border-text/25 bg-transparent text-teal focus:ring-teal/40 focus:ring-offset-0"
+                                    className="h-4 w-4 rounded border-line-strong bg-transparent text-accent focus:ring-accent/40 focus:ring-offset-0"
                                 />
                                 <span className="flex-1">{visible.length} {visible.length === 1 ? 'lançamento' : 'lançamentos'}</span>
                                 {counts.uncategorized > 0 && type === 'expense' && (
@@ -353,14 +364,14 @@ export default function Expenses({ cycle, availableMonths, rows, summary, catego
                                         type="button"
                                         onClick={() => categorizeWithAi(rows.filter((r) => r.kind === 'expense' && !r.category_id).map((r) => r.id))}
                                         disabled={aiRunning}
-                                        className="inline-flex items-center gap-1 normal-case tracking-normal text-strong-accent hover:underline disabled:opacity-50"
+                                        className="inline-flex items-center gap-1.5 text-secondary hover:text-text disabled:opacity-50"
                                     >
-                                        <Sparkles size={12} /> {aiRunning ? 'Categorizando…' : `Categorizar ${counts.uncategorized} com IA`}
+                                        <Sparkles size={13} className="text-accent" /> {aiRunning ? 'Categorizando…' : `Categorizar ${counts.uncategorized} com IA`}
                                     </button>
                                 )}
                             </div>
 
-                            <div className="flex flex-col gap-3">
+                            <div className="mt-1 flex flex-col gap-3">
                                 {groups.map((group) => (
                                     <div key={group.key}>
                                         <GroupHeader
@@ -399,6 +410,7 @@ export default function Expenses({ cycle, availableMonths, rows, summary, catego
             <ExpenseModal
                 show={modal.show}
                 row={modal.row}
+                initialKind={modal.kind}
                 rows={rows}
                 onClose={() => setModal({ show: false, row: null })}
                 couple={couple}
@@ -422,20 +434,20 @@ function GroupHeader({ group, groupBy, couple, onOwnershipAll }) {
     const hasExpenses = group.items.some((r) => r.kind === 'expense');
 
     return (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-2 pb-1 pt-1.5">
-            <span className="text-[12px] font-semibold text-text/70">{groupBy === 'day' ? dayHeader(group.key) : group.key}</span>
-            <span className="text-[11.5px] text-text/40">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-2 pb-1 pt-2">
+            <span className="text-[13px] font-semibold text-secondary">{groupBy === 'day' ? dayHeader(group.key) : group.key}</span>
+            <span className="font-mono text-[12px] text-muted">
                 {group.items.length} · {money(group.total)}
             </span>
             {groupBy === 'category' && hasExpenses && (
-                <div className="ml-auto flex items-center gap-1 text-[11px] text-text/40">
+                <div className="ml-auto flex items-center gap-1 text-[12px] text-muted">
                     Todos:
                     {ownershipOptions(couple).map((option) => (
                         <button
                             key={option.value}
                             type="button"
                             onClick={() => onOwnershipAll(option.value)}
-                            className={`rounded-full px-2 py-[2px] font-medium transition-[filter] hover:brightness-125 ${OWNERSHIP_BADGE[option.value]}`}
+                            className={`rounded-full px-2.5 py-[2px] font-medium transition-[filter] hover:brightness-125 ${OWNERSHIP_BADGE[option.value]}`}
                         >
                             {option.label}
                         </button>
@@ -448,49 +460,53 @@ function GroupHeader({ group, groupBy, couple, onOwnershipAll }) {
 
 function BulkBar({ count, categories, couple, aiRunning, onCategory, onOwnership, onAi, onClear }) {
     return (
-        <div className="flex flex-wrap items-center gap-2.5 rounded-[14px] bg-teal/12 px-3.5 py-2.5 shadow-[inset_0_0_0_1px_rgb(var(--color-accent-rgb)/0.35)]">
-            <span className="text-[13px] font-medium">{count} selecionado{count > 1 ? 's' : ''}</span>
+        <div className="flex flex-wrap items-center gap-2.5 rounded-[14px] border border-line-strong bg-raised px-4 py-2.5">
+            <span className="text-[14px] font-medium">{count} selecionado{count > 1 ? 's' : ''}</span>
             <select
                 defaultValue=""
                 onChange={(e) => { if (e.target.value !== '') onCategory(e.target.value === 'none' ? null : Number(e.target.value)); e.target.value = ''; }}
                 aria-label="Definir categoria"
-                className="rounded-[8px] border-0 bg-text/8 py-1.5 pl-2.5 pr-8 text-[12.5px] text-text focus:ring-1 focus:ring-teal/50"
+                className="h-9 rounded-[8px] border border-line-strong bg-bg py-0 pl-2.5 pr-8 text-[13px] text-text focus:border-accent focus:ring-0"
             >
                 <option value="" className="bg-surface">Definir categoria…</option>
                 <option value="none" className="bg-surface">Sem categoria</option>
                 {categories.map((c) => <option key={c.id} value={c.id} className="bg-surface">{c.name}</option>)}
             </select>
-            <div className="flex items-center gap-1 text-[12px] text-text/60">
+            <div className="flex items-center gap-1 text-[13px] text-muted">
                 Quem paga:
                 {ownershipOptions(couple).map((option) => (
-                    <button key={option.value} type="button" onClick={() => onOwnership(option.value)} className={`rounded-full px-2.5 py-1 text-[11.5px] font-medium hover:brightness-125 ${OWNERSHIP_BADGE[option.value]}`}>
+                    <button key={option.value} type="button" onClick={() => onOwnership(option.value)} className={`rounded-full px-2.5 py-1 text-[12px] font-medium hover:brightness-125 ${OWNERSHIP_BADGE[option.value]}`}>
                         {option.label}
                     </button>
                 ))}
             </div>
-            <Button type="button" variant="ghost" onClick={onAi} disabled={aiRunning}>
-                <Sparkles size={14} strokeWidth={2.2} /> {aiRunning ? 'Categorizando…' : 'Categorizar com IA'}
+            <Button type="button" variant="ghost" size="sm" onClick={onAi} disabled={aiRunning}>
+                <Sparkles size={14} strokeWidth={2.2} className="text-accent" /> {aiRunning ? 'Categorizando…' : 'Categorizar com IA'}
             </Button>
-            <button type="button" onClick={onClear} className="ml-auto text-[12px] text-text/55 hover:text-text">Limpar seleção</button>
+            <button type="button" onClick={onClear} className="ml-auto text-[13px] text-muted hover:text-text">Limpar seleção</button>
         </div>
     );
 }
 
-function SettlementCard({ settlement, partner, me }) {
+function SettlementCard({ settlement, partner, me, month }) {
     const due = settlement.due;
     const owes = due > 0.009 ? `${partner} te deve` : due < -0.009 ? `Você deve a ${partner}` : 'Tudo acertado';
 
     return (
-        <Card className="flex flex-[1.2_1_280px] flex-col gap-3">
-            <div className="flex items-center gap-2">
-                <IconBadge><ArrowLeftRight size={13} strokeWidth={2.2} className="stroke-strong-accent" /></IconBadge>
-                <span className="text-[13px] font-semibold tracking-[-.01em]">Acerto com {partner}</span>
+        <Card bg={false} className="flex flex-col gap-3 border border-accent bg-accent text-on-accent">
+            <div className="flex items-center justify-between gap-3">
+                <h2 className="flex items-center gap-2 text-[14px] font-semibold">
+                    <ArrowLeftRight size={14} strokeWidth={2} /> Acerto com {partner}
+                </h2>
+                <Link href={route('settlement.index', { month })} className="inline-flex min-h-8 items-center gap-1 text-[13px] font-semibold text-on-accent no-underline hover:opacity-80">
+                    Detalhes <ChevronRight size={14} strokeWidth={2} />
+                </Link>
             </div>
             <div>
-                <div className="text-[11.5px] text-text/55">{owes}</div>
-                <div className={`font-heading text-[24px] font-medium tracking-[-.02em] ${due < -0.009 ? 'text-red' : ''}`}>{money(Math.abs(due))}</div>
+                <div className="text-[14px] text-on-accent-2">{owes}</div>
+                <div className="text-[32px] font-semibold leading-[1.1] tracking-[-0.03em] tabular-nums">{money(Math.abs(due))}</div>
             </div>
-            <div className="text-[12px] leading-relaxed text-text/50">
+            <div className="text-[13px] leading-[1.45] text-on-accent-2">
                 Parte de {partner} no que {me} pagou neste mês e nas contas fixas do próximo, menos a parte de {me} no que {partner} pagou.
             </div>
         </Card>

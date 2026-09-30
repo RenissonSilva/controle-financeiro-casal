@@ -1,35 +1,39 @@
-import bgFloresta from '@/assets/bg-floresta.jpeg';
-
-// Paleta oficial do produto ("Maré"). Fonte única de verdade para as cores —
+// Paleta oficial do produto (tema "Noite"). Fonte única de verdade para as cores —
 // espelhada como CSS vars estáticas em resources/css/app.css (para as classes
 // Tailwind) e importada diretamente aqui onde é preciso um valor de cor puro
-// (fill/stroke de SVG, Cell do Recharts, gradientes de <defs>).
+// (fill/stroke de SVG, cor de categoria vinda de dado).
 export const theme = {
-    bg: '#0e1c28',
-    surface: '#152a38',
-    text: '#eef7f8',
-    textRgb: '223,238,240',
-    teal: '#43a9ab',
-    tealRgb: '67,169,171',
-    blue: '#2a7daa',
-    lime: '#dcee8e',
-    strongAccent: '#8fd79b',
-    strongAccentGlowRgb: '143,215,155',
-    chartLight: '#dcee8e',
-    chartMid: '#43a9ab',
-    chartDeep: '#3f7fb8',
-    gaugeStart: '#22517e',
-    healthCardGradStart: '#14304a',
-    heroCardGradStart: '#173548',
-    progressGradStart: '#22517e',
-    progressGradEnd: '#43a9ab',
-    progressText: '#eef7f8',
-    valueColor: '#c3dbe0',
-    ambientGlow: '#16344a',
-    green: '#b5e38a',
-    greenRgb: '181,227,138',
-    red: '#5ec1e0',
-    redRgb: '94,193,224',
-    bgImage: bgFloresta,
-    bgImagePosition: 'center 22%',
+    bg: '#0C0D0F',
+    surface: '#141518',
+    surfaceRaised: '#1A1C20',
+    surfaceInset: '#1F2126',
+    line: '#23252A',
+    track: '#26292F',
+    text: '#EDEEF0',
+    text2: '#B9BDC4',
+    muted: '#8E939C',
+    accent: '#C6F36B',
+    negative: '#FF8266',
+    warning: '#F5B94A',
+
+    // Cores fixas de categoria do tema (usadas quando a categoria não tem cor própria).
+    catOutras: '#6B7280',
+    catFallback: '#7AA2FF',
 };
+
+// '#rrggbb' → 'rgba(r, g, b, alpha)' — etiqueta de categoria (fundo translúcido na cor dela).
+export function tint(hex, alpha) {
+    const value = String(hex || '').replace('#', '');
+    if (!/^[0-9a-f]{6}$/i.test(value)) return `rgba(142, 147, 156, ${alpha})`;
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(value.slice(i, i + 2), 16));
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// Clareia a cor na direção do branco (0-1) — texto da etiqueta de categoria,
+// legível sobre o fundo escuro mesmo com cores de categoria mais fechadas.
+export function lighten(hex, amount = 0.3) {
+    const value = String(hex || '').replace('#', '');
+    if (!/^[0-9a-f]{6}$/i.test(value)) return theme.text2;
+    const channel = (i) => Math.round(parseInt(value.slice(i, i + 2), 16) + (255 - parseInt(value.slice(i, i + 2), 16)) * amount);
+    return `rgb(${channel(0)}, ${channel(2)}, ${channel(4)})`;
+}

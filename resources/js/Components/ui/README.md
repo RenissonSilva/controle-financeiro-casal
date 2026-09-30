@@ -1,23 +1,16 @@
-# Design system Sovinna
+# Design system Sovinna — tema Noite
 
-Padrão visual oficial do produto — portado 1:1 do antigo mockup `Sovinna.jsx` para `Pages/Dashboard.jsx`. Toda tela nova deve compor a partir destes tokens e componentes em vez de reintroduzir cor/estilo ad-hoc.
+Padrão visual oficial do produto (tema "Noite", escuro por decisão de design, sem variante clara), portado da referência publicada em https://claude.ai/artifact/B6hM2CyEBJYpe98m7yhubA. Toda tela nova deve compor a partir destes tokens e componentes em vez de reintroduzir cor/estilo ad-hoc.
+
+Regras da referência: Geist (Geist Mono em datas, % e valores de tabela); profundidade só por superfície + borda de 1px, **sem sombras, gradientes ou foto de fundo**; limão (`accent`) só no botão principal, ícone do menu ativo, valor positivo e card de acerto; coral (`red`) só para dinheiro saindo; âmbar (`warning`) só para "Atenção"/pendências; valores em pt-BR com "−" (U+2212) nas saídas.
 
 ## Tokens
 
-Fonte única de cor: [`resources/js/theme/tokens.js`](../../theme/tokens.js) (tema "Maré", fixo — sem seletor de tema em runtime). Os mesmos valores são espelhados como CSS vars estáticas em [`resources/css/app.css`](../../../css/app.css) e viram classes Tailwind via `tailwind.config.js` (`bg-surface`, `text-teal`, `text-strong-accent`, `bg-green`, etc. — ver a lista completa em `colors` no config).
+Fonte única de cor: [`resources/js/theme/tokens.js`](../../theme/tokens.js), espelhada como CSS vars em [`resources/css/app.css`](../../../css/app.css) e transformada em classes via `tailwind.config.js`: `bg`, `surface`, `raised`, `inset`, `line`, `line-soft`, `line-row`, `line-strong`, `track`, `text`, `secondary`, `muted`, `accent`, `on-accent`, `on-accent-2`, `warning`, `red` (saída), `green` (= accent, entrada), `person1`/`person2` (cores do casal). `teal`, `strong-accent`, `lime` e `blue` são apelidos antigos (Maré) que apontam para a paleta Noite — prefira os nomes novos.
 
-```jsx
-// preferir sempre a classe Tailwind:
-<div className="bg-surface text-teal" />
+`tint(hex, alpha)` / `lighten(hex)` em `tokens.js` montam a etiqueta de categoria a partir da cor da categoria (dado dinâmico → `style` inline).
 
-// só usar o objeto `theme` (theme/tokens.js) onde className não alcança:
-// atributos de SVG (fill/stroke/stopColor em <defs>), o objeto contentStyle
-// do Tooltip do Recharts, ou cor vinda de dado dinâmico (ex: cor de categoria).
-import { theme } from '@/theme/tokens';
-<stop stopColor={theme.strongAccent} />
-```
-
-As outras 10 paletas exploradas antes de fixar em "Maré" ficam arquivadas em `theme/archive-themes.js`, sem uso ativo.
+Breakpoints da referência: `max-[1280px]` (KPIs 2×2), `max-[1100px]` (cards em uma coluna), `desk` = ≥861px (sidebar; abaixo vira barra no topo), `max-[560px]` (celular).
 
 ### Duas pegadinhas do Tailwind que já causaram bug visual real aqui — leia antes de mexer em cor
 
@@ -27,17 +20,12 @@ As outras 10 paletas exploradas antes de fixar em "Maré" ficam arquivadas em `t
 
 ## Componentes
 
-- `Card` — wrapper com padding/radius/shadow/hover padrão. `bg={false}` remove o `bg-surface` default (para cards com gradiente custom via `className`, evitando disputa de especificidade entre duas classes `bg-*`).
-- `SectionHeader` — título + subtítulo mudo (opcional) + ação à direita (opcional), para o topo de um `Card`.
-- `TransactionRow` — linha de lançamento (data, seta receita/despesa, nome/categoria, valor). Requer `tipo: 'receita' | 'despesa'`.
-- `DonutChart` — gráfico de rosca (Recharts) com total central e legenda. Cor de cada fatia vem de `data[].cor` (dado dinâmico → `style` inline ali é esperado, não dá pra virar classe Tailwind).
-- `ProgressBar` — barra de progresso em gradiente (`value` de 0 a 100).
-- `Button` — variantes `secondary` / `ghost`; aceita `href` (vira `Link` do Inertia) ou fica como `<button>` decorativo (sem `href`/`onClick`) — replique o comportamento do mockup: nem todo botão do Sovinna é funcional ainda.
-- `GaugeArc` — arco de progresso 0-100 usado no card "Saúde financeira". **Não existe hoje uma fórmula real dessa métrica** (ver PLANNING.md) — só usar com valor real quando essa métrica for implementada; até lá, é só o visual do mockup. Gradiente/filtro de glow do SVG usam `theme.x` (atributos de `<defs>`/`<stop>` não são estilizáveis via `className`).
-- `Modal` — Dialog do HeadlessUI com o mesmo tratamento visual do `Card` (`bg-surface`, borda/sombra inset). Props: `show`, `onClose`, `title` (opcional), `maxWidth` (`sm`|`md`|`lg`|`xl`|`2xl`, default `md`), `closeable`. Substitui o `Components/Modal.jsx` antigo (light) nas telas migradas — o conteúdo (form, botões) fica a cargo de quem chama.
-- `Field` / `Select` — label + input/select + mensagem de erro, estilo dark consistente (`bg-bg/40`, borda `text/16`, foco `teal`). Usar em qualquer form de tela migrada em vez de inputs Tailwind ad-hoc. Mensagem de erro usa `text-red` (o coral do token). **Não use `text-red-400`, `text-green-600` etc.**: `colors.red`/`colors.green` customizados no `tailwind.config.js` substituem a escala padrão inteira, então essas classes não são geradas (falha silenciosa — as mensagens de erro ficaram sem cor por isso até 2026-09).
-- `MoneyInput` — input de valor em real com máscara automática (dígitos entram pela direita: `1` → `R$ 0,01`, `123` → `R$ 1,23`). O valor/`e.target.value` continua decimal com ponto (`'1234.50'`) ou `''`, então o backend não muda. Em forms, use `<Field money … />`; `prefix={false}` tira o "R$" quando o layout já mostra o símbolo. **Todo campo de valor deve usar ele — nada de `type="number"` para dinheiro.**
-- `PageHeader`, `SectionLabel`, `CycleSwitcher` (‹ mês financeiro ›), `Segmented` (filtros), `OwnershipToggle` (Nós · Reni · Lua), `IconBadge`, `SaveBar` (alterações não salvas) e `Toast` — peças das telas internas (Lançamentos, Contas fixas, Metas, Configurações). O `AppLayout` já mostra os `flash` de sucesso/erro num `Toast` global.
+- `Card` — `surface` + borda `line`, raio 16, padding 24, sem sombra. `bg={false}` deixa o fundo com o caller (ex: card de acerto em limão: `border border-accent bg-accent text-on-accent`).
+- `Button` — `primary` (limão, ação principal da tela), `secondary` (contorno), `ghost` (só texto), `dark` (sobre o limão); `size="sm"`; `href` vira `Link` do Inertia. Altura 44px.
+- `PageHeader` (título 26/600 + descrição + ações), `SectionHeader` (título de card 15/600), `SectionLabel` (separador entre blocos), `IconBadge` (ícone cinza do título).
+- `CycleSwitcher` — ‹ Set 2026 › (mês financeiro; intervalo do ciclo no `title`). `Segmented`, `OwnershipToggle` (cores das pessoas), `Field`/`Select`/`MoneyInput` (campo 44px, fundo `bg`, borda `line-strong`, foco limão), `Modal`, `Toast`, `SaveBar`.
+- `GaugeArc` — meio-arco 96×56 da saúde financeira (`tone` = classe de stroke). `ProgressBar` — trilho `track` + limão. `MerchantLogo` — logo 32px raio 8, mesmo formato do monograma.
+- **Todo campo de valor usa `MoneyInput`** (`<Field money … />`) — nada de `type="number"` para dinheiro. Não use `text-red-400`/`text-green-600`: `colors.red`/`green` customizados substituem a escala padrão (classe não é gerada).
 
 ### Quarta pegadinha: cor de token sem triplet não aceita opacidade
 
@@ -45,7 +33,11 @@ As outras 10 paletas exploradas antes de fixar em "Maré" ficam arquivadas em `t
 
 ## Layout
 
-`Layouts/AppLayout.jsx` é o layout das telas migradas para o padrão Sovinna. `Layouts/AuthenticatedLayout.jsx` continua servindo as telas ainda não migradas — não deve ser alterado até a vez de cada tela.
+`Layouts/AppLayout.jsx`: sidebar de 248px (marca, menu de 5 itens, card do casal com menu Perfil/Sair e status de sincronização — o Dashboard passa o botão de sincronizar em `sync`); abaixo de 861px vira barra fixa no topo com menu rolável e avatares. `GuestLayout` usa a mesma marca e superfícies.
+
+### Quinta pegadinha: classes em arquivos `.js`
+
+O `content` do Tailwind agora inclui `resources/js/**/*.js`. Antes só `.jsx` era varrido, e as classes de `lib/ownership.js` (ex: `bg-person1/14`) simplesmente não eram geradas — sem erro de build.
 
 ## Regra de ouro ao portar visual de um mockup
 

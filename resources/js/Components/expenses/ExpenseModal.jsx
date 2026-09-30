@@ -9,13 +9,13 @@ import OwnershipToggle from '@/Components/ui/OwnershipToggle';
 import { firstName, fullDate, money } from '@/lib/format';
 import { patternMatches } from '@/lib/nameRule';
 
-const blank = (defaultDate) => ({
+const blank = (defaultDate, kind = 'expense') => ({
     description: '',
     custom_name: '',
     name_pattern: '',
     amount: '',
     date: defaultDate,
-    kind: 'expense',
+    kind,
     settlement_direction: 'in',
     category_id: '',
     ownership: 'both',
@@ -43,7 +43,7 @@ const fromRow = (row) => ({
 const truncate = (text, max) => (text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text);
 
 // Criar (row = null) ou editar um lançamento.
-export default function ExpenseModal({ show, row, rows = [], onClose, couple, categories, fixedExpenses, defaultDate }) {
+export default function ExpenseModal({ show, row, initialKind, rows = [], onClose, couple, categories, fixedExpenses, defaultDate }) {
     const isEditing = Boolean(row);
     const fromBank = row?.origin === 'open_finance';
     const partner = firstName(couple?.payer2_name);
@@ -54,7 +54,7 @@ export default function ExpenseModal({ show, row, rows = [], onClose, couple, ca
     useEffect(() => {
         if (!show) return;
         clearErrors();
-        setData(isEditing ? fromRow(row) : blank(defaultDate));
+        setData(isEditing ? fromRow(row) : blank(defaultDate, initialKind));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [show, row?.id]);
 
@@ -94,12 +94,12 @@ export default function ExpenseModal({ show, row, rows = [], onClose, couple, ca
         <Modal show={show} onClose={onClose} title={isEditing ? 'Editar lançamento' : 'Novo lançamento'} maxWidth="lg">
             <form onSubmit={submit} className="flex flex-col gap-4">
                 {fromBank && (
-                    <div className="rounded-[12px] bg-text/[0.04] px-3.5 py-3 shadow-[inset_0_0_0_1px_rgb(var(--color-text-rgb)/0.08)]">
-                        <div className="text-[13.5px] font-medium">{row.bank_name}</div>
-                        <div className="mt-0.5 text-[12px] text-text/50">
+                    <div className="rounded-[12px] border border-line bg-bg/40 px-3.5 py-3">
+                        <div className="text-[14px] font-medium">{row.bank_name}</div>
+                        <div className="mt-0.5 font-mono text-[12px] text-secondary">
                             {[row.prefix, fullDate(row.date), row.account_type === 'CREDIT' ? 'cartão de crédito' : 'conta', money(row.amount)].filter(Boolean).join(' · ')}
                         </div>
-                        <div className="mt-1.5 text-[11.5px] text-text/40">Descrição, valor e data vêm do banco e não podem ser alterados.</div>
+                        <div className="mt-1.5 text-[12px] text-muted">Descrição, valor e data vêm do banco e não podem ser alterados.</div>
                     </div>
                 )}
 
@@ -122,11 +122,11 @@ export default function ExpenseModal({ show, row, rows = [], onClose, couple, ca
                                     maxLength={255}
                                     error={errors.name_pattern}
                                 />
-                                <p className="mt-1.5 text-[11.5px] leading-relaxed text-text/45">
-                                    Use <code className="text-text/70">%</code> para qualquer texto.
+                                <p className="mt-1.5 text-[12px] leading-relaxed text-muted">
+                                    Use <code className="text-secondary">%</code> para qualquer texto.
                                 </p>
                                 {data.name_pattern?.trim() && (
-                                    <p className={`mt-1 text-[11.5px] ${matched.length ? 'text-text/60' : 'text-red'}`}>
+                                    <p className={`mt-1 text-[12px] ${matched.length ? 'text-secondary' : 'text-red'}`}>
                                         {matched.length
                                             ? `Neste mês: ${matched.length} ${matched.length === 1 ? 'lançamento' : 'lançamentos'} — ${matchedNames.slice(0, 4).join(', ')}${matchedNames.length > 4 ? '…' : ''}`
                                             : 'Não pega nenhum lançamento deste mês.'}
@@ -138,10 +138,10 @@ export default function ExpenseModal({ show, row, rows = [], onClose, couple, ca
                 )}
 
                 <div>
-                    <span className="mb-1.5 block text-[12.5px] font-medium text-text/70">Tipo</span>
+                    <span className="mb-1.5 block text-[13px] font-medium text-secondary">Tipo</span>
                     <Segmented options={kinds} value={data.kind} onChange={(kind) => setData('kind', kind)} className="w-fit" />
-                    {data.kind === 'ignored' && <p className="mt-1.5 text-[11.5px] text-text/45">Fica fora de todos os totais, do rateio e do acerto.</p>}
-                    {data.kind === 'settlement' && <p className="mt-1.5 text-[11.5px] text-text/45">Dinheiro trocado entre vocês — não conta como receita nem despesa.</p>}
+                    {data.kind === 'ignored' && <p className="mt-1.5 text-[12px] text-muted">Fica fora de todos os totais, do rateio e do acerto.</p>}
+                    {data.kind === 'settlement' && <p className="mt-1.5 text-[12px] text-muted">Dinheiro trocado entre vocês — não conta como receita nem despesa.</p>}
                 </div>
 
                 {!fromBank && (
@@ -163,7 +163,7 @@ export default function ExpenseModal({ show, row, rows = [], onClose, couple, ca
 
                 {data.kind === 'settlement' && !fromBank && (
                     <div>
-                        <span className="mb-1.5 block text-[12.5px] font-medium text-text/70">Quem pagou quem</span>
+                        <span className="mb-1.5 block text-[13px] font-medium text-secondary">Quem pagou quem</span>
                         <Segmented
                             options={[
                                 { value: 'in', label: `${partner} pagou ${me}` },
@@ -186,12 +186,12 @@ export default function ExpenseModal({ show, row, rows = [], onClose, couple, ca
                             error={errors.category_id}
                         />
                         <div>
-                            <span className="mb-1.5 block text-[12.5px] font-medium text-text/70">De quem é o gasto</span>
+                            <span className="mb-1.5 block text-[13px] font-medium text-secondary">De quem é o gasto</span>
                             <OwnershipToggle size="md" value={data.ownership} onChange={(value) => setData('ownership', value)} couple={couple} />
-                            <p className="mt-1.5 text-[11.5px] text-text/45">"Nós" é dividido pela proporção de renda ({couple?.payer1_percent}% / {couple?.payer2_percent}%).</p>
+                            <p className="mt-1.5 text-[12px] text-muted">"Nós" é dividido pela proporção de renda ({couple?.payer1_percent}% / {couple?.payer2_percent}%).</p>
                             {isEditing && (
                                 <div className="mt-3">
-                                    <span className="mb-1.5 block text-[12.5px] font-medium text-text/70">Vale para</span>
+                                    <span className="mb-1.5 block text-[13px] font-medium text-secondary">Vale para</span>
                                     <Segmented
                                         options={[
                                             { value: 'one', label: 'Só este lançamento' },
@@ -201,7 +201,7 @@ export default function ExpenseModal({ show, row, rows = [], onClose, couple, ca
                                         onChange={(value) => setData('ownership_scope', value)}
                                         className="w-fit max-w-full"
                                     />
-                                    <p className="mt-1.5 text-[11.5px] text-text/45">
+                                    <p className="mt-1.5 text-[12px] text-muted">
                                         {data.ownership_scope === 'all'
                                             ? 'Aplica às cobranças do mesmo estabelecimento deste mês em diante e às que ainda vão chegar. Meses anteriores não mudam.'
                                             : 'As próximas cobranças do mesmo estabelecimento não seguem esta escolha.'}
@@ -214,7 +214,7 @@ export default function ExpenseModal({ show, row, rows = [], onClose, couple, ca
 
                 {!fromBank && data.kind !== 'settlement' && (
                     <div>
-                        <span className="mb-1.5 block text-[12.5px] font-medium text-text/70">{data.kind === 'income' ? 'Recebido por' : 'Pago por'}</span>
+                        <span className="mb-1.5 block text-[13px] font-medium text-secondary">{data.kind === 'income' ? 'Recebido por' : 'Pago por'}</span>
                         <Segmented
                             options={[
                                 { value: 'payer1', label: me },
@@ -225,7 +225,7 @@ export default function ExpenseModal({ show, row, rows = [], onClose, couple, ca
                             className="w-fit"
                         />
                         {data.kind === 'expense' && data.source === 'payer2' && (
-                            <p className="mt-1.5 text-[11.5px] text-text/45">Gasto pago por {partner} — a sua parte abate o que {partner} te deve.</p>
+                            <p className="mt-1.5 text-[12px] text-muted">Gasto pago por {partner} — a sua parte abate o que {partner} te deve.</p>
                         )}
                     </div>
                 )}
@@ -244,7 +244,7 @@ export default function ExpenseModal({ show, row, rows = [], onClose, couple, ca
 
                 <div className="mt-1 flex justify-end gap-2.5">
                     <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-                    <Button type="submit" variant="secondary" disabled={processing}>
+                    <Button type="submit" variant="primary" disabled={processing}>
                         {processing ? 'Salvando...' : isEditing ? 'Salvar' : 'Adicionar'}
                     </Button>
                 </div>

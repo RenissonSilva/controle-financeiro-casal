@@ -46,7 +46,7 @@ export default function DeleteUserForm({ className = '' }) {
 
             <Modal show={confirmingUserDeletion} onClose={closeModal} title="Apagar seu login?">
                 <form onSubmit={deleteUser} className="flex flex-col gap-4">
-                    <p className="text-[13px] leading-[1.5] text-text/60">
+                    <p className="text-[13px] leading-[1.5] text-secondary">
                         Esta ação não pode ser desfeita. Digite sua senha para confirmar.
                     </p>
 

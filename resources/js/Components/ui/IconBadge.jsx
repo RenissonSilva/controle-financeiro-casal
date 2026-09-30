@@ -1,14 +1,13 @@
-// Círculo de 26px com ícone, usado nos títulos de card do Sovinna.
-// tone: 'accent' (padrão) | 'income' | 'expense'
+// Ícone ao lado do título de card. tone: 'accent' (padrão, cinza) | 'income' | 'expense'.
 const TONES = {
-    accent: 'bg-teal/16',
-    income: 'bg-teal/16',
-    expense: 'bg-red/16',
+    accent: 'text-muted',
+    income: 'text-accent',
+    expense: 'text-red',
 };
 
 export default function IconBadge({ children, tone = 'accent', className = '' }) {
     return (
-        <span className={`grid h-[26px] w-[26px] flex-none place-items-center rounded-full ${TONES[tone]} ${className}`}>
+        <span className={`grid flex-none place-items-center [&_svg]:h-4 [&_svg]:w-4 ${TONES[tone]} ${className}`}>
             {children}
         </span>
     );

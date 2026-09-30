@@ -6,37 +6,37 @@ import { dayMonth, firstName, money } from '@/lib/format';
 
 // Logo da empresa, quando reconhecida; senão o ícone da origem: cartão, Pix/conta, receita, acerto, manual.
 function TypeIcon({ row }) {
-    const base = 'grid h-7 w-7 flex-none place-items-center rounded-full';
+    const base = 'grid h-8 w-8 flex-none place-items-center rounded-lg';
 
     if (row.kind === 'settlement') {
-        return <span className={`${base} bg-teal/16 text-strong-accent`}><ArrowLeftRight size={13} strokeWidth={2.3} /></span>;
+        return <span className={`${base} bg-accent/12 text-accent`}><ArrowLeftRight size={13} strokeWidth={2.3} /></span>;
     }
     if (row.merchant) {
         return <MerchantLogo merchant={row.merchant} />;
     }
     if (row.kind === 'income' || (row.direction === 'in' && row.kind !== 'ignored')) {
-        return <span className={`${base} bg-green/16 text-green`}><ArrowDownLeft size={14} strokeWidth={2.3} /></span>;
+        return <span className={`${base} bg-accent/12 text-accent`}><ArrowDownLeft size={14} strokeWidth={2.3} /></span>;
     }
     if (row.origin === 'manual') {
-        return <span className={`${base} bg-text/8 text-text/60`}><PenLine size={13} strokeWidth={2.2} /></span>;
+        return <span className={`${base} bg-inset text-secondary`}><PenLine size={13} strokeWidth={2.2} /></span>;
     }
     if (row.account_type === 'CREDIT') {
-        return <span className={`${base} bg-text/8 text-text/60`}><CreditCard size={13} strokeWidth={2.2} /></span>;
+        return <span className={`${base} bg-inset text-secondary`}><CreditCard size={13} strokeWidth={2.2} /></span>;
     }
 
-    return <span className={`${base} bg-text/8 text-text/60`}><ArrowUpRight size={14} strokeWidth={2.2} /></span>;
+    return <span className={`${base} bg-inset text-secondary`}><ArrowUpRight size={14} strokeWidth={2.2} /></span>;
 }
 
 function Amount({ row }) {
     const value = money(row.amount);
-    const base = 'w-[112px] flex-none text-right text-[13px] font-semibold tabular-nums';
+    const base = 'w-[112px] flex-none whitespace-nowrap text-right font-mono text-[13px]';
 
-    if (row.kind === 'ignored') return <span className={`${base} text-text/35 line-through decoration-text/30`}>{value}</span>;
-    if (row.kind === 'income') return <span className={`${base} text-green`}>+{value}</span>;
-    if (row.kind === 'settlement') return <span className={`${base} text-strong-accent`}>{row.direction === 'in' ? '+' : '−'}{value}</span>;
-    if (row.direction === 'in') return <span className={`${base} text-green`}>−{value}</span>;
+    if (row.kind === 'ignored') return <span className={`${base} text-muted/70 line-through decoration-muted/50`}>{value}</span>;
+    if (row.kind === 'income') return <span className={`${base} text-accent`}>+{value}</span>;
+    if (row.kind === 'settlement') return <span className={`${base} text-secondary`}>{row.direction === 'in' ? '+' : '−'}{value}</span>;
+    if (row.direction === 'in') return <span className={`${base} text-accent`}>+{value}</span>;
 
-    return <span className={`${base} text-text`}>{value}</span>;
+    return <span className={`${base} text-text`}>−{value}</span>;
 }
 
 // Linha de detalhes: "14:32 · Transferência enviada · parcela 3/6 · US$ 21,49 · conta fixa: Aluguel".
@@ -57,7 +57,7 @@ function Details({ row, couple }) {
     if (row.origin === 'manual') bits.push(`manual · pago por ${firstName(row.source === 'payer2' ? couple?.payer2_name : couple?.payer1_name)}`);
     else if (row.source === 'payer2') bits.push(`pago por ${firstName(couple?.payer2_name)}`);
 
-    return <div className="truncate text-[11px] text-text/45">{bits.join(' · ') || ' '}</div>;
+    return <div className="truncate text-[12px] text-muted">{bits.join(' · ') || ' '}</div>;
 }
 
 export default function ExpenseRow({ row, couple, categories, showDate, selected, onToggleSelect, onChange, onEdit, onToggleIgnore, onDelete }) {
@@ -66,8 +66,8 @@ export default function ExpenseRow({ row, couple, categories, showDate, selected
 
     return (
         <div
-            className={`group flex items-center gap-3 rounded-[12px] px-2 py-[7px] transition-colors ${
-                selected ? 'bg-teal/12' : 'hover:bg-text/5'
+            className={`group flex items-center gap-3 rounded-[10px] px-2 py-2 transition-colors ${
+                selected ? 'bg-accent/8' : 'hover:bg-raised'
             } ${row.kind === 'ignored' ? 'opacity-60' : ''}`}
         >
             <input
@@ -75,17 +75,17 @@ export default function ExpenseRow({ row, couple, categories, showDate, selected
                 checked={selected}
                 onChange={onToggleSelect}
                 aria-label={`Selecionar ${row.name}`}
-                className="h-4 w-4 flex-none rounded border-text/25 bg-transparent text-teal focus:ring-teal/40 focus:ring-offset-0"
+                className="h-4 w-4 flex-none rounded border-line-strong bg-transparent text-accent focus:ring-accent/40 focus:ring-offset-0"
             />
 
-            {showDate && <span className="w-[40px] flex-none text-xs font-medium tabular-nums text-text/50">{dayMonth(row.date)}</span>}
+            {showDate && <span className="w-[44px] flex-none font-mono text-[12px] text-secondary">{dayMonth(row.date)}</span>}
 
             <TypeIcon row={row} />
 
             <button type="button" onClick={onEdit} className="min-w-0 flex-1 text-left">
-                <div className="truncate text-[13px] font-medium">
+                <div className="truncate text-[14px] font-medium">
                     {row.name}
-                    {row.notes && <span className="font-normal text-text/45"> · {row.notes}</span>}
+                    {row.notes && <span className="font-normal text-muted"> · {row.notes}</span>}
                 </div>
                 <Details row={row} couple={couple} />
             </button>
@@ -94,15 +94,15 @@ export default function ExpenseRow({ row, couple, categories, showDate, selected
                 <>
                     <div className="hidden w-[168px] flex-none items-center gap-2 lg:flex">
                         <span
-                            className="h-2 w-2 flex-none rounded-full"
-                            style={{ background: category?.color || 'rgb(var(--color-text-rgb) / 0.25)' }}
+                            className="h-2 w-2 flex-none rounded-[2px]"
+                            style={{ background: category?.color || 'rgb(var(--color-line-strong-rgb))' }}
                         />
                         <select
                             value={row.category_id ?? ''}
                             onChange={(e) => onChange({ category_id: e.target.value ? Number(e.target.value) : null })}
                             aria-label="Categoria"
-                            className={`w-full truncate rounded-[8px] border-0 bg-transparent py-1 pl-1 pr-7 text-[12.5px] transition-colors hover:bg-text/8 focus:bg-text/8 focus:ring-1 focus:ring-teal/50 ${
-                                row.category_id ? 'text-text/85' : 'text-lime'
+                            className={`w-full truncate rounded-[8px] border-0 bg-transparent py-1 pl-1 pr-7 text-[13px] transition-colors hover:bg-inset focus:bg-inset focus:ring-1 focus:ring-accent/50 ${
+                                row.category_id ? 'text-secondary' : 'text-warning'
                             }`}
                         >
                             <option value="" className="bg-surface text-text">Sem categoria</option>
@@ -123,30 +123,30 @@ export default function ExpenseRow({ row, couple, categories, showDate, selected
             <Amount row={row} />
 
             <Menu as="div" className="relative flex-none">
-                <MenuButton aria-label="Ações" className="grid h-7 w-7 place-items-center rounded-full text-text/45 transition-colors hover:bg-text/10 hover:text-text">
+                <MenuButton aria-label="Ações" className="grid h-8 w-8 place-items-center rounded-lg text-muted transition-colors hover:bg-inset hover:text-text">
                     <MoreHorizontal size={15} strokeWidth={2.2} />
                 </MenuButton>
                 <MenuItems
                     anchor="bottom end"
-                    className="z-50 mt-1 w-56 rounded-[12px] bg-surface p-1.5 text-[13px] text-text shadow-[inset_0_0_0_1px_rgb(var(--color-text-rgb)/0.1),0_12px_32px_rgba(0,0,0,0.45)] focus:outline-none"
+                    className="z-50 mt-1 w-56 rounded-[14px] bg-surface p-1.5 text-[14px] text-text border border-line focus:outline-none"
                 >
                     <MenuItem>
-                        <button type="button" onClick={onEdit} className="flex w-full items-center gap-2 rounded-[8px] px-2.5 py-2 text-left data-[focus]:bg-text/8">
-                            <Pencil size={13} className="text-text/60" /> Editar
+                        <button type="button" onClick={onEdit} className="flex w-full items-center gap-2 rounded-[8px] px-3 py-2.5 text-left data-[focus]:bg-raised">
+                            <Pencil size={14} strokeWidth={1.75} className="text-muted" /> Editar
                         </button>
                     </MenuItem>
                     <MenuItem>
-                        <button type="button" onClick={onToggleIgnore} className="flex w-full items-center gap-2 rounded-[8px] px-2.5 py-2 text-left data-[focus]:bg-text/8">
+                        <button type="button" onClick={onToggleIgnore} className="flex w-full items-center gap-2 rounded-[8px] px-3 py-2.5 text-left data-[focus]:bg-raised">
                             {row.kind === 'ignored' ? (
-                                <><Eye size={13} className="text-text/60" /> Voltar a contar</>
+                                <><Eye size={14} strokeWidth={1.75} className="text-muted" /> Voltar a contar</>
                             ) : (
-                                <><EyeOff size={13} className="text-text/60" /> Ignorar nos cálculos</>
+                                <><EyeOff size={14} strokeWidth={1.75} className="text-muted" /> Ignorar nos cálculos</>
                             )}
                         </button>
                     </MenuItem>
                     {row.origin === 'manual' && (
                         <MenuItem>
-                            <button type="button" onClick={onDelete} className="flex w-full items-center gap-2 rounded-[8px] px-2.5 py-2 text-left text-red data-[focus]:bg-text/8">
+                            <button type="button" onClick={onDelete} className="flex w-full items-center gap-2 rounded-[8px] px-3 py-2.5 text-left text-red data-[focus]:bg-raised">
                                 <Trash2 size={13} /> Excluir
                             </button>
                         </MenuItem>

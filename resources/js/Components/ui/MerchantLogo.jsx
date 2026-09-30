@@ -1,13 +1,13 @@
-// Logo da empresa do lançamento (ver App\Support\MerchantLogo), no mesmo círculo de 28px
-// dos ícones de tipo. O anel sutil evita que logos escuros sumam no fundo.
-export default function MerchantLogo({ merchant }) {
+// Logo da empresa do lançamento (ver App\Support\MerchantLogo), no mesmo quadrado de 32px
+// dos monogramas. O anel sutil evita que logos escuros sumam no fundo.
+export default function MerchantLogo({ merchant, size = 'h-8 w-8' }) {
     return (
         <img
             src={merchant.logo}
             alt={merchant.name}
             title={merchant.name}
             loading="lazy"
-            className="h-7 w-7 flex-none rounded-full object-cover ring-1 ring-text/10"
+            className={`${size} flex-none rounded-lg object-cover ring-1 ring-line-strong`}
         />
     );
 }

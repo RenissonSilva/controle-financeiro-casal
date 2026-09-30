@@ -24,7 +24,7 @@ export default function UpdateProfileInformation({ mustVerifyEmail, status, clas
     return (
         <section className={className}>
             <SectionHeader
-                icon={<UserRound size={13} strokeWidth={2.2} className="stroke-strong-accent" />}
+                icon={<UserRound size={16} strokeWidth={1.75} />}
                 title="Perfil"
                 subtitle="Nome e e-mail usados para entrar."
             />
@@ -43,7 +43,7 @@ export default function UpdateProfileInformation({ mustVerifyEmail, status, clas
                 </div>
 
                 {mustVerifyEmail && user.email_verified_at === null && (
-                    <div className="text-[13px] text-text/70">
+                    <div className="text-[13px] text-secondary">
                         Seu e-mail ainda não foi confirmado.{' '}
                         <Link href={route('verification.send')} method="post" as="button" className="text-strong-accent underline-offset-2 hover:underline">
                             Reenviar o e-mail de confirmação.

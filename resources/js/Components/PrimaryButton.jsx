@@ -1,4 +1,4 @@
-// Botão de ação principal (mesmo do "Salvar alterações" das Configurações).
+// Botão de ação principal (limão) — mesmo visual do Button variant="primary".
 export default function PrimaryButton({
     className = '',
     disabled,
@@ -8,7 +8,7 @@ export default function PrimaryButton({
     return (
         <button
             {...props}
-            className={`inline-flex items-center justify-center gap-1.5 rounded-[9px] bg-teal/80 px-[18px] py-2.5 font-heading text-[13px] font-medium text-text transition-colors hover:bg-teal/70 focus:outline-none focus:ring-2 focus:ring-teal/50 disabled:pointer-events-none disabled:opacity-60 ${className}`}
+            className={`inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-[10px] bg-accent px-[18px] text-[14px] font-semibold text-on-accent transition-[filter] hover:brightness-[1.06] disabled:pointer-events-none disabled:opacity-60 ${className}`}
             disabled={disabled}
         >
             {children}

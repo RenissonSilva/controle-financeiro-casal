@@ -24,7 +24,7 @@ export default function VerifyEmail({ status }) {
 
             <form onSubmit={submit}>
                 <div className="flex items-center justify-between gap-3">
-                    <Link href={route('logout')} method="post" as="button" className="text-[12.5px] text-text/55 underline-offset-2 hover:text-text hover:underline">
+                    <Link href={route('logout')} method="post" as="button" className="text-[13px] text-muted underline-offset-2 hover:text-text hover:underline">
                         Sair
                     </Link>
                     <PrimaryButton disabled={processing}>Reenviar e-mail</PrimaryButton>

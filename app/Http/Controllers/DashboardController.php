@@ -13,6 +13,7 @@ use App\Services\Finance\CycleReport;
 use App\Services\Finance\HealthScore;
 use App\Support\ExpensePresenter;
 use App\Support\MerchantLogo;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
@@ -23,10 +24,11 @@ class DashboardController extends Controller
     // Depois disso sem sincronizar, a Home pede uma sincronização ao abrir.
     private const STALE_AFTER_HOURS = 6;
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $settings = Setting::current();
-        $month = $settings->currentCycle();
+        $month = $request->get('month');
+        $month = is_string($month) && preg_match('/^\d{4}-\d{2}$/', $month) ? $month : $settings->currentCycle();
         $report = CycleReport::for($month, $settings);
         $balances = new BalanceHistory($settings);
         $split = $report->split();
@@ -38,6 +40,9 @@ class DashboardController extends Controller
                 'label' => $report->label(),
                 'start' => $report->start->toDateString(),
                 'end' => $report->end->toDateString(),
+                'previous' => Setting::shiftCycle($month, -1),
+                'next' => Setting::shiftCycle($month, 1),
+                'is_current' => $month === $settings->currentCycle(),
             ],
             'health' => (new HealthScore($settings, $balances))->compute(),
             'balance' => $balances->hasData() ? $balances->summary(8) : null,

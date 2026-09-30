@@ -9,11 +9,11 @@ import UpdateProfileInformationForm from './Partials/UpdateProfileInformationFor
 export default function Edit({ mustVerifyEmail, status }) {
     return (
         <AppLayout title="Minha conta">
-            <PageHeader eyebrow="Acesso" title="Minha conta" description="Seu login no Sovinna: nome, e-mail e senha." />
+            <PageHeader title="Minha conta" description="Seu login no Sovinna: nome, e-mail e senha." />
 
             <section className="flex flex-col gap-4">
                 <SectionLabel title="Dados de acesso" />
-                <section className="grid grid-cols-[repeat(auto-fit,minmax(340px,1fr))] items-start gap-[clamp(14px,1.6vw,20px)]">
+                <section className="grid grid-cols-[repeat(auto-fit,minmax(340px,1fr))] items-start gap-5">
                     <Card hover={false}>
                         <UpdateProfileInformationForm mustVerifyEmail={mustVerifyEmail} status={status} />
                     </Card>

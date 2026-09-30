@@ -3,10 +3,10 @@ import Card from '@/Components/ui/Card';
 import PageHeader from '@/Components/ui/PageHeader';
 import SectionHeader from '@/Components/ui/SectionHeader';
 import CycleSwitcher from '@/Components/ui/CycleSwitcher';
-import IconBadge from '@/Components/ui/IconBadge';
+import Button from '@/Components/ui/Button';
 import { Link, usePage } from '@inertiajs/react';
 import { ArrowLeftRight, CalendarClock, ChevronLeft, UserRound, Users } from 'lucide-react';
-import { dayMonth, firstName, money, percent } from '@/lib/format';
+import { dayMonth, dayMonthLabel, firstName, money, percent } from '@/lib/format';
 
 const sum = (items, key) => items.reduce((total, item) => total + Number(item[key] || 0), 0);
 
@@ -38,8 +38,8 @@ export default function Settlement({ cycle, summary, lines, fixed }) {
         <AppLayout title={`Acerto com ${partner}`}>
             <PageHeader
                 eyebrow={
-                    <Link href={route('dashboard')} className="inline-flex items-center gap-1 hover:text-text">
-                        <ChevronLeft size={13} strokeWidth={2.4} /> Dashboard
+                    <Link href={route('dashboard', cycle.is_current ? {} : { month: cycle.month })} className="inline-flex min-h-8 items-center gap-1 font-medium text-secondary no-underline hover:text-text">
+                        <ChevronLeft size={14} strokeWidth={2} /> Dashboard
                     </Link>
                 }
                 title={`Acerto com ${partner}`}
@@ -48,24 +48,30 @@ export default function Settlement({ cycle, summary, lines, fixed }) {
             />
 
             {/* Resumo */}
-            <section className="flex flex-wrap items-stretch gap-[clamp(14px,1.6vw,20px)]">
-                <Card className="flex flex-[1.4_1_320px] flex-col gap-3.5">
-                    <div className="flex items-center gap-2">
-                        <IconBadge><ArrowLeftRight size={13} strokeWidth={2.2} className="stroke-strong-accent" /></IconBadge>
-                        <span className="text-[13px] font-semibold tracking-[-.01em]">
+            <section className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.55fr)] gap-5 max-[1100px]:grid-cols-1">
+                <Card bg={false} className="flex flex-col gap-3.5 border border-accent bg-accent text-on-accent">
+                    <h2 className="flex items-center gap-2 text-[14px] font-semibold">
+                        <ArrowLeftRight size={14} strokeWidth={2} /> Acerto com {partner}
+                    </h2>
+                    <div>
+                        <span className="block text-[14px] text-on-accent-2">
                             {due > 0.009 ? `${partner} te deve` : due < -0.009 ? `Você deve a ${partner}` : 'Tudo acertado'}
                         </span>
+                        <span className="block text-[42px] font-semibold leading-[1.1] tracking-[-0.035em] tabular-nums max-[560px]:text-[36px]">
+                            {money(Math.abs(due))}
+                        </span>
                     </div>
-                    <div className={`font-heading text-[clamp(26px,2.6vw,32px)] font-medium tracking-[-.02em] ${due < -0.009 ? 'text-red' : ''}`}>
-                        {money(Math.abs(due))}
-                    </div>
+                    <p className="text-[13px] leading-[1.45] text-on-accent-2">Lançamentos do mês + contas fixas do próximo</p>
+                    <Button variant="dark" href={route('expenses.index', { ...(cycle.is_current ? {} : { month: cycle.month }), new: 'settlement' })} className="self-start">
+                        Registrar acerto
+                    </Button>
                 </Card>
             </section>
 
             {/* Listas */}
-            <section className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))] items-start gap-[clamp(14px,1.6vw,20px)]">
+            <section className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))] items-start gap-5">
                 <LineGroup
-                    icon={<UserRound size={13} strokeWidth={2.2} className="stroke-strong-accent" />}
+                    icon={<UserRound size={16} strokeWidth={1.75} />}
                     title={`Gastos de ${partner}`}
                     subtitle="100% dela"
                     total={sum(own, 'payer2_share')}
@@ -74,7 +80,7 @@ export default function Settlement({ cycle, summary, lines, fixed }) {
                 />
 
                 <LineGroup
-                    icon={<Users size={13} strokeWidth={2.2} className="stroke-strong-accent" />}
+                    icon={<Users size={16} strokeWidth={1.75} />}
                     title="Compartilhados"
                     subtitle={`Parte de ${partner}: ${percent(couple?.payer2_percent, 0)}`}
                     total={sum(shared, 'payer2_share')}
@@ -83,7 +89,7 @@ export default function Settlement({ cycle, summary, lines, fixed }) {
                 />
 
                 <LineGroup
-                    icon={<CalendarClock size={13} strokeWidth={2.2} className="stroke-strong-accent" />}
+                    icon={<CalendarClock size={16} strokeWidth={1.75} />}
                     title="Contas fixas"
                     subtitle={`Do próximo mês · parte de ${partner}`}
                     total={sum(fixed, 'payer2_share')}
@@ -106,7 +112,7 @@ export default function Settlement({ cycle, summary, lines, fixed }) {
 
                 {paidForMe.length > 0 && (
                     <LineGroup
-                        icon={<ArrowLeftRight size={13} strokeWidth={2.2} className="stroke-strong-accent" />}
+                        icon={<ArrowLeftRight size={16} strokeWidth={1.75} />}
                         title={`Gastos de ${me} pagos por ${partner}`}
                         subtitle="Abatem do acerto"
                         total={-sum(paidForMe, 'payer1_share')}
@@ -123,26 +129,26 @@ function LineGroup({ icon, title, subtitle, total, rows, empty }) {
     return (
         <Card hover={false} className="flex flex-col">
             <SectionHeader
-                className="mb-3"
+                className="mb-4"
                 icon={icon}
                 title={title}
                 subtitle={subtitle}
-                action={total !== undefined && <span className="font-heading text-[15px] font-semibold tabular-nums">{money(total)}</span>}
+                action={total !== undefined && <span className="whitespace-nowrap font-mono text-[14px] font-medium">{money(total)}</span>}
             />
             {rows.length === 0 ? (
-                <p className="px-2.5 py-6 text-center text-[12.5px] text-text/45">{empty}</p>
+                <p className="py-6 text-center text-[13px] text-muted">{empty}</p>
             ) : (
-                <div className="flex flex-col gap-0.5">
+                <div className="flex flex-col">
                     {rows.map((row) => (
-                        <div key={row.key} className={`flex items-center gap-3 rounded-[10px] px-2.5 py-2 transition-colors hover:bg-text/5 ${row.muted ? 'opacity-70' : ''}`}>
-                            <span className="w-[42px] flex-none text-xs font-medium tabular-nums text-text/50">{dayMonth(row.date)}</span>
+                        <div key={row.key} className={`flex items-center gap-3 border-t border-line-row py-3 first:border-t-0 ${row.muted ? 'opacity-70' : ''}`}>
+                            <span className="w-[48px] flex-none font-mono text-[13px] text-secondary">{dayMonthLabel(row.date)}</span>
                             <div className="min-w-0 flex-1">
-                                <span className="block truncate text-[13px] font-medium">{row.name}</span>
-                                <span className="block truncate text-[11px] text-text/45">{row.details}</span>
+                                <span className="block truncate text-[14px] font-medium">{row.name}</span>
+                                <span className="block truncate text-[12px] text-muted">{row.details}</span>
                             </div>
                             <div className="flex-none text-right">
-                                <div className="text-[13px] font-semibold tabular-nums">{money(row.value)}</div>
-                                {row.note && <div className="text-[10.5px] tabular-nums text-text/40">{row.note}</div>}
+                                <div className="whitespace-nowrap font-mono text-[13px]">{money(row.value)}</div>
+                                {row.note && <div className="whitespace-nowrap text-[12px] text-muted">{row.note}</div>}
                             </div>
                         </div>
                     ))}

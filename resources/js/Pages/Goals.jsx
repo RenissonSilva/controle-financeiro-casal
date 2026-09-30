@@ -16,6 +16,15 @@ import { deadlineLabel, money, moneyShort } from '@/lib/format';
 export default function Goals({ goals, invested, investments }) {
     const [editing, setEditing] = useState({ show: false, goal: null });
 
+    // Vindo do Dashboard ("Criar meta"): abre o modal direto.
+    useEffect(() => {
+        const url = new URL(window.location.href);
+        if (!url.searchParams.has('new')) return;
+        setEditing({ show: true, goal: null });
+        url.searchParams.delete('new');
+        window.history.replaceState(window.history.state, '', url);
+    }, []);
+
     const remove = (goal) => {
         if (confirm(`Remover a meta "${goal.name}"?`)) router.delete(route('goals.destroy', goal.id), { preserveScroll: true });
     };
@@ -23,24 +32,25 @@ export default function Goals({ goals, invested, investments }) {
     return (
         <AppLayout title="Metas">
             <PageHeader
-                eyebrow="Planejamento"
                 title="Metas"
                 description="Quanto vocês querem juntar e até quando. Metas ligadas aos investimentos acompanham o saldo real do banco."
                 actions={
-                    <Button type="button" variant="secondary" onClick={() => setEditing({ show: true, goal: null })}>
+                    <Button type="button" variant="primary" onClick={() => setEditing({ show: true, goal: null })} className="max-[560px]:flex-1">
                         <Plus size={14} strokeWidth={2.2} /> Nova meta
                     </Button>
                 }
             />
 
-            <section className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] items-stretch gap-[clamp(14px,1.6vw,20px)]">
+            <section className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,320px),1fr))] items-stretch gap-5">
                 {goals.length === 0 && (
                     <Card className="flex flex-col items-start gap-3">
-                        <IconBadge><Target size={13} strokeWidth={2.2} className="stroke-strong-accent" /></IconBadge>
-                        <p className="text-[13px] leading-[1.5] text-text/60">
-                            Nenhuma meta ainda. Crie uma — a primeira aparece no card "Meta" da Home.
+                        <h2 className="flex items-center gap-2 text-[15px] font-semibold">
+                            <IconBadge><Target /></IconBadge> Nenhuma meta ainda
+                        </h2>
+                        <p className="max-w-[46ch] text-[13px] leading-[1.5] text-muted">
+                            Crie uma — a primeira aparece no card "Meta" da Home.
                         </p>
-                        <Button type="button" variant="ghost" onClick={() => setEditing({ show: true, goal: null })}>
+                        <Button type="button" variant="secondary" className="mt-1" onClick={() => setEditing({ show: true, goal: null })}>
                             <Plus size={14} strokeWidth={2.2} /> Criar meta
                         </Button>
                     </Card>
@@ -50,38 +60,38 @@ export default function Goals({ goals, invested, investments }) {
                     <Card key={goal.id} className="flex flex-col gap-4">
                         <div className="flex items-center justify-between gap-2">
                             <div className="flex min-w-0 items-center gap-2">
-                                <IconBadge><Target size={13} strokeWidth={2.2} className="stroke-strong-accent" /></IconBadge>
-                                <span className="truncate text-[13px] font-semibold tracking-[-.01em]">{goal.name}</span>
-                                {goal.is_primary && <span className="rounded-full bg-teal/16 px-2 py-[1px] text-[10.5px] font-medium text-strong-accent">na Home</span>}
+                                <IconBadge><Target /></IconBadge>
+                                <span className="truncate text-[15px] font-semibold">{goal.name}</span>
+                                {goal.is_primary && <span className="flex-none rounded-full border border-line-strong px-2 py-[2px] text-[11px] text-secondary">na Home</span>}
                             </div>
-                            <span className="text-xs font-bold text-strong-accent">{Math.round(goal.percent)}%</span>
+                            <span className="text-[13px] font-semibold tabular-nums text-accent">{Math.round(goal.percent)}%</span>
                         </div>
 
                         <div className="flex flex-wrap items-baseline gap-2">
-                            <span className="font-heading text-[26px] font-medium tracking-[-.02em]">{moneyShort(goal.current)}</span>
-                            <span className="text-xs text-text/45">
+                            <span className="text-[28px] font-semibold tracking-[-0.02em] tabular-nums">{moneyShort(goal.current)}</span>
+                            <span className="text-[13px] text-muted">
                                 de {moneyShort(goal.target_amount)}{goal.deadline && ` · até ${deadlineLabel(goal.deadline)}`}
                             </span>
                         </div>
 
                         <ProgressBar value={goal.percent} />
 
-                        <div className="text-[12px] leading-relaxed text-text/50">
+                        <div className="text-[13px] leading-relaxed text-muted">
                             {goal.tracking === 'investments' ? 'Acompanha o saldo investido conectado.' : 'Progresso informado manualmente.'}
-                            {goal.monthly_needed > 0 && <> Para chegar no prazo: <strong className="text-text/80">{money(goal.monthly_needed)}/mês</strong>.</>}
-                            {goal.percent >= 100 && <strong className="text-green"> Meta alcançada!</strong>}
+                            {goal.monthly_needed > 0 && <> Para chegar no prazo: <strong className="font-medium text-text">{money(goal.monthly_needed)}/mês</strong>.</>}
+                            {goal.percent >= 100 && <strong className="font-semibold text-accent"> Meta alcançada!</strong>}
                         </div>
 
-                        <div className="mt-auto flex items-center gap-1 border-t border-text/8 pt-3">
+                        <div className="mt-auto flex items-center gap-1 border-t border-line pt-3">
                             {!goal.is_primary && (
-                                <Button type="button" variant="ghost" className="px-2.5 py-1.5 text-[12.5px]" onClick={() => router.post(route('goals.primary', goal.id), {}, { preserveScroll: true })}>
-                                    <Star size={13} /> Mostrar na Home
+                                <Button type="button" variant="ghost" size="sm" onClick={() => router.post(route('goals.primary', goal.id), {}, { preserveScroll: true })}>
+                                    <Star size={14} strokeWidth={1.75} /> Mostrar na Home
                                 </Button>
                             )}
-                            <Button type="button" variant="ghost" className="ml-auto px-2.5 py-1.5 text-[12.5px]" onClick={() => setEditing({ show: true, goal })}>
-                                <Pencil size={13} /> Editar
+                            <Button type="button" variant="ghost" size="sm" className="ml-auto" onClick={() => setEditing({ show: true, goal })}>
+                                <Pencil size={14} strokeWidth={1.75} /> Editar
                             </Button>
-                            <button type="button" onClick={() => remove(goal)} aria-label="Remover meta" className="grid h-8 w-8 place-items-center rounded-full text-text/45 hover:bg-text/10 hover:text-red">
+                            <button type="button" onClick={() => remove(goal)} aria-label="Remover meta" className="grid h-9 w-9 place-items-center rounded-[10px] text-muted hover:bg-raised hover:text-red">
                                 <Trash2 size={14} />
                             </button>
                         </div>
@@ -93,21 +103,20 @@ export default function Goals({ goals, invested, investments }) {
                 <SectionLabel title="Investimentos conectados" />
                 <Card hover={false}>
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <IconBadge><Landmark size={13} strokeWidth={2.2} className="stroke-strong-accent" /></IconBadge>
-                            <span className="text-[13px] font-semibold">Saldo investido</span>
-                        </div>
-                        <span className="font-heading text-[20px] font-semibold tracking-[-.02em]">{money(invested)}</span>
+                        <h2 className="flex items-center gap-2 text-[15px] font-semibold">
+                            <IconBadge><Landmark /></IconBadge> Saldo investido
+                        </h2>
+                        <span className="text-[22px] font-semibold tracking-[-0.02em] tabular-nums">{money(invested)}</span>
                     </div>
                     {investments.length === 0 ? (
-                        <p className="mt-3 text-[12.5px] text-text/45">Nenhum investimento com saldo nas contas conectadas.</p>
+                        <p className="mt-3 text-[13px] text-muted">Nenhum investimento com saldo nas contas conectadas.</p>
                     ) : (
                         <div className="mt-3 flex flex-col">
                             {investments.map((investment) => (
-                                <div key={investment.id} className="flex items-center gap-3 rounded-[10px] px-2 py-2 hover:bg-text/5">
-                                    <span className="min-w-0 flex-1 truncate text-[13px]">{investment.name}</span>
-                                    <span className="text-[11.5px] text-text/45">{investment.type}</span>
-                                    <span className="w-[120px] text-right text-[13px] font-semibold tabular-nums">{money(investment.balance)}</span>
+                                <div key={investment.id} className="flex items-center gap-3 border-t border-line-row py-3 first:border-t-0">
+                                    <span className="min-w-0 flex-1 truncate text-[14px] font-medium">{investment.name}</span>
+                                    <span className="rounded-full bg-inset px-2 py-[2px] text-[12px] text-secondary">{investment.type}</span>
+                                    <span className="w-[120px] whitespace-nowrap text-right font-mono text-[13px]">{money(investment.balance)}</span>
                                 </div>
                             ))}
                         </div>
@@ -153,7 +162,7 @@ function GoalModal({ show, goal, invested, onClose }) {
                 </div>
 
                 <div>
-                    <span className="mb-1.5 block text-[12.5px] font-medium text-text/70">Como medir o progresso</span>
+                    <span className="mb-1.5 block text-[13px] font-medium text-secondary">Como medir o progresso</span>
                     <Segmented
                         value={data.tracking}
                         onChange={(tracking) => setData('tracking', tracking)}
@@ -163,7 +172,7 @@ function GoalModal({ show, goal, invested, onClose }) {
                         ]}
                         className="w-fit"
                     />
-                    <p className="mt-1.5 text-[11.5px] text-text/45">
+                    <p className="mt-1.5 text-[12px] text-muted">
                         {data.tracking === 'investments'
                             ? `Usa o total investido nas contas conectadas (hoje ${money(invested)}).`
                             : 'Você atualiza quanto já juntou.'}
@@ -174,14 +183,14 @@ function GoalModal({ show, goal, invested, onClose }) {
                     <Field label="Já juntado" money value={data.manual_amount} onChange={(e) => setData('manual_amount', e.target.value)} error={errors.manual_amount} />
                 )}
 
-                <label className="flex items-center gap-2.5 text-[13px]">
-                    <input type="checkbox" checked={data.is_primary} onChange={(e) => setData('is_primary', e.target.checked)} className="h-4 w-4 rounded border-text/25 bg-transparent text-teal focus:ring-teal/40 focus:ring-offset-0" />
+                <label className="flex items-center gap-2.5 text-[14px]">
+                    <input type="checkbox" checked={data.is_primary} onChange={(e) => setData('is_primary', e.target.checked)} className="h-4 w-4 rounded border-line-strong bg-transparent text-accent focus:ring-accent/40 focus:ring-offset-0" />
                     Mostrar esta meta na Home
                 </label>
 
                 <div className="mt-1 flex justify-end gap-2.5">
                     <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-                    <Button type="submit" variant="secondary" disabled={processing}>{processing ? 'Salvando...' : isEditing ? 'Salvar' : 'Criar meta'}</Button>
+                    <Button type="submit" variant="primary" disabled={processing}>{processing ? 'Salvando...' : isEditing ? 'Salvar' : 'Criar meta'}</Button>
                 </div>
             </form>
         </Modal>

@@ -2,7 +2,7 @@ import AppLayout from '@/Layouts/AppLayout';
 import Card from '@/Components/ui/Card';
 import Button from '@/Components/ui/Button';
 import Modal from '@/Components/ui/Modal';
-import Field from '@/Components/ui/Field';
+import Field, { INPUT_CLASSES } from '@/Components/ui/Field';
 import MoneyInput from '@/Components/ui/MoneyInput';
 import Select from '@/Components/ui/Select';
 import PageHeader from '@/Components/ui/PageHeader';
@@ -19,9 +19,9 @@ import { dayMonth, formatDocument, money } from '@/lib/format';
 import { OWNERSHIP_BADGE, ownershipLabel } from '@/lib/ownership';
 
 const STATUS = {
-    paid: { label: 'Paga', icon: Check, className: 'bg-green/16 text-green' },
-    upcoming: { label: 'A vencer', icon: CalendarClock, className: 'bg-teal/16 text-strong-accent' },
-    late: { label: 'Não encontrada', icon: AlertTriangle, className: 'bg-red/16 text-red' },
+    paid: { label: 'Paga', icon: Check, className: 'bg-accent/12 text-accent' },
+    upcoming: { label: 'A vencer', icon: CalendarClock, className: 'bg-inset text-secondary' },
+    late: { label: 'Não encontrada', icon: AlertTriangle, className: 'bg-red/14 text-red' },
 };
 
 export default function FixedExpenses({ cycle, fixedExpenses, totals, payees, categories }) {
@@ -47,31 +47,30 @@ export default function FixedExpenses({ cycle, fixedExpenses, totals, payees, ca
     return (
         <AppLayout title="Contas fixas">
             <PageHeader
-                eyebrow="Mês financeiro"
                 title="Contas fixas"
                 description="Aluguel, contas e assinaturas. Quando o pagamento chega pelo banco, a conta fica paga sozinha — e conta uma vez só."
-                actions={<CycleSwitcher cycle={cycle} routeName="fixedExpenses.index" />}
+                actions={
+                    <>
+                        <CycleSwitcher cycle={cycle} routeName="fixedExpenses.index" />
+                        <Button type="button" variant="primary" onClick={() => setEditing({ show: true, item: null })} className="max-[560px]:flex-1">
+                            <Plus size={14} strokeWidth={2.2} /> Nova conta fixa
+                        </Button>
+                    </>
+                }
             />
 
-            <section className="flex flex-wrap items-stretch gap-[clamp(14px,1.6vw,20px)]">
-                <SummaryCard icon={<Wallet size={13} strokeWidth={2.2} className="stroke-strong-accent" />} label="Previsto no mês" value={totals.planned} />
-                <SummaryCard icon={<CheckCircle2 size={13} strokeWidth={2.2} className="stroke-green" />} label="Já pago" value={totals.paid} valueClass="text-green" />
-                <SummaryCard icon={<Hourglass size={13} strokeWidth={2.2} className="stroke-red" />} label="Falta pagar" value={totals.pending} valueClass={totals.pending > 0 ? 'text-red' : 'text-text'} tone="expense" />
+            <section aria-label="Resumo do mês" className="grid grid-cols-3 gap-px overflow-hidden rounded-2xl border border-line bg-line max-[860px]:grid-cols-1">
+                <SummaryCard icon={<Wallet />} label="Previsto no mês" value={totals.planned} />
+                <SummaryCard icon={<CheckCircle2 />} label="Já pago" value={totals.paid} valueClass="text-accent" />
+                <SummaryCard icon={<Hourglass />} label="Falta pagar" value={totals.pending} valueClass={totals.pending > 0 ? 'text-red' : 'text-text'} />
             </section>
 
             <section className="flex flex-col gap-4">
-                <SectionLabel
-                    title={`Contas de ${cycle.label.split(' de ')[0].toLowerCase()}`}
-                    action={
-                        <Button type="button" variant="secondary" onClick={() => setEditing({ show: true, item: null })}>
-                            <Plus size={14} strokeWidth={2.2} /> Nova conta fixa
-                        </Button>
-                    }
-                />
+                <SectionLabel title={`Contas de ${cycle.label.split(' de ')[0].toLowerCase()}`} />
 
                 <Card hover={false} className="p-3">
                     {inCycle.length === 0 ? (
-                        <p className="py-12 text-center text-[13px] text-text/50">Nenhuma conta fixa cobrada neste mês.</p>
+                        <p className="py-12 text-center text-[13px] text-muted">Nenhuma conta fixa cobrada neste mês.</p>
                     ) : (
                         <div className="flex flex-col">
                             {inCycle.map((item) => (
@@ -116,15 +115,15 @@ export default function FixedExpenses({ cycle, fixedExpenses, totals, payees, ca
     );
 }
 
-function SummaryCard({ icon, label, value, valueClass = 'text-text', tone = 'accent' }) {
+function SummaryCard({ icon, label, value, valueClass = 'text-text' }) {
     return (
-        <Card className="flex flex-[1_1_220px] items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-                <IconBadge tone={tone}>{icon}</IconBadge>
-                <span className="text-[13px] font-semibold tracking-[-.01em]">{label}</span>
+        <div className="flex min-w-0 flex-col gap-2.5 bg-surface px-6 py-[22px]">
+            <div className="flex items-center justify-between gap-2 text-[13px] text-muted">
+                <span>{label}</span>
+                <IconBadge>{icon}</IconBadge>
             </div>
-            <span className={`font-heading text-[20px] font-semibold tracking-[-.02em] ${valueClass}`}>{money(value)}</span>
-        </Card>
+            <span className={`whitespace-nowrap text-[30px] font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums ${valueClass}`}>{money(value)}</span>
+        </div>
     );
 }
 
@@ -144,24 +143,24 @@ function FixedRow({ item, couple, payees, muted = false, onEdit, onLink, onUnlin
     const matcher = matcherLabel(item, payees);
 
     return (
-        <div className={`flex flex-wrap items-center gap-3 rounded-[12px] px-2 py-2.5 transition-colors hover:bg-text/5 sm:flex-nowrap ${muted ? 'opacity-60' : ''}`}>
-            <span className={`grid h-8 w-8 flex-none place-items-center rounded-full ${status?.className ?? 'bg-text/8 text-text/45'}`} title={status?.label}>
-                <Icon size={15} strokeWidth={2.3} />
+        <div className={`flex flex-wrap items-center gap-3 rounded-[10px] px-2 py-2.5 transition-colors hover:bg-raised sm:flex-nowrap ${muted ? 'opacity-60' : ''}`}>
+            <span className={`grid h-8 w-8 flex-none place-items-center rounded-lg ${status?.className ?? 'bg-inset text-muted'}`} title={status?.label}>
+                <Icon size={15} strokeWidth={2} />
             </span>
 
             <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[13.5px] font-medium">{item.description}</span>
+                    <span className="text-[14px] font-medium">{item.description}</span>
                     {item.category && (
-                        <span className="inline-flex items-center gap-1.5 text-[11.5px] text-text/55">
-                            <span className="h-2 w-2 rounded-full" style={{ background: item.color }} />
+                        <span className="inline-flex items-center gap-1.5 text-[12px] text-muted">
+                            <span className="h-2 w-2 rounded-[2px]" style={{ background: item.color }} />
                             {item.category}
                         </span>
                     )}
-                    <span className={`rounded-full px-2 py-[1px] text-[11px] font-medium ${OWNERSHIP_BADGE[item.ownership]}`}>{ownershipLabel(couple, item.ownership)}</span>
-                    {!item.active && <span className="rounded-full bg-text/8 px-2 py-[1px] text-[11px] text-text/50">Inativa</span>}
+                    <span className={`rounded-full px-2 py-[1px] text-[12px] font-medium ${OWNERSHIP_BADGE[item.ownership]}`}>{ownershipLabel(couple, item.ownership)}</span>
+                    {!item.active && <span className="rounded-full bg-inset px-2 py-[1px] text-[12px] text-muted">Inativa</span>}
                 </div>
-                <div className="mt-0.5 truncate text-[11.5px] text-text/45">
+                <div className="mt-0.5 truncate text-[12px] text-muted">
                     {occurrence?.payment ? (
                         <>Paga em {dayMonth(occurrence.payment.date)} · {occurrence.payment.description}</>
                     ) : occurrence ? (
@@ -173,7 +172,7 @@ function FixedRow({ item, couple, payees, muted = false, onEdit, onLink, onUnlin
                     {matcher ? (
                         <span>reconhece: {matcher}</span>
                     ) : (
-                        <button type="button" onClick={onEdit} className="text-lime hover:underline">definir como reconhecer o pagamento</button>
+                        <button type="button" onClick={onEdit} className="text-warning hover:underline">definir como reconhecer o pagamento</button>
                     )}
                 </div>
             </div>
@@ -181,31 +180,31 @@ function FixedRow({ item, couple, payees, muted = false, onEdit, onLink, onUnlin
             <OccurrenceAmount item={item} />
 
             <Menu as="div" className="relative flex-none">
-                <MenuButton aria-label="Ações" className="grid h-7 w-7 place-items-center rounded-full text-text/45 transition-colors hover:bg-text/10 hover:text-text">
+                <MenuButton aria-label="Ações" className="grid h-8 w-8 place-items-center rounded-lg text-muted transition-colors hover:bg-inset hover:text-text">
                     <MoreHorizontal size={15} strokeWidth={2.2} />
                 </MenuButton>
-                <MenuItems anchor="bottom end" className="z-50 mt-1 w-56 rounded-[12px] bg-surface p-1.5 text-[13px] text-text shadow-[inset_0_0_0_1px_rgb(var(--color-text-rgb)/0.1),0_12px_32px_rgba(0,0,0,0.45)] focus:outline-none">
+                <MenuItems anchor="bottom end" className="z-50 mt-1 w-56 rounded-[14px] bg-surface p-1.5 text-[14px] text-text border border-line focus:outline-none">
                     <MenuItem>
-                        <button type="button" onClick={onEdit} className="flex w-full items-center gap-2 rounded-[8px] px-2.5 py-2 text-left data-[focus]:bg-text/8">
-                            <Pencil size={13} className="text-text/60" /> Editar
+                        <button type="button" onClick={onEdit} className="flex w-full items-center gap-2 rounded-[8px] px-3 py-2.5 text-left data-[focus]:bg-raised">
+                            <Pencil size={14} strokeWidth={1.75} className="text-muted" /> Editar
                         </button>
                     </MenuItem>
                     {occurrence && !occurrence.payment && onLink && (
                         <MenuItem>
-                            <button type="button" onClick={onLink} className="flex w-full items-center gap-2 rounded-[8px] px-2.5 py-2 text-left data-[focus]:bg-text/8">
-                                <Link2 size={13} className="text-text/60" /> Vincular pagamento
+                            <button type="button" onClick={onLink} className="flex w-full items-center gap-2 rounded-[8px] px-3 py-2.5 text-left data-[focus]:bg-raised">
+                                <Link2 size={14} strokeWidth={1.75} className="text-muted" /> Vincular pagamento
                             </button>
                         </MenuItem>
                     )}
                     {occurrence?.payment && onUnlink && (
                         <MenuItem>
-                            <button type="button" onClick={onUnlink} className="flex w-full items-center gap-2 rounded-[8px] px-2.5 py-2 text-left data-[focus]:bg-text/8">
-                                <Link2Off size={13} className="text-text/60" /> Desfazer vínculo
+                            <button type="button" onClick={onUnlink} className="flex w-full items-center gap-2 rounded-[8px] px-3 py-2.5 text-left data-[focus]:bg-raised">
+                                <Link2Off size={14} strokeWidth={1.75} className="text-muted" /> Desfazer vínculo
                             </button>
                         </MenuItem>
                     )}
                     <MenuItem>
-                        <button type="button" onClick={onRemove} className="flex w-full items-center gap-2 rounded-[8px] px-2.5 py-2 text-left text-red data-[focus]:bg-text/8">
+                        <button type="button" onClick={onRemove} className="flex w-full items-center gap-2 rounded-[8px] px-3 py-2.5 text-left text-red data-[focus]:bg-raised">
                             <Trash2 size={13} /> Remover
                         </button>
                     </MenuItem>
@@ -222,23 +221,23 @@ function OccurrenceAmount({ item }) {
     const [value, setValue] = useState(occurrence?.planned_amount ?? item.amount);
 
     if (!occurrence) {
-        return <span className="w-[130px] flex-none text-right text-[13px] tabular-nums text-text/50">{item.variable_amount ? '≈ ' : ''}{money(item.amount)}</span>;
+        return <span className="w-[130px] flex-none whitespace-nowrap text-right font-mono text-[13px] text-muted">{item.variable_amount ? '≈ ' : ''}{money(item.amount)}</span>;
     }
 
     if (occurrence.payment) {
         const diff = occurrence.payment.amount - occurrence.planned_amount;
         return (
             <div className="w-[130px] flex-none text-right">
-                <div className="text-[13px] font-semibold tabular-nums">{money(occurrence.payment.amount)}</div>
+                <div className="whitespace-nowrap font-mono text-[13px]">{money(occurrence.payment.amount)}</div>
                 {Math.abs(diff) >= 0.01 && (
-                    <div className="text-[10.5px] text-text/40">previsto {money(occurrence.planned_amount)}</div>
+                    <div className="text-[12px] text-muted">previsto {money(occurrence.planned_amount)}</div>
                 )}
             </div>
         );
     }
 
     if (!item.variable_amount) {
-        return <span className="w-[130px] flex-none text-right text-[13px] font-semibold tabular-nums">{money(occurrence.amount)}</span>;
+        return <span className="w-[130px] flex-none whitespace-nowrap text-right font-mono text-[13px]">{money(occurrence.amount)}</span>;
     }
 
     if (editing) {
@@ -253,7 +252,7 @@ function OccurrenceAmount({ item }) {
                     autoFocus value={value}
                     onChange={(e) => setValue(e.target.value)}
                     onBlur={() => setEditing(false)}
-                    className="w-full rounded-[8px] border border-text/16 bg-[#213d51] px-2 py-1 text-right text-[13px] text-text focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal/50"
+                    className="h-9 w-full rounded-[8px] border border-line-strong bg-bg px-2 py-1 text-right font-mono text-[13px] text-text focus:border-accent focus:outline-none focus:ring-0"
                 />
             </form>
         );
@@ -261,19 +260,19 @@ function OccurrenceAmount({ item }) {
 
     return (
         <div className="flex w-[130px] flex-none flex-col items-end">
-            <button type="button" onClick={() => { setValue(occurrence.amount); setEditing(true); }} title="Clique para informar o valor real deste mês" className="text-[13px] font-semibold tabular-nums hover:underline">
+            <button type="button" onClick={() => { setValue(occurrence.amount); setEditing(true); }} title="Clique para informar o valor real deste mês" className="whitespace-nowrap font-mono text-[13px] hover:underline">
                 {occurrence.has_amount_override ? '' : '≈ '}{money(occurrence.amount)}
             </button>
             {occurrence.has_amount_override ? (
                 <button
                     type="button"
                     onClick={() => router.delete(route('fixedExpenses.occurrence.destroy', occurrence.occurrence_id), { preserveScroll: true })}
-                    className="text-[10.5px] text-text/40 hover:text-strong-accent hover:underline"
+                    className="text-[12px] text-muted hover:text-accent hover:underline"
                 >
                     ajustado · voltar à estimativa
                 </button>
             ) : (
-                <span className="text-[10.5px] text-text/40">estimado</span>
+                <span className="text-[12px] text-muted">estimado</span>
             )}
         </div>
     );
@@ -323,16 +322,16 @@ function FixedExpenseModal({ show, item, onClose, categories, payees, couple }) 
                     <Field label="Dia da cobrança" type="number" min="1" max="31" value={data.due_day} onChange={(e) => setData('due_day', e.target.value)} placeholder="Ex: 10" error={errors.due_day} />
                 </div>
 
-                <label className="flex items-start gap-2.5 text-[13px]">
-                    <input type="checkbox" checked={data.variable_amount} onChange={(e) => setData('variable_amount', e.target.checked)} className="mt-0.5 h-4 w-4 rounded border-text/25 bg-transparent text-teal focus:ring-teal/40 focus:ring-offset-0" />
+                <label className="flex items-start gap-2.5 text-[14px]">
+                    <input type="checkbox" checked={data.variable_amount} onChange={(e) => setData('variable_amount', e.target.checked)} className="mt-0.5 h-4 w-4 rounded border-line-strong bg-transparent text-accent focus:ring-accent/40 focus:ring-offset-0" />
                     <span>
                         Valor muda todo mês (luz, água…)
-                        <span className="block text-[11.5px] text-text/45">O valor acima vira estimativa até o pagamento real chegar.</span>
+                        <span className="block text-[12px] text-muted">O valor acima vira estimativa até o pagamento real chegar.</span>
                     </span>
                 </label>
 
                 <div>
-                    <span className="mb-1.5 block text-[12.5px] font-medium text-text/70">Como reconhecer o pagamento no banco</span>
+                    <span className="mb-1.5 block text-[13px] font-medium text-secondary">Como reconhecer o pagamento no banco</span>
                     <select
                         value={matcherMode === 'document' ? (knownPayee ? data.match_document : '__doc') : matcherMode === 'pattern' ? '__pattern' : ''}
                         onChange={(e) => {
@@ -341,7 +340,7 @@ function FixedExpenseModal({ show, item, onClose, categories, payees, couple }) 
                             else if (value === '') { setData((d) => ({ ...d, match_document: '', match_pattern: '' })); }
                             else if (value !== '__doc') { setData((d) => ({ ...d, match_document: value, match_pattern: '' })); }
                         }}
-                        className="w-full rounded-[10px] border border-text/16 bg-[#213d51] px-3 py-2 text-[13.5px] text-text focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal/50"
+                        className={`${INPUT_CLASSES} pr-9`}
                     >
                         <option value="" className="bg-surface">Não reconhecer (só previsão)</option>
                         {payees.map((p) => (
@@ -355,7 +354,7 @@ function FixedExpenseModal({ show, item, onClose, categories, payees, couple }) 
                     {matcherMode === 'pattern' && (
                         <Field className="mt-2" value={data.match_pattern} onChange={(e) => setData('match_pattern', e.target.value)} placeholder='Ex: NEW LINK' error={errors.match_pattern} />
                     )}
-                    <p className="mt-1.5 text-[11.5px] text-text/45">O pagamento é procurado no mesmo mês financeiro da cobrança.</p>
+                    <p className="mt-1.5 text-[12px] text-muted">O pagamento é procurado no mesmo mês financeiro da cobrança.</p>
                 </div>
 
                 <Select
@@ -367,7 +366,7 @@ function FixedExpenseModal({ show, item, onClose, categories, payees, couple }) 
                 />
 
                 <div>
-                    <span className="mb-1.5 block text-[12.5px] font-medium text-text/70">De quem é a conta</span>
+                    <span className="mb-1.5 block text-[13px] font-medium text-secondary">De quem é a conta</span>
                     <OwnershipToggle size="md" value={data.ownership} onChange={(value) => setData('ownership', value)} couple={couple} />
                 </div>
 
@@ -375,16 +374,16 @@ function FixedExpenseModal({ show, item, onClose, categories, payees, couple }) 
                     <Field label="Começa em" type="date" value={data.start_date} onChange={(e) => setData('start_date', e.target.value)} error={errors.start_date} />
                     <Field label="Termina em" type="date" value={data.end_date} onChange={(e) => setData('end_date', e.target.value)} error={errors.end_date} />
                 </div>
-                <p className="-mt-2 text-[11.5px] text-text/45">Opcional. Sem início, vale a partir deste mês; sem fim, não expira.</p>
+                <p className="-mt-2 text-[12px] text-muted">Opcional. Sem início, vale a partir deste mês; sem fim, não expira.</p>
 
-                <label className="flex items-center gap-2.5 text-[13px]">
-                    <input type="checkbox" checked={data.active} onChange={(e) => setData('active', e.target.checked)} className="h-4 w-4 rounded border-text/25 bg-transparent text-teal focus:ring-teal/40 focus:ring-offset-0" />
+                <label className="flex items-center gap-2.5 text-[14px]">
+                    <input type="checkbox" checked={data.active} onChange={(e) => setData('active', e.target.checked)} className="h-4 w-4 rounded border-line-strong bg-transparent text-accent focus:ring-accent/40 focus:ring-offset-0" />
                     Ativa
                 </label>
 
                 <div className="mt-1 flex justify-end gap-2.5">
                     <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-                    <Button type="submit" variant="secondary" disabled={processing}>{processing ? 'Salvando...' : isEditing ? 'Salvar' : 'Criar conta fixa'}</Button>
+                    <Button type="submit" variant="primary" disabled={processing}>{processing ? 'Salvando...' : isEditing ? 'Salvar' : 'Criar conta fixa'}</Button>
                 </div>
             </form>
         </Modal>
@@ -406,19 +405,19 @@ function LinkPaymentModal({ item, month, onClose }) {
     return (
         <Modal show={Boolean(item)} onClose={onClose} title={item ? `Qual lançamento pagou "${item.description}"?` : ''} maxWidth="lg">
             {rows === null ? (
-                <p className="py-8 text-center text-[13px] text-text/50">Carregando…</p>
+                <p className="py-8 text-center text-[13px] text-muted">Carregando…</p>
             ) : rows.length === 0 ? (
-                <p className="py-8 text-center text-[13px] text-text/50">Nenhuma despesa livre neste mês.</p>
+                <p className="py-8 text-center text-[13px] text-muted">Nenhuma despesa livre neste mês.</p>
             ) : (
                 <div className="scroll-thin -mx-2 flex max-h-[420px] flex-col overflow-y-auto">
                     {rows.map((row) => (
-                        <button key={row.id} type="button" onClick={() => link(row)} className="flex items-center gap-3 rounded-[10px] px-2 py-2 text-left hover:bg-text/6">
-                            <span className="w-[42px] flex-none text-xs text-text/50">{dayMonth(row.date)}</span>
+                        <button key={row.id} type="button" onClick={() => link(row)} className="flex items-center gap-3 rounded-[10px] px-2 py-2.5 text-left hover:bg-raised">
+                            <span className="w-[44px] flex-none font-mono text-[12px] text-secondary">{dayMonth(row.date)}</span>
                             <span className="min-w-0 flex-1">
-                                <span className="block truncate text-[13px] font-medium">{row.name}</span>
-                                <span className="block truncate text-[11px] text-text/45">{[row.prefix, row.category].filter(Boolean).join(' · ')}</span>
+                                <span className="block truncate text-[14px] font-medium">{row.name}</span>
+                                <span className="block truncate text-[12px] text-muted">{[row.prefix, row.category].filter(Boolean).join(' · ')}</span>
                             </span>
-                            <span className="text-[13px] font-semibold tabular-nums">{money(row.amount)}</span>
+                            <span className="whitespace-nowrap font-mono text-[13px]">{money(row.amount)}</span>
                         </button>
                     ))}
                 </div>

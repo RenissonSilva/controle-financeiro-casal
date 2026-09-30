@@ -9,13 +9,13 @@ export default function Toast({ message, tone = 'success' }) {
     return (
         <div
             role="status"
-            className={`fixed bottom-[26px] left-1/2 z-50 flex max-w-[calc(100vw-32px)] -translate-x-1/2 items-center gap-2.5 rounded-full bg-surface px-[18px] py-[11px] text-[13.5px] ${
-                isError
-                    ? 'text-red shadow-[inset_0_0_0_1px_rgb(var(--color-expense-rgb)/0.45),0_10px_28px_rgba(0,0,0,0.4)]'
-                    : 'text-green shadow-[inset_0_0_0_1px_rgb(var(--color-income-rgb)/0.4),0_10px_28px_rgba(0,0,0,0.4)]'
+            className={`fixed bottom-[26px] left-1/2 z-50 flex max-w-[calc(100vw-32px)] -translate-x-1/2 items-center gap-2.5 rounded-full border bg-raised px-[18px] py-[11px] text-[14px] text-text desk:ml-[124px] ${
+                isError ? 'border-red/45' : 'border-line-strong'
             }`}
         >
-            {isError ? <AlertCircle size={15} strokeWidth={2.2} className="flex-none" /> : <Check size={15} strokeWidth={2.2} className="flex-none stroke-green" />}
+            {isError
+                ? <AlertCircle size={15} strokeWidth={2} className="flex-none text-red" />
+                : <Check size={15} strokeWidth={2.2} className="flex-none text-accent" />}
             <span className="truncate">{message}</span>
         </div>
     );

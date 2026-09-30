@@ -2,7 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\OpenFinanceItem;
 use App\Models\Setting;
+use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -49,12 +51,15 @@ class HandleInertiaRequests extends Middleware
     private function couple(): array
     {
         $settings = Setting::current();
+        $lastSynced = OpenFinanceItem::max('last_synced_at');
 
         return [
             'payer1_name' => $settings->payer1_name,
             'payer2_name' => $settings->payer2_name,
             'payer1_percent' => $settings->payer1_percent,
             'payer2_percent' => $settings->payer2_percent,
+            // Rodapé da sidebar ("Sincronizado há 1 h").
+            'last_synced_at' => $lastSynced ? Carbon::parse($lastSynced)->toIso8601String() : null,
         ];
     }
 }

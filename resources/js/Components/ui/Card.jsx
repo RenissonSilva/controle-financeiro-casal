@@ -1,10 +1,11 @@
-// bg=false → o caller assume o próprio background (ex: gradientes de destaque)
-// via className, evitando disputa de especificidade com o bg-surface padrão.
-export default function Card({ hover = true, bg = true, className = '', children, ...props }) {
+// Card do tema Noite: superfície + borda de 1px, sem sombra (profundidade só por
+// superfície e borda). `hover` e `bg` ficam por compatibilidade: bg=false deixa o
+// caller definir o fundo via className (ex: card de destaque em limão).
+// eslint-disable-next-line no-unused-vars
+export default function Card({ hover = false, bg = true, className = '', children, ...props }) {
     const classes = [
-        'rounded-[18px] p-5 shadow-[inset_0_0_0_1px_rgb(var(--color-text-rgb)/0.08),0_8px_24px_-6px_rgba(0,0,0,0.2)]',
-        bg && 'bg-surface',
-        hover && 'transition-transform duration-200 ease-[cubic-bezier(.16,1,.3,1)] hover:-translate-y-0.5',
+        'min-w-0 rounded-2xl p-6',
+        bg && 'border border-line bg-surface',
         className,
     ].filter(Boolean).join(' ');
 

@@ -41,7 +41,7 @@ export default function UpdatePasswordForm({ className = '' }) {
     return (
         <section className={className}>
             <SectionHeader
-                icon={<KeyRound size={13} strokeWidth={2.2} className="stroke-strong-accent" />}
+                icon={<KeyRound size={16} strokeWidth={1.75} />}
                 title="Senha"
                 subtitle="Use uma senha longa e difícil de adivinhar."
             />

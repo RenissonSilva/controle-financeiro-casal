@@ -59,7 +59,7 @@ export default function Register() {
                 </div>
 
                 <div className="mt-1 flex items-center justify-between gap-3">
-                    <Link href={route('login')} className="text-[12.5px] text-text/55 underline-offset-2 hover:text-text hover:underline">
+                    <Link href={route('login')} className="text-[13px] text-muted underline-offset-2 hover:text-text hover:underline">
                         Já tem conta? Entrar
                     </Link>
                     <PrimaryButton disabled={processing}>Criar conta</PrimaryButton>
