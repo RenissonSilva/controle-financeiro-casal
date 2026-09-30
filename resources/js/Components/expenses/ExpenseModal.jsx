@@ -155,7 +155,7 @@ export default function ExpenseModal({ show, row, rows = [], onClose, couple, ca
                             error={errors.description}
                         />
                         <div className="grid grid-cols-2 gap-3">
-                            <Field label="Valor (R$)" type="number" min="0.01" step="0.01" value={data.amount} onChange={(e) => setData('amount', e.target.value)} error={errors.amount} />
+                            <Field label="Valor" money value={data.amount} onChange={(e) => setData('amount', e.target.value)} error={errors.amount} />
                             <Field label="Data" type="date" value={data.date} onChange={(e) => setData('date', e.target.value)} error={errors.date} />
                         </div>
                     </>

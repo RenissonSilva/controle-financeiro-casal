@@ -3,6 +3,7 @@ import Card from '@/Components/ui/Card';
 import Button from '@/Components/ui/Button';
 import Modal from '@/Components/ui/Modal';
 import Field from '@/Components/ui/Field';
+import MoneyInput from '@/Components/ui/MoneyInput';
 import Select from '@/Components/ui/Select';
 import PageHeader from '@/Components/ui/PageHeader';
 import SectionLabel from '@/Components/ui/SectionLabel';
@@ -248,8 +249,8 @@ function OccurrenceAmount({ item }) {
 
         return (
             <form onSubmit={save} className="w-[130px] flex-none">
-                <input
-                    type="number" min="0.01" step="0.01" autoFocus value={value}
+                <MoneyInput
+                    autoFocus value={value}
                     onChange={(e) => setValue(e.target.value)}
                     onBlur={() => setEditing(false)}
                     className="w-full rounded-[8px] border border-text/16 bg-[#213d51] px-2 py-1 text-right text-[13px] text-text focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal/50"
@@ -315,8 +316,8 @@ function FixedExpenseModal({ show, item, onClose, categories, payees, couple }) 
 
                 <div className="grid grid-cols-2 gap-3">
                     <Field
-                        label={data.variable_amount ? 'Valor estimado (R$)' : 'Valor (R$)'}
-                        type="number" min="0.01" step="0.01"
+                        label={data.variable_amount ? 'Valor estimado' : 'Valor'}
+                        money
                         value={data.amount} onChange={(e) => setData('amount', e.target.value)} error={errors.amount}
                     />
                     <Field label="Dia da cobrança" type="number" min="1" max="31" value={data.due_day} onChange={(e) => setData('due_day', e.target.value)} placeholder="Ex: 10" error={errors.due_day} />

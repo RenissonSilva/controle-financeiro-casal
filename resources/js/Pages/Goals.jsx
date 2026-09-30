@@ -148,7 +148,7 @@ function GoalModal({ show, goal, invested, onClose }) {
             <form onSubmit={submit} className="flex flex-col gap-4">
                 <Field label="Nome" autoFocus value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="Ex: Reserva de emergência" error={errors.name} />
                 <div className="grid grid-cols-2 gap-3">
-                    <Field label="Valor-alvo (R$)" type="number" min="1" step="0.01" value={data.target_amount} onChange={(e) => setData('target_amount', e.target.value)} error={errors.target_amount} />
+                    <Field label="Valor-alvo" money value={data.target_amount} onChange={(e) => setData('target_amount', e.target.value)} error={errors.target_amount} />
                     <Field label="Prazo" type="date" value={data.deadline} onChange={(e) => setData('deadline', e.target.value)} error={errors.deadline} />
                 </div>
 
@@ -171,7 +171,7 @@ function GoalModal({ show, goal, invested, onClose }) {
                 </div>
 
                 {data.tracking === 'manual' && (
-                    <Field label="Já juntado (R$)" type="number" min="0" step="0.01" value={data.manual_amount} onChange={(e) => setData('manual_amount', e.target.value)} error={errors.manual_amount} />
+                    <Field label="Já juntado" money value={data.manual_amount} onChange={(e) => setData('manual_amount', e.target.value)} error={errors.manual_amount} />
                 )}
 
                 <label className="flex items-center gap-2.5 text-[13px]">

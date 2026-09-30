@@ -5,6 +5,7 @@ import SectionLabel from '@/Components/ui/SectionLabel';
 import Button from '@/Components/ui/Button';
 import Modal from '@/Components/ui/Modal';
 import Field from '@/Components/ui/Field';
+import MoneyInput from '@/Components/ui/MoneyInput';
 import Select from '@/Components/ui/Select';
 import Segmented from '@/Components/ui/Segmented';
 import SaveBar from '@/Components/ui/SaveBar';
@@ -204,10 +205,8 @@ function RuleModal({ rule, show, categories, ownershipOptions, onClose }) {
                 </div>
 
                 <Field
-                    label="Valor (R$)"
-                    type="number"
-                    min="0.01"
-                    step="0.01"
+                    label="Valor"
+                    money
                     value={data.amount}
                     onChange={(e) => setData('amount', e.target.value)}
                     placeholder="Opcional — em branco vale para qualquer valor"
@@ -269,8 +268,8 @@ function PayerCard({ name, onNameChange, salary, onSalaryChange, percentLabel, a
                 <span className="text-[12px] text-text/60">Renda mensal</span>
                 <div className="flex items-center gap-1 rounded-[10px] bg-[#0c1620] px-3.5 shadow-[inset_0_0_0_1px_rgb(var(--color-accent-rgb)/0.28)] focus-within:shadow-[inset_0_0_0_1px_var(--color-accent)]">
                     <span className="text-[13px] text-text/50">R$</span>
-                    <input
-                        type="number" min="0" step="0.01"
+                    <MoneyInput
+                        prefix={false}
                         value={salary}
                         onChange={onSalaryChange}
                         aria-label="Renda mensal"
