@@ -25,8 +25,9 @@ class RegisteredUserController extends Controller
         $invite = Invite::findValid($request->session()->get(Invite::SESSION_KEY));
 
         return Inertia::render('Auth/Register', [
-            // Depois da primeira conta (a principal), só entra quem tem link de convite.
-            'inviteOnly' => ! $invite && User::owner() !== null,
+            // Sem cadastro público: só entra quem tem link de convite. A conta principal é
+            // criada no servidor com "php artisan user:create-owner".
+            'inviteOnly' => ! $invite,
             'invitedBy' => $invite?->creator?->name,
         ]);
     }
@@ -40,7 +41,7 @@ class RegisteredUserController extends Controller
     {
         $invite = Invite::findValid($request->session()->get(Invite::SESSION_KEY));
 
-        if (! $invite && User::owner() !== null) {
+        if (! $invite) {
             return redirect()->route('register');
         }
 
@@ -56,13 +57,8 @@ class RegisteredUserController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
-        // Primeira conta do sistema = conta principal; as outras entram pelo convite.
-        if (User::owner() === null) {
-            $user->forceFill(['role' => User::ROLE_OWNER, 'linked_at' => now()])->save();
-        } else {
-            $invite->accept($user);
-            $request->session()->forget(Invite::SESSION_KEY);
-        }
+        $invite->accept($user);
+        $request->session()->forget(Invite::SESSION_KEY);
 
         event(new Registered($user));
 

@@ -21,7 +21,7 @@ export default function Register({ inviteOnly = false, invitedBy = null }) {
         });
     };
 
-    // Depois da conta principal, só entra quem abriu um link de convite.
+    // Sem cadastro público: só entra quem abriu um link de convite.
     if (inviteOnly) {
         return (
             <GuestLayout title="Cadastro só por convite" subtitle="Para criar uma conta, abra o link de convite que a conta principal do casal te enviar.">

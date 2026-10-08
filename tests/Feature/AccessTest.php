@@ -16,18 +16,35 @@ class AccessTest extends TestCase
 
     private const INERTIA = ['X-Inertia' => 'true'];
 
-    public function test_first_account_becomes_owner_and_the_next_ones_need_an_invite(): void
+    public function test_owner_is_created_on_the_command_line_and_the_next_ones_need_an_invite(): void
     {
-        $this->post('/register', ['name' => 'Reni', 'email' => 'reni@example.com', 'password' => 'password', 'password_confirmation' => 'password'])
-            ->assertRedirect('/dashboard');
-        $this->assertTrue(User::firstWhere('email', 'reni@example.com')->isOwner());
+        $this->artisan('user:create-owner', ['--name' => 'Reni', '--email' => 'Reni@Example.com'])
+            ->expectsQuestion('Senha', 'password')
+            ->expectsQuestion('Confirme a senha', 'password')
+            ->assertSuccessful();
 
+        $owner = User::firstWhere('email', 'reni@example.com');
+        $this->assertTrue($owner->isOwner());
+        $this->post('/login', ['email' => 'reni@example.com', 'password' => 'password'])->assertRedirect('/dashboard');
         $this->post('/logout');
+
+        // Só existe uma conta principal.
+        $this->artisan('user:create-owner', ['--name' => 'Outro', '--email' => 'outro@example.com'])->assertFailed();
 
         $this->get('/register')->assertInertia(fn (Assert $page) => $page->component('Auth/Register')->where('inviteOnly', true));
         $this->post('/register', ['name' => 'Estranho', 'email' => 'x@example.com', 'password' => 'password', 'password_confirmation' => 'password'])
             ->assertRedirect('/register');
         $this->assertDatabaseMissing('users', ['email' => 'x@example.com']);
+    }
+
+    public function test_create_owner_rejects_a_password_that_does_not_match(): void
+    {
+        $this->artisan('user:create-owner', ['--name' => 'Reni', '--email' => 'reni@example.com'])
+            ->expectsQuestion('Senha', 'password')
+            ->expectsQuestion('Confirme a senha', 'outra-senha')
+            ->assertFailed();
+
+        $this->assertSame(0, User::count());
     }
 
     public function test_invite_link_creates_a_view_only_linked_account(): void
