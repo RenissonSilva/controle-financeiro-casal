@@ -26,6 +26,10 @@ Pluggy leva poucos segundos.
    rm dump.sql
    ```
 
+   Pelo MySQL Workbench: crie antes o schema `controle_financeiro` e escolha-o em
+   **Default Target Schema** no Data Import. Sem isso o import cai no schema `sys` e falha com
+   `DROP command denied`.
+
    Começando do zero em vez de importar: rode `migrate` e `user:create-owner` contra o TiDB
    (ver seção 4).
 
@@ -34,29 +38,49 @@ Pluggy leva poucos segundos.
 1. Suba o código para o GitHub e importe o repositório na Vercel (Framework Preset: **Other**).
    Build, saída, função PHP, rotas e cron já vêm do `vercel.json`. A versão do Node (22.x,
    exigida pelo `vercel-php`) vem do `engines` do `package.json`.
-2. Em **Settings → Environment Variables** (Production):
+2. Monte um `.env.production` local (já está no `.gitignore` e no `.vercelignore`) neste formato:
 
-   | Variável | Valor |
-   |---|---|
-   | `APP_NAME` | igual ao `.env` local |
-   | `APP_ENV` | `production` |
-   | `APP_DEBUG` | `false` |
-   | `APP_KEY` | novo, de `php artisan key:generate --show` (só desloga quem estiver logado) |
-   | `APP_URL` | `https://<projeto>.vercel.app` |
-   | `APP_LOCALE` / `APP_FALLBACK_LOCALE` / `APP_FAKER_LOCALE` | iguais ao `.env` local |
-   | `DB_CONNECTION` | `mysql` |
-   | `DB_HOST` / `DB_PORT` / `DB_USERNAME` / `DB_PASSWORD` | do TiDB (porta `4000`) |
-   | `DB_DATABASE` | `controle_financeiro` |
-   | `MYSQL_ATTR_SSL_CA` | `/etc/pki/tls/certs/ca-bundle.crt` (CA do sistema na Vercel; o TiDB exige TLS) |
-   | `SESSION_DRIVER` / `CACHE_STORE` | `database` |
-   | `SESSION_SECURE_COOKIE` | `true` |
-   | `QUEUE_CONNECTION` | `sync` (não tem worker de fila) |
-   | `GROQ_API_KEY` / `GROQ_MODEL` | iguais ao `.env` local |
-   | `PLUGGY_CLIENT_ID` / `PLUGGY_CLIENT_SECRET` / `PLUGGY_BASE_URL` / `PLUGGY_USE_SANDBOX` | iguais ao `.env` local |
-   | `CRON_SECRET` | aleatório, de `openssl rand -hex 32` |
+   ```dotenv
+   # ===== App =====
+   APP_NAME=                      # igual ao .env local
+   APP_ENV=production
+   APP_DEBUG=false
+   APP_KEY=                       # novo: php artisan key:generate --show
+   APP_URL=https://<projeto>.vercel.app
+   APP_LOCALE=pt_BR
+   APP_FALLBACK_LOCALE=en
+   APP_FAKER_LOCALE=en_US
 
-   Storage, caches e logs **não** entram aqui: o `api/index.php` já manda tudo para o `/tmp`
-   e os logs para **Vercel → Logs**.
+   # ===== Banco (TiDB Cloud) =====
+   DB_CONNECTION=mysql
+   DB_HOST=                       # do "Connect" do TiDB
+   DB_PORT=4000
+   DB_DATABASE=controle_financeiro
+   DB_USERNAME=                   # formato xxxx.root
+   DB_PASSWORD=
+   MYSQL_ATTR_SSL_CA=/etc/pki/tls/certs/ca-bundle.crt
+
+   # ===== Sessão, cache e fila =====
+   SESSION_DRIVER=database
+   SESSION_SECURE_COOKIE=true
+   CACHE_STORE=database
+   QUEUE_CONNECTION=sync
+
+   # ===== Integrações (iguais ao .env local) =====
+   GROQ_API_KEY=
+   GROQ_MODEL=openai/gpt-oss-120b
+   PLUGGY_CLIENT_ID=
+   PLUGGY_CLIENT_SECRET=
+   PLUGGY_BASE_URL=https://api.pluggy.ai
+   PLUGGY_USE_SANDBOX=false
+
+   # ===== Cron =====
+   CRON_SECRET=                   # aleatório: openssl rand -hex 32
+   ```
+
+   Na Vercel, em **Settings → Environment Variables**, cole o conteúdo do arquivo inteiro no
+   campo **Key** (ela separa as variáveis sozinha), marque **Production** e salve. Storage,
+   caches e logs não entram: o `api/index.php` já cuida disso.
 3. Faça o deploy e abra `/login`.
 
 ## 3. Sincronização diária
