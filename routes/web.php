@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccessController;
 use App\Http\Controllers\CategorizationRuleController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\CronController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FixedExpenseController;
@@ -25,6 +26,9 @@ if (app()->environment('local')) {
         return redirect('/dashboard');
     });
 }
+
+// Cron por HTTP (Vercel), protegido por CRON_SECRET.
+Route::get('/cron/openfinance-sync', [CronController::class, 'openFinanceSync'])->name('cron.openfinance-sync');
 
 // Convite para vincular uma conta à conta principal (funciona logado ou não).
 Route::get('/convite/{token}', [InviteController::class, 'show'])->name('invites.show');

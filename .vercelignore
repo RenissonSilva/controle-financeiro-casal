@@ -1,0 +1,18 @@
+# Nada de segredo nem dado real sobe para a Vercel (vale também para "vercel deploy" pela CLI).
+.env
+.env.*
+/storage
+/bootstrap/cache/*.php
+
+# Reinstalados/gerados no build da Vercel.
+/vendor
+/node_modules
+/public/build
+/public/hot
+
+/tests
+/.agents
+/.claude
+/.idea
+/.vscode
+/*.png

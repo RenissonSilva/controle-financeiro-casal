@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    // Segredo dos crons por HTTP (Vercel). Vazio = rota /cron/* desligada.
+    'cron' => [
+        'secret' => env('CRON_SECRET'),
+    ],
+
 ];

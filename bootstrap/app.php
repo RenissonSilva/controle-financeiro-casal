@@ -21,6 +21,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'linked' => \App\Http\Middleware\EnsureAccountIsLinked::class,
         ]);
+
+        // Na Vercel tudo chega pelo proxy dela (HTTPS e IP real nos X-Forwarded-*).
+        if (env('VERCEL')) {
+            $middleware->trustProxies(at: '*');
+        }
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

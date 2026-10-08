@@ -1,0 +1,24 @@
+{
+    "$schema": "https://openapi.vercel.sh/vercel.json",
+    "buildCommand": "npm run build",
+    "outputDirectory": "public",
+    "regions": ["iad1"],
+    "functions": {
+        "api/index.php": {
+            "runtime": "vercel-php@0.7.4",
+            "maxDuration": 300
+        }
+    },
+    "rewrites": [
+        { "source": "/(.*)", "destination": "/api/index.php" }
+    ],
+    "headers": [
+        {
+            "source": "/build/assets/(.*)",
+            "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+        }
+    ],
+    "crons": [
+        { "path": "/cron/openfinance-sync", "schedule": "30 9 * * *" }
+    ]
+}
