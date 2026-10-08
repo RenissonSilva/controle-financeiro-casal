@@ -42,7 +42,10 @@ marcados como "Acerto" só ficam fora de receitas e despesas.
 
 **Contas fixas:** reconhecem o pagamento pelo CPF/CNPJ do Pix (ou trecho da descrição) no
 mesmo mês financeiro; conta paga = vinculada ao lançamento e contada uma vez só. Vínculo
-manual e "desfazer vínculo" disponíveis.
+manual e "desfazer vínculo" disponíveis. Conta marcada "paga o consumo do mês anterior"
+(2026-10-08, Neoenergia): o pagamento vinculado conta um ciclo antes (`competence_shift = -1`;
+energia paga em 05/10 = gasto de setembro) e o mês mostra a cobrança que vence no ciclo
+seguinte. O acerto continua pelo caixa (cobranças que vencem no próximo ciclo), sem mudança.
 
 **Menu:** Dashboard · Lançamentos · Contas fixas · Metas · Configurações. Conexões Open
 Finance, categorias e regras ficam em Configurações. Import de CSV removido

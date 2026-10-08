@@ -8,19 +8,24 @@ import SectionLabel from '@/Components/ui/SectionLabel';
 import Segmented from '@/Components/ui/Segmented';
 import ProgressBar from '@/Components/ui/ProgressBar';
 import IconBadge from '@/Components/ui/IconBadge';
+import ReadOnlyBadge from '@/Components/ui/ReadOnlyBadge';
 import { router, useForm } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { Landmark, Pencil, Plus, Star, Target, Trash2 } from 'lucide-react';
 import { deadlineLabel, money, moneyShort } from '@/lib/format';
+import { useCan } from '@/lib/access';
 
 export default function Goals({ goals, invested, investments }) {
     const [editing, setEditing] = useState({ show: false, goal: null });
+    const can = useCan();
+    const canEdit = can('goals.edit');
+    const canDelete = can('goals.delete');
 
     // Vindo do Dashboard ("Criar meta"): abre o modal direto.
     useEffect(() => {
         const url = new URL(window.location.href);
         if (!url.searchParams.has('new')) return;
-        setEditing({ show: true, goal: null });
+        if (canEdit) setEditing({ show: true, goal: null });
         url.searchParams.delete('new');
         window.history.replaceState(window.history.state, '', url);
     }, []);
@@ -35,9 +40,13 @@ export default function Goals({ goals, invested, investments }) {
                 title="Metas"
                 description="Quanto vocês querem juntar e até quando. Metas ligadas aos investimentos acompanham o saldo real do banco."
                 actions={
-                    <Button type="button" variant="primary" onClick={() => setEditing({ show: true, goal: null })} className="max-[560px]:flex-1">
-                        <Plus size={14} strokeWidth={2.2} /> Nova meta
-                    </Button>
+                    canEdit ? (
+                        <Button type="button" variant="primary" onClick={() => setEditing({ show: true, goal: null })} className="max-[560px]:flex-1">
+                            <Plus size={14} strokeWidth={2.2} /> Nova meta
+                        </Button>
+                    ) : (
+                        <ReadOnlyBadge />
+                    )
                 }
             />
 
@@ -48,11 +57,13 @@ export default function Goals({ goals, invested, investments }) {
                             <IconBadge><Target /></IconBadge> Nenhuma meta ainda
                         </h2>
                         <p className="max-w-[46ch] text-[13px] leading-[1.5] text-muted">
-                            Crie uma — a primeira aparece no card "Meta" da Home.
+                            {canEdit ? 'Crie uma — a primeira aparece no card "Meta" da Home.' : 'Quando uma meta for criada, ela aparece aqui e no card "Meta" da Home.'}
                         </p>
-                        <Button type="button" variant="secondary" className="mt-1" onClick={() => setEditing({ show: true, goal: null })}>
-                            <Plus size={14} strokeWidth={2.2} /> Criar meta
-                        </Button>
+                        {canEdit && (
+                            <Button type="button" variant="secondary" className="mt-1" onClick={() => setEditing({ show: true, goal: null })}>
+                                <Plus size={14} strokeWidth={2.2} /> Criar meta
+                            </Button>
+                        )}
                     </Card>
                 )}
 
@@ -82,19 +93,25 @@ export default function Goals({ goals, invested, investments }) {
                             {goal.percent >= 100 && <strong className="font-semibold text-accent"> Meta alcançada!</strong>}
                         </div>
 
-                        <div className="mt-auto flex items-center gap-1 border-t border-line pt-3">
-                            {!goal.is_primary && (
-                                <Button type="button" variant="ghost" size="sm" onClick={() => router.post(route('goals.primary', goal.id), {}, { preserveScroll: true })}>
-                                    <Star size={14} strokeWidth={1.75} /> Mostrar na Home
-                                </Button>
-                            )}
-                            <Button type="button" variant="ghost" size="sm" className="ml-auto" onClick={() => setEditing({ show: true, goal })}>
-                                <Pencil size={14} strokeWidth={1.75} /> Editar
-                            </Button>
-                            <button type="button" onClick={() => remove(goal)} aria-label="Remover meta" className="grid h-9 w-9 place-items-center rounded-[10px] text-muted hover:bg-raised hover:text-red">
-                                <Trash2 size={14} />
-                            </button>
-                        </div>
+                        {(canEdit || canDelete) && (
+                            <div className="mt-auto flex items-center gap-1 border-t border-line pt-3">
+                                {canEdit && !goal.is_primary && (
+                                    <Button type="button" variant="ghost" size="sm" onClick={() => router.post(route('goals.primary', goal.id), {}, { preserveScroll: true })}>
+                                        <Star size={14} strokeWidth={1.75} /> Mostrar na Home
+                                    </Button>
+                                )}
+                                {canEdit && (
+                                    <Button type="button" variant="ghost" size="sm" className="ml-auto" onClick={() => setEditing({ show: true, goal })}>
+                                        <Pencil size={14} strokeWidth={1.75} /> Editar
+                                    </Button>
+                                )}
+                                {canDelete && (
+                                    <button type="button" onClick={() => remove(goal)} aria-label="Remover meta" className={`grid h-9 w-9 place-items-center rounded-[10px] text-muted hover:bg-raised hover:text-red ${canEdit ? '' : 'ml-auto'}`}>
+                                        <Trash2 size={14} />
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </Card>
                 ))}
             </section>

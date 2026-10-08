@@ -10,6 +10,7 @@ import SectionLabel from '@/Components/ui/SectionLabel';
 import CycleSwitcher from '@/Components/ui/CycleSwitcher';
 import OwnershipToggle from '@/Components/ui/OwnershipToggle';
 import IconBadge from '@/Components/ui/IconBadge';
+import ReadOnlyBadge from '@/Components/ui/ReadOnlyBadge';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { router, useForm, usePage } from '@inertiajs/react';
 import axios from 'axios';
@@ -17,6 +18,7 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, CalendarClock, Check, CircleDashed, Link2, Link2Off, MoreHorizontal, Pencil, Plus, Trash2, Wallet, CheckCircle2, Hourglass } from 'lucide-react';
 import { dayMonth, formatDocument, money } from '@/lib/format';
 import { OWNERSHIP_BADGE, ownershipLabel } from '@/lib/ownership';
+import { useCan } from '@/lib/access';
 
 const STATUS = {
     paid: { label: 'Paga', icon: Check, className: 'bg-accent/12 text-accent' },
@@ -28,6 +30,8 @@ export default function FixedExpenses({ cycle, fixedExpenses, totals, payees, ca
     const { couple } = usePage().props;
     const [editing, setEditing] = useState({ show: false, item: null });
     const [linking, setLinking] = useState(null);
+    const can = useCan();
+    const access = { canEdit: can('fixed.edit'), canDelete: can('fixed.delete') };
 
     const inCycle = fixedExpenses.filter((f) => f.active && f.occurrence);
     const outside = fixedExpenses.filter((f) => !f.active || !f.occurrence);
@@ -52,9 +56,13 @@ export default function FixedExpenses({ cycle, fixedExpenses, totals, payees, ca
                 actions={
                     <>
                         <CycleSwitcher cycle={cycle} routeName="fixedExpenses.index" />
-                        <Button type="button" variant="primary" onClick={() => setEditing({ show: true, item: null })} className="max-[560px]:flex-1">
-                            <Plus size={14} strokeWidth={2.2} /> Nova conta fixa
-                        </Button>
+                        {access.canEdit ? (
+                            <Button type="button" variant="primary" onClick={() => setEditing({ show: true, item: null })} className="max-[560px]:flex-1">
+                                <Plus size={14} strokeWidth={2.2} /> Nova conta fixa
+                            </Button>
+                        ) : (
+                            <ReadOnlyBadge />
+                        )}
                     </>
                 }
             />
@@ -79,6 +87,7 @@ export default function FixedExpenses({ cycle, fixedExpenses, totals, payees, ca
                                     item={item}
                                     couple={couple}
                                     payees={payees}
+                                    {...access}
                                     onEdit={() => setEditing({ show: true, item })}
                                     onLink={() => setLinking(item)}
                                     onUnlink={() => unlink(item)}
@@ -95,7 +104,7 @@ export default function FixedExpenses({ cycle, fixedExpenses, totals, payees, ca
                     <SectionLabel title="Fora deste mês ou inativas" />
                     <Card hover={false} className="p-3">
                         {outside.map((item) => (
-                            <FixedRow key={item.id} item={item} couple={couple} payees={payees} muted onEdit={() => setEditing({ show: true, item })} onRemove={() => remove(item)} />
+                            <FixedRow key={item.id} item={item} couple={couple} payees={payees} muted {...access} onEdit={() => setEditing({ show: true, item })} onRemove={() => remove(item)} />
                         ))}
                     </Card>
                 </section>
@@ -136,7 +145,8 @@ function matcherLabel(item, payees) {
     return null;
 }
 
-function FixedRow({ item, couple, payees, muted = false, onEdit, onLink, onUnlink, onRemove }) {
+// canEdit/canDelete: conta vinculada sem permissão vê a conta sem as ações.
+function FixedRow({ item, couple, payees, muted = false, canEdit = true, canDelete = true, onEdit, onLink, onUnlink, onRemove }) {
     const occurrence = item.occurrence;
     const status = occurrence ? STATUS[occurrence.status] : null;
     const Icon = status?.icon ?? CircleDashed;
@@ -171,51 +181,61 @@ function FixedRow({ item, couple, payees, muted = false, onEdit, onLink, onUnlin
                     {' · '}
                     {matcher ? (
                         <span>reconhece: {matcher}</span>
-                    ) : (
+                    ) : canEdit ? (
                         <button type="button" onClick={onEdit} className="text-warning hover:underline">definir como reconhecer o pagamento</button>
+                    ) : (
+                        <span className="text-warning">sem como reconhecer o pagamento</span>
                     )}
                 </div>
             </div>
 
-            <OccurrenceAmount item={item} />
+            <OccurrenceAmount item={item} canEdit={canEdit} />
 
-            <Menu as="div" className="relative flex-none">
-                <MenuButton aria-label="Ações" className="grid h-8 w-8 place-items-center rounded-lg text-muted transition-colors hover:bg-inset hover:text-text">
-                    <MoreHorizontal size={15} strokeWidth={2.2} />
-                </MenuButton>
-                <MenuItems anchor="bottom end" className="z-50 mt-1 w-56 rounded-[14px] bg-surface p-1.5 text-[14px] text-text border border-line focus:outline-none">
-                    <MenuItem>
-                        <button type="button" onClick={onEdit} className="flex w-full items-center gap-2 rounded-[8px] px-3 py-2.5 text-left data-[focus]:bg-raised">
-                            <Pencil size={14} strokeWidth={1.75} className="text-muted" /> Editar
-                        </button>
-                    </MenuItem>
-                    {occurrence && !occurrence.payment && onLink && (
-                        <MenuItem>
-                            <button type="button" onClick={onLink} className="flex w-full items-center gap-2 rounded-[8px] px-3 py-2.5 text-left data-[focus]:bg-raised">
-                                <Link2 size={14} strokeWidth={1.75} className="text-muted" /> Vincular pagamento
-                            </button>
-                        </MenuItem>
-                    )}
-                    {occurrence?.payment && onUnlink && (
-                        <MenuItem>
-                            <button type="button" onClick={onUnlink} className="flex w-full items-center gap-2 rounded-[8px] px-3 py-2.5 text-left data-[focus]:bg-raised">
-                                <Link2Off size={14} strokeWidth={1.75} className="text-muted" /> Desfazer vínculo
-                            </button>
-                        </MenuItem>
-                    )}
-                    <MenuItem>
-                        <button type="button" onClick={onRemove} className="flex w-full items-center gap-2 rounded-[8px] px-3 py-2.5 text-left text-red data-[focus]:bg-raised">
-                            <Trash2 size={13} /> Remover
-                        </button>
-                    </MenuItem>
-                </MenuItems>
-            </Menu>
+            {canEdit || canDelete ? (
+                <Menu as="div" className="relative flex-none">
+                    <MenuButton aria-label="Ações" className="grid h-8 w-8 place-items-center rounded-lg text-muted transition-colors hover:bg-inset hover:text-text">
+                        <MoreHorizontal size={15} strokeWidth={2.2} />
+                    </MenuButton>
+                    <MenuItems anchor="bottom end" className="z-50 mt-1 w-56 rounded-[14px] bg-surface p-1.5 text-[14px] text-text border border-line focus:outline-none">
+                        {canEdit && (
+                            <MenuItem>
+                                <button type="button" onClick={onEdit} className="flex w-full items-center gap-2 rounded-[8px] px-3 py-2.5 text-left data-[focus]:bg-raised">
+                                    <Pencil size={14} strokeWidth={1.75} className="text-muted" /> Editar
+                                </button>
+                            </MenuItem>
+                        )}
+                        {canEdit && occurrence && !occurrence.payment && onLink && (
+                            <MenuItem>
+                                <button type="button" onClick={onLink} className="flex w-full items-center gap-2 rounded-[8px] px-3 py-2.5 text-left data-[focus]:bg-raised">
+                                    <Link2 size={14} strokeWidth={1.75} className="text-muted" /> Vincular pagamento
+                                </button>
+                            </MenuItem>
+                        )}
+                        {canEdit && occurrence?.payment && onUnlink && (
+                            <MenuItem>
+                                <button type="button" onClick={onUnlink} className="flex w-full items-center gap-2 rounded-[8px] px-3 py-2.5 text-left data-[focus]:bg-raised">
+                                    <Link2Off size={14} strokeWidth={1.75} className="text-muted" /> Desfazer vínculo
+                                </button>
+                            </MenuItem>
+                        )}
+                        {canDelete && (
+                            <MenuItem>
+                                <button type="button" onClick={onRemove} className="flex w-full items-center gap-2 rounded-[8px] px-3 py-2.5 text-left text-red data-[focus]:bg-raised">
+                                    <Trash2 size={13} /> Remover
+                                </button>
+                            </MenuItem>
+                        )}
+                    </MenuItems>
+                </Menu>
+            ) : (
+                <span className="h-8 w-8 flex-none" aria-hidden="true" />
+            )}
         </div>
     );
 }
 
 // Valor do mês. Conta variável ainda não paga: clique para informar o valor real do mês.
-function OccurrenceAmount({ item }) {
+function OccurrenceAmount({ item, canEdit = true }) {
     const occurrence = item.occurrence;
     const [editing, setEditing] = useState(false);
     const [value, setValue] = useState(occurrence?.planned_amount ?? item.amount);
@@ -238,6 +258,15 @@ function OccurrenceAmount({ item }) {
 
     if (!item.variable_amount) {
         return <span className="w-[130px] flex-none whitespace-nowrap text-right font-mono text-[13px]">{money(occurrence.amount)}</span>;
+    }
+
+    if (!canEdit) {
+        return (
+            <div className="flex w-[130px] flex-none flex-col items-end">
+                <span className="whitespace-nowrap font-mono text-[13px]">{occurrence.has_amount_override ? '' : '≈ '}{money(occurrence.amount)}</span>
+                <span className="text-[12px] text-muted">{occurrence.has_amount_override ? 'ajustado' : 'estimado'}</span>
+            </div>
+        );
     }
 
     if (editing) {
@@ -279,7 +308,7 @@ function OccurrenceAmount({ item }) {
 }
 
 const EMPTY = {
-    description: '', amount: '', variable_amount: false, due_day: '', start_date: '', end_date: '',
+    description: '', amount: '', variable_amount: false, previous_cycle: false, due_day: '', start_date: '', end_date: '',
     category_id: '', ownership: 'both', match_document: '', match_pattern: '', active: true,
 };
 
@@ -291,7 +320,7 @@ function FixedExpenseModal({ show, item, onClose, categories, payees, couple }) 
         if (!show) return;
         clearErrors();
         setData(item ? {
-            description: item.description, amount: item.amount, variable_amount: item.variable_amount, due_day: item.due_day,
+            description: item.description, amount: item.amount, variable_amount: item.variable_amount, previous_cycle: item.previous_cycle, due_day: item.due_day,
             start_date: item.start_date ?? '', end_date: item.end_date ?? '', category_id: item.category_id ?? '', ownership: item.ownership,
             match_document: item.match_document ?? '', match_pattern: item.match_pattern ?? '', active: item.active,
         } : EMPTY);
@@ -327,6 +356,14 @@ function FixedExpenseModal({ show, item, onClose, categories, payees, couple }) 
                     <span>
                         Valor muda todo mês (luz, água…)
                         <span className="block text-[12px] text-muted">O valor acima vira estimativa até o pagamento real chegar.</span>
+                    </span>
+                </label>
+
+                <label className="flex items-start gap-2.5 text-[14px]">
+                    <input type="checkbox" checked={data.previous_cycle} onChange={(e) => setData('previous_cycle', e.target.checked)} className="mt-0.5 h-4 w-4 rounded border-line-strong bg-transparent text-accent focus:ring-accent/40 focus:ring-offset-0" />
+                    <span>
+                        Paga o consumo do mês anterior
+                        <span className="block text-[12px] text-muted">Ex: energia paga no começo de outubro entra nos gastos de setembro.</span>
                     </span>
                 </label>
 

@@ -11,15 +11,17 @@ import Select from '@/Components/ui/Select';
 import Segmented from '@/Components/ui/Segmented';
 import SaveBar from '@/Components/ui/SaveBar';
 import Toast from '@/Components/ui/Toast';
-import { Head, router, useForm } from '@inertiajs/react';
+import ReadOnlyBadge from '@/Components/ui/ReadOnlyBadge';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import axios from 'axios';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     Wallet, CreditCard, Tag, ListFilter, Plus, Pencil, Trash2, RefreshCw,
-    Search, Minus, Landmark, ExternalLink, KeyRound,
+    Search, Minus, Landmark, ExternalLink, KeyRound, Users, Copy, Check, History, ChevronRight,
 } from 'lucide-react';
-import { relativeTime } from '@/lib/format';
+import { fullDate, relativeTime } from '@/lib/format';
 import { OWNERSHIP_BADGE } from '@/lib/ownership';
+import { useCan } from '@/lib/access';
 
 const PLUGGY_CONNECT_SCRIPT_URL = 'https://cdn.pluggy.ai/pluggy-connect/v2.8.2/pluggy-connect.js';
 
@@ -282,18 +284,20 @@ function PayerCard({ name, onNameChange, salary, onSalaryChange, percentLabel, a
 }
 
 // ─── Linha de categoria (dot de cor, nome inline, dono cíclico) ───────────────
-function CategoryRow({ category, editing, onToggleEdit, onRename, onColorChange, onCycleOwner, onDelete, ownershipLabel }) {
+function CategoryRow({ category, editing, onToggleEdit, onRename, onColorChange, onCycleOwner, onDelete, ownershipLabel, canEdit = true, canDelete = true }) {
     return (
         <div className="flex min-h-[44px] items-center gap-2.5 rounded-[10px] px-2 py-1.5 transition-colors hover:bg-raised">
-            <span className="relative h-3 w-3 flex-none" title="Trocar cor">
+            <span className="relative h-3 w-3 flex-none" title={canEdit ? 'Trocar cor' : undefined}>
                 <span className="absolute inset-0 rounded-[3px]" style={{ background: category.color }} />
-                <input
-                    type="color"
-                    value={category.color}
-                    onChange={(e) => onColorChange(e.target.value)}
-                    aria-label={`Cor da categoria ${category.name}`}
-                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                />
+                {canEdit && (
+                    <input
+                        type="color"
+                        value={category.color}
+                        onChange={(e) => onColorChange(e.target.value)}
+                        aria-label={`Cor da categoria ${category.name}`}
+                        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                    />
+                )}
             </span>
 
             {editing ? (
@@ -310,29 +314,39 @@ function CategoryRow({ category, editing, onToggleEdit, onRename, onColorChange,
                 <span className="min-w-0 flex-1 truncate text-[14px] font-medium">{category.name}</span>
             )}
 
-            <button
-                type="button"
-                onClick={onCycleOwner}
-                title="Alternar responsável"
-                className={`flex-none rounded-full px-2 py-[3px] text-[12px] font-medium transition-[filter] hover:brightness-125 ${OWNERSHIP_BADGE[category.default_ownership]}`}
-            >
-                {ownershipLabel(category.default_ownership)}
-            </button>
+            {canEdit ? (
+                <button
+                    type="button"
+                    onClick={onCycleOwner}
+                    title="Alternar responsável"
+                    className={`flex-none rounded-full px-2 py-[3px] text-[12px] font-medium transition-[filter] hover:brightness-125 ${OWNERSHIP_BADGE[category.default_ownership]}`}
+                >
+                    {ownershipLabel(category.default_ownership)}
+                </button>
+            ) : (
+                <span className={`flex-none rounded-full px-2 py-[3px] text-[12px] font-medium ${OWNERSHIP_BADGE[category.default_ownership]}`}>
+                    {ownershipLabel(category.default_ownership)}
+                </span>
+            )}
 
             <span className="w-16 flex-none text-right font-mono text-[12px] text-muted">{category.expenses_count} desp.</span>
 
-            <button type="button" onClick={onToggleEdit} aria-label="Renomear categoria" className="grid h-8 w-8 flex-none place-items-center rounded-lg text-muted transition-colors hover:bg-inset hover:text-text">
-                <Pencil size={16} strokeWidth={1.75} />
-            </button>
-            <button type="button" onClick={onDelete} aria-label="Excluir categoria" className="grid h-8 w-8 flex-none place-items-center rounded-lg text-muted transition-colors hover:bg-inset hover:text-red">
-                <Trash2 size={16} strokeWidth={1.75} />
-            </button>
+            {canEdit && (
+                <button type="button" onClick={onToggleEdit} aria-label="Renomear categoria" className="grid h-8 w-8 flex-none place-items-center rounded-lg text-muted transition-colors hover:bg-inset hover:text-text">
+                    <Pencil size={16} strokeWidth={1.75} />
+                </button>
+            )}
+            {canDelete && (
+                <button type="button" onClick={onDelete} aria-label="Excluir categoria" className="grid h-8 w-8 flex-none place-items-center rounded-lg text-muted transition-colors hover:bg-inset hover:text-red">
+                    <Trash2 size={16} strokeWidth={1.75} />
+                </button>
+            )}
         </div>
     );
 }
 
 // ─── Linha de regra (dono cíclico, editar via modal, excluir) ─────────────────
-function RuleRow({ rule, onCycleOwner, onEdit, onDelete, ownershipLabel }) {
+function RuleRow({ rule, onCycleOwner, onEdit, onDelete, ownershipLabel, canEdit = true, canDelete = true }) {
     const ignores = rule.action === 'ignore';
 
     return (
@@ -345,7 +359,7 @@ function RuleRow({ rule, onCycleOwner, onEdit, onDelete, ownershipLabel }) {
             </div>
             {ignores ? (
                 <span className="flex-none rounded-full bg-inset px-2 py-[3px] text-[12px] font-medium text-muted">Ignorar</span>
-            ) : (
+            ) : canEdit ? (
                 <button
                     type="button"
                     onClick={onCycleOwner}
@@ -354,19 +368,36 @@ function RuleRow({ rule, onCycleOwner, onEdit, onDelete, ownershipLabel }) {
                 >
                     {ownershipLabel(rule.ownership)}
                 </button>
+            ) : (
+                <span className={`flex-none rounded-full px-2 py-[3px] text-[12px] font-medium ${OWNERSHIP_BADGE[rule.ownership]}`}>
+                    {ownershipLabel(rule.ownership)}
+                </span>
             )}
-            <button type="button" onClick={onEdit} aria-label="Editar regra" className="grid h-8 w-8 flex-none place-items-center rounded-lg text-muted transition-colors hover:bg-inset hover:text-text">
-                <Pencil size={16} strokeWidth={1.75} />
-            </button>
-            <button type="button" onClick={onDelete} aria-label="Excluir regra" className="grid h-8 w-8 flex-none place-items-center rounded-lg text-muted transition-colors hover:bg-inset hover:text-red">
-                <Trash2 size={16} strokeWidth={1.75} />
-            </button>
+            {canEdit && (
+                <button type="button" onClick={onEdit} aria-label="Editar regra" className="grid h-8 w-8 flex-none place-items-center rounded-lg text-muted transition-colors hover:bg-inset hover:text-text">
+                    <Pencil size={16} strokeWidth={1.75} />
+                </button>
+            )}
+            {canDelete && (
+                <button type="button" onClick={onDelete} aria-label="Excluir regra" className="grid h-8 w-8 flex-none place-items-center rounded-lg text-muted transition-colors hover:bg-inset hover:text-red">
+                    <Trash2 size={16} strokeWidth={1.75} />
+                </button>
+            )}
         </div>
     );
 }
 
 // ─── Stepper numérico (dia de fechamento, dias de tolerância) ─────────────────
-function Stepper({ value, onStep, label, width = 'w-[52px]' }) {
+// readOnly: só o número (conta vinculada sem permissão em Configurações).
+function Stepper({ value, onStep, label, width = 'w-[52px]', readOnly = false }) {
+    if (readOnly) {
+        return (
+            <div className="inline-flex h-11 items-center rounded-[10px] border border-line bg-surface px-4" aria-label={label}>
+                <span className="font-mono text-[18px] font-medium text-text">{pad2(value)}</span>
+            </div>
+        );
+    }
+
     return (
         <div className="inline-flex h-11 items-center rounded-[10px] border border-line bg-surface">
             <button type="button" onClick={() => onStep(-1)} aria-label={`${label}: diminuir`} className="grid h-[42px] w-[42px] flex-none place-items-center rounded-[10px] text-secondary transition-colors hover:text-text">
@@ -381,7 +412,7 @@ function Stepper({ value, onStep, label, width = 'w-[52px]' }) {
 }
 
 // ─── Conexão Open Finance ─────────────────────────────────────────────────────
-function ConnectionCard({ connection, ownershipOptions, onReconnect }) {
+function ConnectionCard({ connection, ownershipOptions, onReconnect, canEdit = true, canDelete = true }) {
     const [syncing, setSyncing] = useState(false);
     const status = CONNECTION_STATUS[connection.status] ?? { label: connection.status, className: 'bg-inset text-secondary' };
     const needsLogin = ['LOGIN_ERROR', 'OUTDATED', 'WAITING_USER_INPUT'].includes(connection.status);
@@ -405,13 +436,17 @@ function ConnectionCard({ connection, ownershipOptions, onReconnect }) {
                 <span className="text-[12px] text-muted">sincronizado {relativeTime(connection.last_synced_at)}</span>
                 <div className="ml-auto flex items-center gap-1.5 text-[12px] text-muted">
                     Conta de
-                    <select
-                        value={connection.owner}
-                        onChange={(e) => router.put(route('openFinance.items.update', connection.id), { owner: e.target.value }, { preserveScroll: true })}
-                        className="h-9 rounded-[8px] border border-line-strong bg-bg py-0 pl-2.5 pr-8 text-[13px] text-text focus:border-accent focus:ring-0"
-                    >
-                        {ownershipOptions.filter((o) => o.value !== 'both').map((o) => <option key={o.value} value={o.value} className="bg-surface">{o.label}</option>)}
-                    </select>
+                    {canEdit ? (
+                        <select
+                            value={connection.owner}
+                            onChange={(e) => router.put(route('openFinance.items.update', connection.id), { owner: e.target.value }, { preserveScroll: true })}
+                            className="h-9 rounded-[8px] border border-line-strong bg-bg py-0 pl-2.5 pr-8 text-[13px] text-text focus:border-accent focus:ring-0"
+                        >
+                            {ownershipOptions.filter((o) => o.value !== 'both').map((o) => <option key={o.value} value={o.value} className="bg-surface">{o.label}</option>)}
+                        </select>
+                    ) : (
+                        <span className="text-[13px] text-text">{ownershipOptions.find((o) => o.value === connection.owner)?.label}</span>
+                    )}
                 </div>
             </div>
 
@@ -435,7 +470,7 @@ function ConnectionCard({ connection, ownershipOptions, onReconnect }) {
                 <Button type="button" variant="secondary" onClick={sync} disabled={syncing}>
                     <RefreshCw size={14} strokeWidth={2.2} className={syncing ? 'animate-spin' : ''} /> {syncing ? 'Sincronizando…' : 'Sincronizar agora'}
                 </Button>
-                {needsLogin && (
+                {canEdit && needsLogin && (
                     <Button type="button" variant="ghost" onClick={() => onReconnect(connection)}>
                         <KeyRound size={14} strokeWidth={2.2} /> Reconectar
                     </Button>
@@ -443,14 +478,180 @@ function ConnectionCard({ connection, ownershipOptions, onReconnect }) {
                 <Button href={route('openFinance.items.show', connection.id)} variant="ghost">
                     <ExternalLink size={14} strokeWidth={2.2} /> Ver dados
                 </Button>
-                <button type="button" onClick={remove} className="ml-auto text-[13px] text-muted hover:text-red">Remover conexão</button>
+                {canDelete && <button type="button" onClick={remove} className="ml-auto text-[13px] text-muted hover:text-red">Remover conexão</button>}
+            </div>
+        </div>
+    );
+}
+
+// ─── Acesso compartilhado (só a conta principal) ──────────────────────────────
+// Quem entra pelo link de convite vê tudo; criar/editar e excluir valem por área.
+function AccessSection({ access }) {
+    return (
+        <section className="flex flex-col gap-4">
+            <SectionLabel
+                title="Acesso compartilhado"
+                id="acesso"
+                action={
+                    <Link href={route('history.index')} className="inline-flex min-h-8 items-center gap-1 text-[13px] font-medium text-secondary no-underline hover:text-text">
+                        Histórico de mudanças <ChevronRight size={14} strokeWidth={2} />
+                    </Link>
+                }
+            />
+            <Card className="flex flex-col gap-5">
+                <SectionHeader
+                    icon={<Users size={16} strokeWidth={1.75} />}
+                    title="Contas vinculadas"
+                    subtitle="Quem entra pelo convite vê tudo. Criar, editar e excluir só nas áreas que você liberar."
+                />
+
+                {access.members.length === 0 ? (
+                    <p className="text-[13px] text-muted">Nenhuma conta vinculada ainda.</p>
+                ) : (
+                    access.members.map((member) => (
+                        <MemberCard key={member.id} member={member} areas={access.areas} actions={access.actions} />
+                    ))
+                )}
+
+                <InviteBox invite={access.invite} />
+            </Card>
+        </section>
+    );
+}
+
+function MemberCard({ member, areas, actions }) {
+    const [permissions, setPermissions] = useState(member.permissions);
+    const [saving, setSaving] = useState(false);
+
+    // Props novas do servidor (salvou, ou outra aba mudou): adota.
+    useEffect(() => setPermissions(member.permissions), [member.permissions]);
+
+    const toggle = (permission) => {
+        const next = permissions.includes(permission) ? permissions.filter((p) => p !== permission) : [...permissions, permission];
+        setPermissions(next);
+        setSaving(true);
+        router.put(route('access.members.update', member.id), { permissions: next }, {
+            preserveScroll: true,
+            onError: () => setPermissions(member.permissions),
+            onFinish: () => setSaving(false),
+        });
+    };
+
+    const unlink = () => {
+        if (confirm(`Desvincular a conta de ${member.name}? A conta deixa de ver os dados na hora.`)) {
+            router.delete(route('access.members.destroy', member.id), { preserveScroll: true });
+        }
+    };
+
+    return (
+        <div className="rounded-[14px] border border-line bg-bg/40 p-4">
+            <div className="flex flex-wrap items-center gap-2.5">
+                <span className="grid h-8 w-8 flex-none place-items-center rounded-full bg-person2 text-[13px] font-semibold text-on-accent">
+                    {firstName(member.name).charAt(0).toUpperCase()}
+                </span>
+                <div className="min-w-0 flex-1">
+                    <div className="truncate text-[15px] font-semibold">{member.name}</div>
+                    <div className="truncate text-[12px] text-muted">
+                        {member.email}{member.linked_at && ` · conta vinculada em ${fullDate(member.linked_at)}`}
+                    </div>
+                </div>
+                <button type="button" onClick={unlink} className="flex-none text-[13px] text-muted hover:text-red">Desvincular</button>
+            </div>
+
+            <div className="mt-4 grid max-w-[520px] grid-cols-[minmax(0,1fr)_repeat(2,minmax(96px,auto))] text-[13px]" aria-busy={saving}>
+                <span className="pb-1.5 text-[12px] text-muted">Pode</span>
+                {actions.map((action) => (
+                    <span key={action.key} className="px-2 pb-1.5 text-center text-[12px] text-muted">{action.label}</span>
+                ))}
+                {areas.map((area) => (
+                    <div key={area.key} className="contents">
+                        <span className="flex items-center border-t border-line-row py-2.5 font-medium">{area.label}</span>
+                        {actions.map((action) => {
+                            const permission = `${area.key}.${action.key}`;
+                            return (
+                                <label key={permission} className="flex cursor-pointer items-center justify-center border-t border-line-row px-2 py-2.5">
+                                    <input
+                                        type="checkbox"
+                                        checked={permissions.includes(permission)}
+                                        onChange={() => toggle(permission)}
+                                        aria-label={`${area.label}: ${action.label.toLowerCase()}`}
+                                        className="h-4 w-4 rounded border-line-strong bg-transparent text-accent focus:ring-accent/40 focus:ring-offset-0"
+                                    />
+                                </label>
+                            );
+                        })}
+                    </div>
+                ))}
+            </div>
+            <p className="mt-2 text-[12px] text-muted">Sincronizar com o banco e exportar PDF ficam liberados para todos. O histórico e este acesso, só para você.</p>
+        </div>
+    );
+}
+
+function InviteBox({ invite }) {
+    const [copied, setCopied] = useState(false);
+    const [busy, setBusy] = useState(false);
+
+    const generate = () => {
+        setBusy(true);
+        router.post(route('access.invites.store'), {}, { preserveScroll: true, onFinish: () => setBusy(false) });
+    };
+
+    const revoke = () => router.delete(route('access.invites.destroy', invite.id), { preserveScroll: true });
+
+    const copy = async () => {
+        try {
+            await navigator.clipboard.writeText(invite.url);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch {
+            // Sem permissão de área de transferência: o campo fica selecionado para copiar à mão.
+            document.getElementById('invite-url')?.select();
+        }
+    };
+
+    if (!invite) {
+        return (
+            <div className="flex flex-wrap items-center gap-3 rounded-[14px] border border-dashed border-line-strong px-4 py-3.5">
+                <p className="min-w-[220px] flex-1 text-[13px] leading-[1.5] text-muted">
+                    Gere um link de convite e envie para quem vai acompanhar as finanças com você. Ele vale por 7 dias e para uma conta.
+                </p>
+                <Button type="button" variant="secondary" onClick={generate} disabled={busy}>
+                    <Plus size={14} strokeWidth={2.2} /> {busy ? 'Gerando…' : 'Gerar link de convite'}
+                </Button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="rounded-[14px] border border-line bg-bg/40 p-4">
+            <div className="text-[13px] font-medium text-secondary">Link de convite</div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+                <input
+                    id="invite-url"
+                    readOnly
+                    value={invite.url}
+                    onFocus={(e) => e.target.select()}
+                    aria-label="Link de convite"
+                    className="h-11 min-w-0 flex-1 basis-[240px] rounded-[10px] border border-line-strong bg-bg px-3 font-mono text-[13px] text-text focus:border-accent focus:outline-none focus:ring-0"
+                />
+                <Button type="button" variant="secondary" onClick={copy}>
+                    {copied ? <Check size={14} strokeWidth={2.4} /> : <Copy size={14} strokeWidth={2} />} {copied ? 'Copiado' : 'Copiar'}
+                </Button>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted">
+                <span>Vale até {fullDate(invite.expires_at)}, para uma conta. A conta entra só com visualização.</span>
+                <button type="button" onClick={revoke} className="ml-auto text-[13px] text-muted hover:text-red">Cancelar link</button>
             </div>
         </div>
     );
 }
 
 // ─── Página principal ─────────────────────────────────────────────────────────
-export default function Settings({ settings, categories, rules, connections, useSandbox }) {
+export default function Settings({ settings, categories, rules, connections, useSandbox, access }) {
+    const can = useCan();
+    const canEdit = can('settings.edit');
+    const canDelete = can('settings.delete');
     const [base, setBase] = useState(() => buildBase(settings, categories, rules));
     const [draft, setDraft] = useState(() => buildBase(settings, categories, rules));
     const [saving, setSaving] = useState(false);
@@ -680,6 +881,15 @@ export default function Settings({ settings, categories, rules, connections, use
             <PageHeader
                 title="Configurações"
                 description="Como a despesa é dividida entre vocês, quando o mês financeiro vira, de onde vêm os dados e para onde cada gasto vai."
+                actions={
+                    access ? (
+                        <Button href={route('history.index')} variant="secondary">
+                            <History size={14} strokeWidth={2} /> Histórico de mudanças
+                        </Button>
+                    ) : !canEdit ? (
+                        <ReadOnlyBadge />
+                    ) : null
+                }
             />
 
             {/* Divisão da despesa */}
@@ -691,28 +901,30 @@ export default function Settings({ settings, categories, rules, connections, use
                         title="Proporção por renda"
                     />
 
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <PayerCard
-                            name={draft.payer1_name}
-                            onNameChange={setGeneral('payer1_name')}
-                            salary={draft.payer1_salary}
-                            onSalaryChange={setGeneral('payer1_salary')}
-                            percentLabel={`${p1.toFixed(1).replace('.', ',')}%`}
-                            avatarClass="bg-person1 text-on-accent"
-                            percentClass="text-person1"
-                            error={errors.payer1_name || errors.payer1_salary}
-                        />
-                        <PayerCard
-                            name={draft.payer2_name}
-                            onNameChange={setGeneral('payer2_name')}
-                            salary={draft.payer2_salary}
-                            onSalaryChange={setGeneral('payer2_salary')}
-                            percentLabel={`${p2.toFixed(1).replace('.', ',')}%`}
-                            avatarClass="bg-person2 text-on-accent"
-                            percentClass="text-person2"
-                            error={errors.payer2_name || errors.payer2_salary}
-                        />
-                    </div>
+                    <fieldset disabled={!canEdit} className="m-0 min-w-0 border-0 p-0">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <PayerCard
+                                name={draft.payer1_name}
+                                onNameChange={setGeneral('payer1_name')}
+                                salary={draft.payer1_salary}
+                                onSalaryChange={setGeneral('payer1_salary')}
+                                percentLabel={`${p1.toFixed(1).replace('.', ',')}%`}
+                                avatarClass="bg-person1 text-on-accent"
+                                percentClass="text-person1"
+                                error={errors.payer1_name || errors.payer1_salary}
+                            />
+                            <PayerCard
+                                name={draft.payer2_name}
+                                onNameChange={setGeneral('payer2_name')}
+                                salary={draft.payer2_salary}
+                                onSalaryChange={setGeneral('payer2_salary')}
+                                percentLabel={`${p2.toFixed(1).replace('.', ',')}%`}
+                                avatarClass="bg-person2 text-on-accent"
+                                percentClass="text-person2"
+                                error={errors.payer2_name || errors.payer2_salary}
+                            />
+                        </div>
+                    </fieldset>
 
                     <div>
                         <div className="flex h-3 gap-[3px]">
@@ -734,7 +946,7 @@ export default function Settings({ settings, categories, rules, connections, use
 
                     <div className="mt-4 flex flex-wrap items-center gap-[clamp(20px,3vw,40px)]">
                         <div className="min-w-[240px] flex-1">
-                            <Stepper value={draft.card_closing_day} onStep={stepDay} label="Dia de fechamento" />
+                            <Stepper value={draft.card_closing_day} onStep={stepDay} label="Dia de fechamento" readOnly={!canEdit} />
                             {errors.card_closing_day && <p className="mt-1 text-[12px] text-red">{errors.card_closing_day}</p>}
                         </div>
 
@@ -750,7 +962,7 @@ export default function Settings({ settings, categories, rules, connections, use
 
                     <div className="mt-5 flex flex-wrap items-center gap-[clamp(20px,3vw,40px)] border-t border-line pt-5">
                         <div className="min-w-[240px] flex-1">
-                            <Stepper value={draft.income_grace_days} onStep={stepGrace} label="Dias de tolerância da receita" />
+                            <Stepper value={draft.income_grace_days} onStep={stepGrace} label="Dias de tolerância da receita" readOnly={!canEdit} />
                             {errors.income_grace_days && <p className="mt-1 text-[12px] text-red">{errors.income_grace_days}</p>}
                         </div>
                         <p className="min-w-[260px] flex-1 text-[13px] leading-[1.5] text-muted">
@@ -775,22 +987,24 @@ export default function Settings({ settings, categories, rules, connections, use
                         <p className="py-4 text-center text-[13px] text-muted">Nenhum banco conectado ainda.</p>
                     ) : (
                         connections.map((connection) => (
-                            <ConnectionCard key={connection.id} connection={connection} ownershipOptions={ownershipOptions} onReconnect={openPluggy} />
+                            <ConnectionCard key={connection.id} connection={connection} ownershipOptions={ownershipOptions} onReconnect={openPluggy} canEdit={canEdit} canDelete={canDelete} />
                         ))
                     )}
 
-                    <div className="flex flex-wrap items-center gap-2.5">
-                        <span className="text-[13px] text-muted">Nova conexão de</span>
-                        <Segmented
-                            size="sm"
-                            value={newOwner}
-                            onChange={setNewOwner}
-                            options={ownershipOptions.filter((o) => o.value !== 'both').map((o) => ({ ...o, label: firstName(o.label) }))}
-                        />
-                        <Button type="button" variant="primary" onClick={() => openPluggy()} disabled={!scriptLoaded || connecting}>
-                            <Plus size={14} strokeWidth={2.2} /> {connecting ? 'Abrindo…' : !scriptLoaded ? 'Carregando…' : 'Conectar banco'}
-                        </Button>
-                    </div>
+                    {canEdit && (
+                        <div className="flex flex-wrap items-center gap-2.5">
+                            <span className="text-[13px] text-muted">Nova conexão de</span>
+                            <Segmented
+                                size="sm"
+                                value={newOwner}
+                                onChange={setNewOwner}
+                                options={ownershipOptions.filter((o) => o.value !== 'both').map((o) => ({ ...o, label: firstName(o.label) }))}
+                            />
+                            <Button type="button" variant="primary" onClick={() => openPluggy()} disabled={!scriptLoaded || connecting}>
+                                <Plus size={14} strokeWidth={2.2} /> {connecting ? 'Abrindo…' : !scriptLoaded ? 'Carregando…' : 'Conectar banco'}
+                            </Button>
+                        </div>
+                    )}
                 </Card>
             </section>
 
@@ -842,28 +1056,32 @@ export default function Settings({ settings, categories, rules, connections, use
                                             onCycleOwner={() => updateCategory(key, { default_ownership: cycleOwnership(category.default_ownership) })}
                                             onDelete={() => deleteCategory(category)}
                                             ownershipLabel={ownershipLabel}
+                                            canEdit={canEdit}
+                                            canDelete={canDelete}
                                         />
                                     );
                                 })
                             )}
                         </div>
 
-                        <div className="mt-3 flex h-11 items-center gap-2 rounded-[10px] border border-dashed border-line-strong px-3 focus-within:border-solid focus-within:border-accent">
-                            <Plus size={15} className="flex-none stroke-strong-accent" />
-                            <input
-                                value={novaCategoria}
-                                onChange={(e) => setNovaCategoria(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === 'Enter') addCategory(); }}
-                                placeholder="Nova categoria — digite e pressione Enter"
-                                aria-label="Nova categoria"
-                                className="min-w-0 flex-1 border-0 bg-transparent py-0 text-[14px] text-text placeholder:text-muted/70 focus:outline-none focus:ring-0"
-                            />
-                            {novaCategoria.trim() && (
-                                <button type="button" onClick={addCategory} className="h-8 flex-none rounded-[8px] bg-accent px-3 text-[13px] font-semibold text-on-accent hover:brightness-[1.06]">
-                                    Criar
-                                </button>
-                            )}
-                        </div>
+                        {canEdit && (
+                            <div className="mt-3 flex h-11 items-center gap-2 rounded-[10px] border border-dashed border-line-strong px-3 focus-within:border-solid focus-within:border-accent">
+                                <Plus size={15} className="flex-none stroke-strong-accent" />
+                                <input
+                                    value={novaCategoria}
+                                    onChange={(e) => setNovaCategoria(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') addCategory(); }}
+                                    placeholder="Nova categoria — digite e pressione Enter"
+                                    aria-label="Nova categoria"
+                                    className="min-w-0 flex-1 border-0 bg-transparent py-0 text-[14px] text-text placeholder:text-muted/70 focus:outline-none focus:ring-0"
+                                />
+                                {novaCategoria.trim() && (
+                                    <button type="button" onClick={addCategory} className="h-8 flex-none rounded-[8px] bg-accent px-3 text-[13px] font-semibold text-on-accent hover:brightness-[1.06]">
+                                        Criar
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </Card>
 
                     <Card className="flex flex-col">
@@ -888,22 +1106,28 @@ export default function Settings({ settings, categories, rules, connections, use
                                         onEdit={() => openEditRule(rule)}
                                         onDelete={() => deleteRule(rule)}
                                         ownershipLabel={ownershipLabel}
+                                        canEdit={canEdit}
+                                        canDelete={canDelete}
                                     />
                                 ))
                             )}
                         </div>
 
-                        <div className="mt-3 flex items-center justify-end gap-2">
-                            <Button type="button" variant="secondary" onClick={openCreateRule}>
-                                <Plus size={14} strokeWidth={2.2} /> Nova regra
-                            </Button>
-                            <Button type="button" variant="ghost" onClick={applyRules} disabled={applying || draft.rules.length === 0}>
-                                <RefreshCw size={14} strokeWidth={2.2} className={applying ? 'animate-spin' : ''} /> {applying ? 'Aplicando...' : 'Aplicar regras'}
-                            </Button>
-                        </div>
+                        {canEdit && (
+                            <div className="mt-3 flex items-center justify-end gap-2">
+                                <Button type="button" variant="secondary" onClick={openCreateRule}>
+                                    <Plus size={14} strokeWidth={2.2} /> Nova regra
+                                </Button>
+                                <Button type="button" variant="ghost" onClick={applyRules} disabled={applying || draft.rules.length === 0}>
+                                    <RefreshCw size={14} strokeWidth={2.2} className={applying ? 'animate-spin' : ''} /> {applying ? 'Aplicando...' : 'Aplicar regras'}
+                                </Button>
+                            </div>
+                        )}
                     </Card>
                 </section>
             </section>
+
+            {access && <AccessSection access={access} />}
 
             <SaveBar count={changesCount} saving={saving} onSave={salvar} onDiscard={discard} />
 

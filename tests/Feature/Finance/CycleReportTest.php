@@ -193,4 +193,61 @@ class CycleReportTest extends TestCase
         $this->assertSame(1260.0, $report->split()['total']);
         $this->assertSame($rent->id, $pix->fresh()->fixedOccurrence->fixed_expense_id);
     }
+
+    public function test_previous_month_bill_counts_in_the_month_it_refers_to(): void
+    {
+        $energy = FixedExpense::create([
+            'description' => 'Neoenergia', 'amount' => 300, 'variable_amount' => true, 'previous_cycle' => true,
+            'due_day' => 10, 'ownership' => 'both', 'active' => true, 'match_pattern' => 'NEOENERGIA',
+        ]);
+
+        // Energia de setembro paga em 05/10 — pela data, ciclo de outubro.
+        $pix = $this->row(['amount' => 453.64, 'date' => '2026-10-05', 'description' => 'Transferência enviada|NEOENERGIA']);
+        $this->assertSame('2026-10', $pix->competence);
+
+        FixedExpenseMatcher::make()->matchCycle('2026-10');
+
+        $this->assertSame('2026-09', $pix->fresh()->competence);
+        $this->assertSame(453.64, CycleReport::for('2026-09')->split()['total']);
+        $this->assertSame(0.0, CycleReport::for('2026-10')->split()['total']);
+
+        // Setembro mostra a conta paga (vence 10/10); outubro, a do consumo de outubro (10/11) em aberto.
+        $september = CycleReport::for('2026-09')->fixedExpenses()->firstWhere('id', $energy->id);
+        $this->assertSame(['2026-10-10', 'paid'], [$september['due_date'], $september['status']]);
+        $october = CycleReport::for('2026-10')->fixedExpenses()->firstWhere('id', $energy->id);
+        $this->assertSame(['2026-11-10', 'upcoming'], [$october['due_date'], $october['status']]);
+        $this->assertSame(300.0, CycleReport::for('2026-10')->pendingFixed());
+
+        // O acerto segue o caixa: o de setembro cobre a conta que vence em 10/10.
+        $this->assertSame('2026-10-10', CycleReport::for('2026-09')->settlementFixed()->firstWhere('id', $energy->id)['due_date']);
+
+        // Data do banco mudou: continua no mês anterior.
+        $pix->fresh()->update(['date' => '2026-10-06']);
+        $this->assertSame('2026-09', $pix->fresh()->competence);
+
+        // Vínculo desfeito: volta para o mês da data.
+        $pix->fresh()->fixedOccurrence->update(['expense_id' => null, 'skip_auto_match' => true]);
+        $this->assertSame('2026-10', $pix->fresh()->competence);
+    }
+
+    public function test_unchecking_previous_month_moves_payments_back(): void
+    {
+        $energy = FixedExpense::create([
+            'description' => 'Neoenergia', 'amount' => 300, 'previous_cycle' => true,
+            'due_day' => 10, 'ownership' => 'both', 'active' => true, 'match_pattern' => 'NEOENERGIA',
+        ]);
+        $pix = $this->row(['amount' => 280, 'date' => '2026-09-07', 'description' => 'Transferência enviada|NEOENERGIA']);
+        FixedExpenseMatcher::make()->matchCycle('2026-09');
+        $this->assertSame('2026-08', $pix->fresh()->competence);
+
+        $energy->update(['previous_cycle' => false]);
+        Expense::syncCompetenceShifts();
+        $this->assertSame('2026-09', $pix->fresh()->competence);
+
+        $energy->update(['previous_cycle' => true]);
+        Expense::syncCompetenceShifts();
+        $energy->delete();
+        Expense::syncCompetenceShifts();
+        $this->assertSame('2026-09', $pix->fresh()->competence);
+    }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CategorizationRule;
 use App\Models\Expense;
 use App\Services\OpenFinance\ExpenseReclassifier;
+use App\Support\Activity;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -22,7 +23,7 @@ class CategorizationRuleController extends Controller
         $rule = CategorizationRule::create($this->validateRule($request));
 
         if ($rule->action === CategorizationRule::ACTION_IGNORE) {
-            $reclassifier->run();
+            $this->reclassify($reclassifier, $rule);
         }
 
         return back()->with('success', 'Regra criada.');
@@ -34,7 +35,7 @@ class CategorizationRuleController extends Controller
         $categorizationRule->update($this->validateRule($request));
 
         if ($wasIgnore || $categorizationRule->action === CategorizationRule::ACTION_IGNORE) {
-            $reclassifier->run();
+            $this->reclassify($reclassifier, $categorizationRule);
         }
 
         return back()->with('success', 'Regra atualizada.');
@@ -47,7 +48,7 @@ class CategorizationRuleController extends Controller
 
         // Lançamentos que só estavam fora dos cálculos por causa dessa regra voltam a contar.
         if ($wasIgnore) {
-            $reclassifier->run();
+            $this->reclassify($reclassifier, $categorizationRule);
         }
 
         return back()->with('success', 'Regra removida.');
@@ -59,12 +60,12 @@ class CategorizationRuleController extends Controller
      */
     public function apply(ExpenseReclassifier $reclassifier): RedirectResponse
     {
-        $reclassifier->run();
+        $reclassified = Activity::withoutRecording(fn () => $reclassifier->run());
 
         $rules = CategorizationRule::where('action', CategorizationRule::ACTION_CATEGORIZE)->get();
         $applied = 0;
 
-        Expense::where('kind', Expense::KIND_EXPENSE)->chunkById(500, function ($expenses) use ($rules, &$applied) {
+        Activity::withoutRecording(fn () => Expense::where('kind', Expense::KIND_EXPENSE)->chunkById(500, function ($expenses) use ($rules, &$applied) {
             foreach ($expenses as $expense) {
                 $rule = CategorizationRule::matchForExpense($expense, $rules);
 
@@ -80,7 +81,9 @@ class CategorizationRuleController extends Controller
                 ]);
                 $applied++;
             }
-        });
+        }));
+
+        Activity::record('settings', 'applied', "reaplicou as regras em todos os lançamentos ({$applied} categorizados, {$reclassified} reclassificados)");
 
         return back()->with(
             'success',
@@ -88,6 +91,16 @@ class CategorizationRuleController extends Controller
                 ? "{$applied} lançamento(s) categorizado(s) pelas regras."
                 : 'Nenhum lançamento correspondeu às regras de categoria.'
         );
+    }
+
+    // Regras de "ignorar" mudam o tipo de muitos lançamentos: no histórico entra só o resumo.
+    private function reclassify(ExpenseReclassifier $reclassifier, CategorizationRule $rule): void
+    {
+        $changed = Activity::withoutRecording(fn () => $reclassifier->run());
+
+        if ($changed > 0) {
+            Activity::record('settings', 'applied', "reclassificou {$changed} ".($changed === 1 ? 'lançamento' : 'lançamentos').' pela regra', $rule->pattern, $rule);
+        }
     }
 
     private function validateRule(Request $request): array

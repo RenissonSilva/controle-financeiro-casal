@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\RecordsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
 class Setting extends Model
 {
+    use RecordsActivity;
+
     protected $fillable = [
         'payer1_name',
         'payer2_name',
@@ -151,5 +154,40 @@ class Setting extends Model
     public function payerName(string $payer): string
     {
         return $payer === 'payer2' ? $this->payer2_name : $this->payer1_name;
+    }
+
+    // ---- Histórico de mudanças ----
+
+    public function activityArea(): string
+    {
+        return 'settings';
+    }
+
+    public function activityNoun(): string
+    {
+        return 'as configurações';
+    }
+
+    public function activityLabel(): string
+    {
+        return 'Configurações gerais';
+    }
+
+    public function activityFields(): array
+    {
+        return [
+            'payer1_name' => 'Nome (pessoa 1)',
+            'payer2_name' => 'Nome (pessoa 2)',
+            'payer1_salary' => ["Renda de {$this->payer1_name}", 'money'],
+            'payer2_salary' => ["Renda de {$this->payer2_name}", 'money'],
+            'card_closing_day' => 'Dia de fechamento do cartão',
+            'income_grace_days' => 'Receita antecipada (dias)',
+        ];
+    }
+
+    // O registro único nasce sozinho; só a edição interessa.
+    public function activityEvents(): array
+    {
+        return ['updated'];
     }
 }

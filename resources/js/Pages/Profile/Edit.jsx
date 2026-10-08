@@ -5,8 +5,11 @@ import SectionLabel from '@/Components/ui/SectionLabel';
 import DeleteUserForm from './Partials/DeleteUserForm';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm';
+import { useCan } from '@/lib/access';
 
 export default function Edit({ mustVerifyEmail, status }) {
+    const can = useCan();
+
     return (
         <AppLayout title="Minha conta">
             <PageHeader title="Minha conta" description="Seu login no Sovinna: nome, e-mail e senha." />
@@ -23,12 +26,15 @@ export default function Edit({ mustVerifyEmail, status }) {
                 </section>
             </section>
 
-            <section className="flex flex-col gap-4">
-                <SectionLabel title="Zona de perigo" />
-                <Card hover={false}>
-                    <DeleteUserForm />
-                </Card>
-            </section>
+            {/* A conta principal administra os dados do casal: não pode ser excluída. */}
+            {!can('owner') && (
+                <section className="flex flex-col gap-4">
+                    <SectionLabel title="Zona de perigo" />
+                    <Card hover={false}>
+                        <DeleteUserForm />
+                    </Card>
+                </section>
+            )}
         </AppLayout>
     );
 }

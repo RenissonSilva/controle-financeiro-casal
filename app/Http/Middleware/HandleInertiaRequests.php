@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\OpenFinanceItem;
 use App\Models\Setting;
+use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -36,6 +37,10 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user(),
+                // O que a conta pode fazer ({ "expenses.edit": true, ..., "owner": false }) — as telas
+                // escondem o que não pode; o servidor barra de qualquer jeito (rotas com can:).
+                'can' => fn () => $request->user()?->abilities() ?? [],
+                'owner_name' => fn () => $request->user()?->isMember() ? User::owner()?->name : null,
             ],
             // Mensagens de back()->with('success'|'error', ...) — sem isso elas nunca
             // chegavam às telas (usePage().props.flash ficava sempre vazio).
@@ -43,7 +48,8 @@ class HandleInertiaRequests extends Middleware
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
             ],
-            'couple' => fn () => $request->user() ? $this->couple() : null,
+            // Conta ainda não vinculada não vê nem os nomes do casal.
+            'couple' => fn () => $request->user()?->isLinked() ? $this->couple() : null,
         ];
     }
 

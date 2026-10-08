@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\RecordsActivity;
+use App\Support\Activity;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,6 +16,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  */
 class Expense extends Model
 {
+    use RecordsActivity;
+
     public const KIND_EXPENSE = 'expense';
     public const KIND_INCOME = 'income';
     public const KIND_SETTLEMENT = 'settlement';
@@ -66,16 +70,25 @@ class Expense extends Model
         'kind_locked' => 'boolean',
         'installment_number' => 'integer',
         'installment_total' => 'integer',
+        'competence_shift' => 'integer',
     ];
 
     protected static function booted(): void
     {
         // Mês financeiro sempre derivado de data/fatura — nunca informado na mão.
         static::saving(function (self $expense) {
-            if ($expense->isDirty(['date', 'bill_closing_date', 'bill_due_date', 'kind']) || ! $expense->competence) {
-                $expense->competence = Setting::current()->competenceFor($expense->date, $expense->bill_closing_date, $expense->bill_due_date, $expense->kind);
+            if ($expense->isDirty(['date', 'bill_closing_date', 'bill_due_date', 'kind', 'competence_shift']) || ! $expense->competence) {
+                $expense->competence = $expense->computeCompetence(Setting::current());
             }
         });
+    }
+
+    // Competência pela data/fatura, deslocada quando paga uma conta fixa do mês anterior.
+    public function computeCompetence(Setting $settings): string
+    {
+        $competence = $settings->competenceFor($this->date, $this->bill_closing_date, $this->bill_due_date, $this->kind);
+
+        return $this->competence_shift ? Setting::shiftCycle($competence, $this->competence_shift) : $competence;
     }
 
     // Recalcula a competência de todos os lançamentos (ex: depois de mudar o dia de fechamento).
@@ -83,15 +96,32 @@ class Expense extends Model
     {
         $settings = Setting::current();
 
-        static::query()->select(['id', 'date', 'bill_closing_date', 'bill_due_date', 'kind', 'competence'])->chunkById(500, function ($expenses) use ($settings) {
+        static::query()->select(['id', 'date', 'bill_closing_date', 'bill_due_date', 'kind', 'competence', 'competence_shift'])->chunkById(500, function ($expenses) use ($settings) {
             foreach ($expenses as $expense) {
-                $competence = $settings->competenceFor($expense->date, $expense->bill_closing_date, $expense->bill_due_date, $expense->kind);
+                $competence = $expense->computeCompetence($settings);
 
                 if ($competence !== $expense->competence) {
                     static::whereKey($expense->id)->update(['competence' => $competence]);
                 }
             }
         });
+    }
+
+    /**
+     * Pagamento de conta fixa "do mês anterior" (ver FixedExpense::$previous_cycle) conta um ciclo
+     * antes; os demais voltam para o ciclo da data. Idempotente — rodar depois de qualquer mudança
+     * de vínculo ou da conta fixa.
+     */
+    public static function syncCompetenceShifts(): void
+    {
+        $shifted = FixedExpenseOverride::whereNotNull('expense_id')
+            ->whereHas('fixedExpense', fn (Builder $query) => $query->where('previous_cycle', true))
+            ->pluck('expense_id');
+
+        $apply = fn (int $shift) => fn (self $expense) => $expense->forceFill(['competence_shift' => $shift])->save();
+
+        static::whereIn('id', $shifted)->where('competence_shift', '!=', -1)->get()->each($apply(-1));
+        static::whereNotIn('id', $shifted)->where('competence_shift', '!=', 0)->get()->each($apply(0));
     }
 
     protected $attributes = [
@@ -208,5 +238,36 @@ class Expense extends Model
         }
 
         return $description;
+    }
+
+    // ---- Histórico de mudanças ----
+
+    public function activityArea(): string
+    {
+        return 'expenses';
+    }
+
+    public function activityNoun(): string
+    {
+        return 'o lançamento';
+    }
+
+    public function activityLabel(): string
+    {
+        return Activity::expenseLabel($this);
+    }
+
+    public function activityFields(): array
+    {
+        return [
+            'description' => 'Descrição',
+            'amount' => ['Valor', 'money'],
+            'date' => ['Data', 'date'],
+            'kind' => ['Tipo', 'kind'],
+            'category_id' => ['Categoria', 'category'],
+            'ownership' => ['De quem é', 'payer'],
+            'source' => ['Pago por', 'payer'],
+            'notes' => 'Observação',
+        ];
     }
 }

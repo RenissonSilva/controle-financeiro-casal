@@ -7,6 +7,7 @@ import Segmented from '@/Components/ui/Segmented';
 import CycleSwitcher from '@/Components/ui/CycleSwitcher';
 import SaveBar from '@/Components/ui/SaveBar';
 import IconBadge from '@/Components/ui/IconBadge';
+import ReadOnlyBadge from '@/Components/ui/ReadOnlyBadge';
 import ExpenseRow from '@/Components/expenses/ExpenseRow';
 import ExpenseModal from '@/Components/expenses/ExpenseModal';
 import ExportPdfModal from '@/Components/expenses/ExportPdfModal';
@@ -16,6 +17,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeftRight, ChevronRight, FileDown, Plus, RefreshCw, Search, Sparkles, Users, Wallet, PieChart, X } from 'lucide-react';
 import { firstName, money, monthLabel, parseDate, percent, relativeTime } from '@/lib/format';
 import { OWNERSHIP_BADGE, ownershipOptions } from '@/lib/ownership';
+import { useCan } from '@/lib/access';
 
 const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -30,10 +32,17 @@ const dayHeader = (date) => {
 // Valor com sinal para somas de "despesa líquida" (estorno abate).
 const expenseValue = (row) => (row.kind !== 'expense' ? 0 : row.direction === 'in' ? -row.amount : row.amount);
 
+// Aba do lançamento. O que você ignorou continua na aba de onde saiu (apagado, sem somar);
+// os ignorados automáticos (fatura, aplicação, entre contas) e por regra ficam só em "Ignorados".
+const tabOf = (row) => (row.kind === 'ignored' && row.kind_reason === 'user' ? (row.direction === 'in' ? 'income' : 'expense') : row.kind);
+
 export default function Expenses({ cycle, availableMonths, rows, summary, categories, fixedExpenses, lastSyncedAt, hasConnection }) {
     const { couple } = usePage().props;
     const partner = firstName(couple?.payer2_name);
     const me = firstName(couple?.payer1_name);
+    const can = useCan();
+    const canEdit = can('expenses.edit');
+    const canDelete = can('expenses.delete');
 
     const [drafts, setDrafts] = useState({});
     const [selected, setSelected] = useState(() => new Set());
@@ -53,7 +62,7 @@ export default function Expenses({ cycle, availableMonths, rows, summary, catego
         const url = new URL(window.location.href);
         const intent = url.searchParams.get('new');
         if (!intent) return;
-        setModal({ show: true, row: null, kind: intent === 'settlement' ? 'settlement' : 'expense' });
+        if (canEdit) setModal({ show: true, row: null, kind: intent === 'settlement' ? 'settlement' : 'expense' });
         url.searchParams.delete('new');
         window.history.replaceState(window.history.state, '', url);
     }, []);
@@ -72,8 +81,8 @@ export default function Expenses({ cycle, availableMonths, rows, summary, catego
     const withDrafts = useMemo(() => rows.map((r) => (drafts[r.id] ? { ...r, ...drafts[r.id] } : r)), [rows, drafts]);
 
     const counts = useMemo(() => ({
-        expense: rows.filter((r) => r.kind === 'expense').length,
-        income: rows.filter((r) => r.kind === 'income').length,
+        expense: rows.filter((r) => tabOf(r) === 'expense').length,
+        income: rows.filter((r) => tabOf(r) === 'income').length,
         settlement: rows.filter((r) => r.kind === 'settlement').length,
         ignored: rows.filter((r) => r.kind === 'ignored').length,
         all: rows.length,
@@ -83,8 +92,8 @@ export default function Expenses({ cycle, availableMonths, rows, summary, catego
     const visible = useMemo(() => {
         const term = search.trim().toLowerCase();
         return withDrafts.filter((r) => {
-            if (type !== 'all' && r.kind !== type) return false;
-            if (owner !== 'all' && (r.kind !== 'expense' || r.ownership !== owner)) return false;
+            if (type !== 'all' && r.kind !== type && tabOf(r) !== type) return false;
+            if (owner !== 'all' && (tabOf(r) !== 'expense' || r.ownership !== owner)) return false;
             if (onlyUncategorized && (r.kind !== 'expense' || r.category_id)) return false;
             if (term && !`${r.name} ${r.description} ${r.notes ?? ''} ${r.category ?? ''}`.toLowerCase().includes(term)) return false;
             return true;
@@ -186,9 +195,13 @@ export default function Expenses({ cycle, availableMonths, rows, summary, catego
                 actions={
                     <>
                         <CycleSwitcher cycle={cycle} routeName="expenses.index" />
-                        <Button type="button" variant="primary" onClick={() => setModal({ show: true, row: null })} className="max-[560px]:flex-1">
-                            <Plus size={14} strokeWidth={2.2} /> Novo lançamento
-                        </Button>
+                        {canEdit ? (
+                            <Button type="button" variant="primary" onClick={() => setModal({ show: true, row: null })} className="max-[560px]:flex-1">
+                                <Plus size={14} strokeWidth={2.2} /> Novo lançamento
+                            </Button>
+                        ) : (
+                            <ReadOnlyBadge />
+                        )}
                     </>
                 }
             />
@@ -323,7 +336,7 @@ export default function Expenses({ cycle, availableMonths, rows, summary, catego
                     <Segmented value={groupBy} onChange={setGroupBy} size="sm" options={[{ value: 'day', label: 'Por dia' }, { value: 'category', label: 'Por categoria' }]} />
                 </div>
 
-                {selectedIds.length > 0 && (
+                {canEdit && selectedIds.length > 0 && (
                     <BulkBar
                         count={selectedIds.length}
                         categories={categories}
@@ -342,7 +355,7 @@ export default function Expenses({ cycle, availableMonths, rows, summary, catego
                             <p className="text-[13px] text-muted">
                                 {rows.length === 0 ? 'Nenhum lançamento neste mês.' : 'Nenhum lançamento com esses filtros.'}
                             </p>
-                            {rows.length === 0 && (
+                            {rows.length === 0 && canEdit && (
                                 <button type="button" onClick={() => setModal({ show: true, row: null })} className="mt-3 text-[13px] font-medium text-secondary underline-offset-2 hover:text-text hover:underline">
                                     Adicionar um lançamento manual
                                 </button>
@@ -351,15 +364,17 @@ export default function Expenses({ cycle, availableMonths, rows, summary, catego
                     ) : (
                         <>
                             <div className="flex items-center gap-3 border-b border-line px-2 pb-2.5 text-[12px] font-medium text-muted">
-                                <input
-                                    type="checkbox"
-                                    checked={allVisibleSelected}
-                                    onChange={toggleSelectAll}
-                                    aria-label="Selecionar todos"
-                                    className="h-4 w-4 rounded border-line-strong bg-transparent text-accent focus:ring-accent/40 focus:ring-offset-0"
-                                />
+                                {canEdit && (
+                                    <input
+                                        type="checkbox"
+                                        checked={allVisibleSelected}
+                                        onChange={toggleSelectAll}
+                                        aria-label="Selecionar todos"
+                                        className="h-4 w-4 rounded border-line-strong bg-transparent text-accent focus:ring-accent/40 focus:ring-offset-0"
+                                    />
+                                )}
                                 <span className="flex-1">{visible.length} {visible.length === 1 ? 'lançamento' : 'lançamentos'}</span>
-                                {counts.uncategorized > 0 && type === 'expense' && (
+                                {canEdit && counts.uncategorized > 0 && type === 'expense' && (
                                     <button
                                         type="button"
                                         onClick={() => categorizeWithAi(rows.filter((r) => r.kind === 'expense' && !r.category_id).map((r) => r.id))}
@@ -378,6 +393,7 @@ export default function Expenses({ cycle, availableMonths, rows, summary, catego
                                             group={group}
                                             groupBy={groupBy}
                                             couple={couple}
+                                            canEdit={canEdit}
                                             onOwnershipAll={(ownership) => applyToMany(group.items.filter((r) => r.kind === 'expense').map((r) => r.id), { ownership })}
                                         />
                                         <div className="flex flex-col">
@@ -394,6 +410,8 @@ export default function Expenses({ cycle, availableMonths, rows, summary, catego
                                                     onEdit={() => setModal({ show: true, row: rows.find((r) => r.id === row.id) })}
                                                     onToggleIgnore={() => toggleIgnore(row)}
                                                     onDelete={() => destroy(row)}
+                                                    canEdit={canEdit}
+                                                    canDelete={canDelete}
                                                 />
                                             ))}
                                         </div>
@@ -417,6 +435,7 @@ export default function Expenses({ cycle, availableMonths, rows, summary, catego
                 categories={categories}
                 fixedExpenses={fixedExpenses}
                 defaultDate={defaultDate}
+                readOnly={!canEdit}
             />
 
             <ExportPdfModal
@@ -430,8 +449,8 @@ export default function Expenses({ cycle, availableMonths, rows, summary, catego
     );
 }
 
-function GroupHeader({ group, groupBy, couple, onOwnershipAll }) {
-    const hasExpenses = group.items.some((r) => r.kind === 'expense');
+function GroupHeader({ group, groupBy, couple, canEdit, onOwnershipAll }) {
+    const hasExpenses = canEdit && group.items.some((r) => r.kind === 'expense');
 
     return (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-2 pb-1 pt-2">

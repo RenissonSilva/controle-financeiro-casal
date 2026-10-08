@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\RecordsActivity;
 use App\Support\ExpensePresenter;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,6 +15,8 @@ use Illuminate\Support\Collection;
  */
 class NameRule extends Model
 {
+    use RecordsActivity;
+
     protected $fillable = ['pattern', 'name'];
 
     public function expenses(): HasMany
@@ -114,5 +117,30 @@ class NameRule extends Model
         });
 
         return $changed;
+    }
+
+    // ---- Histórico de mudanças ----
+
+    public function activityArea(): string
+    {
+        return 'expenses';
+    }
+
+    public function activityNoun(): string
+    {
+        return 'o nome personalizado';
+    }
+
+    public function activityLabel(): string
+    {
+        return $this->name;
+    }
+
+    public function activityFields(): array
+    {
+        return [
+            'name' => 'Nome',
+            'pattern' => 'Vale para',
+        ];
     }
 }

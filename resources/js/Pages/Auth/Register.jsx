@@ -5,7 +5,7 @@ import TextInput from '@/Components/TextInput';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
 
-export default function Register() {
+export default function Register({ inviteOnly = false, invitedBy = null }) {
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
         email: '',
@@ -21,8 +21,23 @@ export default function Register() {
         });
     };
 
+    // Depois da conta principal, só entra quem abriu um link de convite.
+    if (inviteOnly) {
+        return (
+            <GuestLayout title="Cadastro só por convite" subtitle="Para criar uma conta, abra o link de convite que a conta principal do casal te enviar.">
+                <Head title="Criar conta" />
+                <Link href={route('login')} className="text-[13px] text-muted underline-offset-2 hover:text-text hover:underline">
+                    Já tem conta? Entrar
+                </Link>
+            </GuestLayout>
+        );
+    }
+
     return (
-        <GuestLayout title="Criar conta">
+        <GuestLayout
+            title="Criar conta"
+            subtitle={invitedBy ? `Convite de ${invitedBy}: você vai ver as finanças do casal e editar só o que for liberado.` : undefined}
+        >
             <Head title="Criar conta" />
 
             <form onSubmit={submit} className="flex flex-col gap-4">

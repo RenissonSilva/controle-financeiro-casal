@@ -51,6 +51,11 @@ class ProfileController extends Controller
 
         $user = $request->user();
 
+        // Sem a conta principal ninguém mais administraria os dados (nem as contas vinculadas).
+        if ($user->isOwner()) {
+            return back()->with('error', 'A conta principal não pode ser excluída.');
+        }
+
         Auth::logout();
 
         $user->delete();

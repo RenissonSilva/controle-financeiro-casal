@@ -14,7 +14,7 @@ use Inertia\Response;
 
 class SettingController extends Controller
 {
-    public function show(): Response
+    public function show(Request $request): Response
     {
         $settings = Setting::current();
 
@@ -71,6 +71,8 @@ class SettingController extends Controller
                     ]),
                 ]),
             'useSandbox' => (bool) config('pluggy.use_sandbox'),
+            // "Acesso compartilhado": convite e permissões das contas vinculadas.
+            'access' => $request->user()->isOwner() ? AccessController::section() : null,
         ]);
     }
 

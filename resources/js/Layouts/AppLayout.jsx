@@ -1,7 +1,7 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { useEffect, useRef, useState } from 'react';
-import { LayoutGrid, List, LogOut, Repeat, SlidersHorizontal, Target, RefreshCw, UserRound } from 'lucide-react';
+import { History, LayoutGrid, List, LogOut, Repeat, SlidersHorizontal, Target, RefreshCw, UserRound } from 'lucide-react';
 import Toast from '@/Components/ui/Toast';
 import { firstName, relativeTime } from '@/lib/format';
 
@@ -10,7 +10,7 @@ const NAV = [
     { label: 'Lançamentos', route: 'expenses.index', active: ['expenses.*'], icon: List },
     { label: 'Contas fixas', route: 'fixedExpenses.index', active: ['fixedExpenses.*'], icon: Repeat },
     { label: 'Metas', route: 'goals.index', active: ['goals.*'], icon: Target },
-    { label: 'Configurações', route: 'settings.show', active: ['settings.*', 'openFinance.*', 'profile.*'], icon: SlidersHorizontal },
+    { label: 'Configurações', route: 'settings.show', active: ['settings.*', 'openFinance.*', 'profile.*', 'history.*'], icon: SlidersHorizontal },
 ];
 
 // Mostra o flash (back()->with('success'|'error')) de cada resposta como toast.
@@ -61,9 +61,19 @@ function Avatars({ couple }) {
     );
 }
 
+// "Conta principal" ou, na conta vinculada, de quem ela vê os dados e se só visualiza.
+function accessLabel(auth) {
+    if (auth?.can?.owner) return 'Conta principal';
+    if (!auth?.owner_name) return null;
+
+    const canChange = Object.entries(auth.can ?? {}).some(([permission, allowed]) => permission !== 'owner' && allowed);
+    return `Vinculada a ${firstName(auth.owner_name)}${canChange ? '' : ' · só visualização'}`;
+}
+
 function AccountMenuItems({ anchor }) {
     const { auth } = usePage().props;
     const item = 'flex w-full items-center gap-2.5 rounded-[8px] px-3 py-2.5 text-left data-[focus]:bg-raised';
+    const access = accessLabel(auth);
 
     return (
         <MenuItems
@@ -73,12 +83,20 @@ function AccountMenuItems({ anchor }) {
             <div className="px-3 pb-2 pt-1.5">
                 <div className="truncate font-medium">{auth?.user?.name}</div>
                 <div className="truncate text-[12px] text-muted">{auth?.user?.email}</div>
+                {access && <div className="mt-1.5 truncate text-[12px] text-secondary">{access}</div>}
             </div>
             <MenuItem>
                 <Link href={route('profile.edit')} className={item}>
                     <UserRound size={15} strokeWidth={1.75} className="text-muted" /> Perfil
                 </Link>
             </MenuItem>
+            {auth?.can?.owner && (
+                <MenuItem>
+                    <Link href={route('history.index')} className={item}>
+                        <History size={15} strokeWidth={1.75} className="text-muted" /> Histórico de mudanças
+                    </Link>
+                </MenuItem>
+            )}
             <MenuItem>
                 <Link href={route('logout')} method="post" as="button" className={item}>
                     <LogOut size={15} strokeWidth={1.75} className="text-muted" /> Sair

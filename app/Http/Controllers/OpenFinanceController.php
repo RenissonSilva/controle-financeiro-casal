@@ -7,6 +7,7 @@ use App\Models\OpenFinanceItem;
 use App\Services\Categorization\Categorizer;
 use App\Services\OpenFinance\PluggySynchronizer;
 use App\Services\PluggyService;
+use App\Support\Activity;
 use App\Support\ExpensePresenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -176,31 +177,37 @@ class OpenFinanceController extends Controller
             return $result;
         }
 
+        // Dados do banco chegando não são mudança de alguém: ficam fora do histórico.
         try {
-            foreach ($items as $item) {
-                try {
-                    $stats = $synchronizer->sync($item);
-                    $result['created'] += $stats['created'];
-                    $result['updated'] += $stats['updated'];
-                    $result['removed'] += $stats['removed'];
-                } catch (\Throwable $e) {
-                    $message = Str::limit($e->getMessage(), 300);
-                    $item->update(['last_sync_error' => $message]);
-                    $result['errors'][] = $message;
-                }
-            }
-
-            $pending = Expense::where('status', 'pending')->pluck('id')->all();
-
-            if ($pending) {
-                $categorizer->applyAi($categorizer->applyLocal($pending));
-                $result['categorized_by_ai'] = count($pending);
-            }
+            Activity::withoutRecording(fn () => $this->runSync($items, $synchronizer, $categorizer, $result));
         } finally {
             $lock->release();
         }
 
         return $result;
+    }
+
+    private function runSync($items, PluggySynchronizer $synchronizer, Categorizer $categorizer, array &$result): void
+    {
+        foreach ($items as $item) {
+            try {
+                $stats = $synchronizer->sync($item);
+                $result['created'] += $stats['created'];
+                $result['updated'] += $stats['updated'];
+                $result['removed'] += $stats['removed'];
+            } catch (\Throwable $e) {
+                $message = Str::limit($e->getMessage(), 300);
+                $item->update(['last_sync_error' => $message]);
+                $result['errors'][] = $message;
+            }
+        }
+
+        $pending = Expense::where('status', 'pending')->pluck('id')->all();
+
+        if ($pending) {
+            $categorizer->applyAi($categorizer->applyLocal($pending));
+            $result['categorized_by_ai'] = count($pending);
+        }
     }
 
     private static function summary(array $result): string

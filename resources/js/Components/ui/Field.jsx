@@ -1,7 +1,7 @@
 import MoneyInput from './MoneyInput';
 
 const INPUT_CLASSES =
-    'w-full min-h-[44px] rounded-[10px] border border-line-strong bg-bg px-3 py-2 text-[14px] text-text placeholder:text-muted/70 transition-colors focus:border-accent focus:outline-none focus:ring-0';
+    'w-full min-h-[44px] rounded-[10px] border border-line-strong bg-bg px-3 py-2 text-[14px] text-text placeholder:text-muted/70 transition-colors focus:border-accent focus:outline-none focus:ring-0 disabled:cursor-default disabled:border-line disabled:bg-transparent';
 
 const LABEL_CLASSES = 'mb-1.5 block text-[13px] font-medium text-secondary';
 

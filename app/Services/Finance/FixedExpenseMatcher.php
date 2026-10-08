@@ -15,7 +15,8 @@ use Illuminate\Support\Carbon;
  * conta fixa deixa de ser projetada e nada é contado duas vezes.
  *
  * O pagamento é procurado dentro do mesmo ciclo (mês financeiro) da cobrança, escolhendo o
- * candidato de data mais próxima do vencimento.
+ * candidato de data mais próxima do vencimento. Depois de vinculado, o pagamento de conta do mês
+ * anterior passa a contar um ciclo antes (ver Expense::syncCompetenceShifts()).
  */
 class FixedExpenseMatcher
 {

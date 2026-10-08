@@ -16,6 +16,7 @@ use App\Support\MerchantLogo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -34,7 +35,8 @@ class DashboardController extends Controller
         $split = $report->split();
 
         return Inertia::render('Dashboard', [
-            'greetingName' => $settings->payer1_name,
+            // A conta principal é a pessoa 1; a vinculada é cumprimentada pelo nome da conta.
+            'greetingName' => $request->user()->isOwner() ? $settings->payer1_name : Str::before(trim($request->user()->name), ' '),
             'cycle' => [
                 'month' => $month,
                 'label' => $report->label(),

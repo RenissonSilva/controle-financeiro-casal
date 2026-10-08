@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\RecordsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Collection;
@@ -9,6 +10,8 @@ use Illuminate\Support\Str;
 
 class CategorizationRule extends Model
 {
+    use RecordsActivity;
+
     public const ACTION_CATEGORIZE = 'categorize';
     public const ACTION_IGNORE = 'ignore';
 
@@ -68,5 +71,33 @@ class CategorizationRule extends Model
     public static function matchForExpense(Expense $expense, ?Collection $rules = null): ?self
     {
         return self::matchFor($expense->description, $expense->amount, $expense->counterparty_name, $rules, $expense->custom_name);
+    }
+
+    // ---- Histórico de mudanças ----
+
+    public function activityArea(): string
+    {
+        return 'settings';
+    }
+
+    public function activityNoun(): string
+    {
+        return 'a regra';
+    }
+
+    public function activityLabel(): string
+    {
+        return $this->pattern;
+    }
+
+    public function activityFields(): array
+    {
+        return [
+            'pattern' => 'Trecho da descrição',
+            'action' => ['O que fazer', 'rule_action'],
+            'amount' => ['Valor', 'money'],
+            'category_id' => ['Categoria', 'category'],
+            'ownership' => ['De quem é', 'payer'],
+        ];
     }
 }

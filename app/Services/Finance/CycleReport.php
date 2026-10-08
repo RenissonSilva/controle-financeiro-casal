@@ -145,7 +145,7 @@ class CycleReport
     /** Contas fixas do ciclo com status de pagamento (paid/upcoming/late). */
     public function fixedExpenses(): Collection
     {
-        return $this->fixed ??= FixedExpense::projectForCycle($this->start, $this->end);
+        return $this->fixed ??= FixedExpense::projectForCycle($this->month, $this->settings);
     }
 
     // Quanto de uma conta fixa cabe a uma pessoa (mesma regra de divisão das despesas).
@@ -192,16 +192,16 @@ class CycleReport
     }
 
     /**
-     * Contas fixas que o acerto deste ciclo cobre: as do ciclo seguinte, porque o acerto do fim do
-     * mês é o dinheiro das contas do começo do próximo. Paga = valor real; em aberto = valor
+     * Contas fixas que o acerto deste ciclo cobre: as que vencem no ciclo seguinte, porque o acerto
+     * do fim do mês é o dinheiro das contas do começo do próximo — inclusive as do mês anterior
+     * (a energia deste mês, paga no começo do próximo). Paga = valor real; em aberto = valor
      * ajustado do mês ou a estimativa. Quem paga as contas fixas é o pagador 1.
      *
      * @return Collection<int, array> itens de FixedExpense::projectForCycle() + `payer2_share`
      */
     public function settlementFixed(): Collection
     {
-        return $this->settlementFixed ??= self::for(Setting::shiftCycle($this->month, 1), $this->settings)
-            ->fixedExpenses()
+        return $this->settlementFixed ??= FixedExpense::projectForCycle(Setting::shiftCycle($this->month, 1), $this->settings, byDueDate: true)
             ->where('ownership', '!=', 'payer1')
             ->map(fn (array $item) => [...$item, 'payer2_share' => $this->shareOf($item['amount'], $item['ownership'], 'payer2')])
             ->values();

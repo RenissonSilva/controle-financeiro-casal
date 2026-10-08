@@ -12,6 +12,7 @@ import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { ArrowDown, ArrowLeftRight, ArrowUp, ChevronRight, Plus, RefreshCw, Target } from 'lucide-react';
 import { dayMonthLabel, daysUntil, deadlineLabel, firstName, money, moneyShort, monthName, parseDate, relativeTime } from '@/lib/format';
+import { useCan } from '@/lib/access';
 
 // Status da saúde financeira: cor do arco e do rótulo.
 const HEALTH_TONE = {
@@ -85,6 +86,7 @@ function useAutoSync(sync) {
 }
 
 export default function Dashboard({ greetingName, cycle, health, balance, cashFlow, goal, upcoming, categories, history, settlement, sync }) {
+    const can = useCan();
     const { couple } = usePage().props;
     const [syncState, runSync] = useAutoSync(sync);
     const partner = firstName(couple?.payer2_name);
@@ -104,9 +106,11 @@ export default function Dashboard({ greetingName, cycle, health, balance, cashFl
                 actions={
                     <>
                         <CycleSwitcher cycle={cycle} routeName="dashboard" />
-                        <Button variant="primary" href={route('expenses.index', { ...monthParams, new: 1 })} className="max-[560px]:flex-1">
-                            <Plus size={14} strokeWidth={2.2} /> Novo lançamento
-                        </Button>
+                        {can('expenses.edit') && (
+                            <Button variant="primary" href={route('expenses.index', { ...monthParams, new: 1 })} className="max-[560px]:flex-1">
+                                <Plus size={14} strokeWidth={2.2} /> Novo lançamento
+                            </Button>
+                        )}
                     </>
                 }
             />
@@ -290,6 +294,7 @@ function CategoriesCard({ categories }) {
 
 // ---------- Acerto (card de destaque) ----------
 function SettleCard({ settlement, partner, cycle, monthParams }) {
+    const can = useCan();
     const due = settlement.due;
     const owes = due > 0.009 ? `${partner} te deve` : due < -0.009 ? `Você deve a ${partner}` : 'Tudo acertado';
 
@@ -310,9 +315,11 @@ function SettleCard({ settlement, partner, cycle, monthParams }) {
                 </span>
             </div>
             <p className="m-0 text-[13px] leading-[1.45] text-on-accent-2">Lançamentos do mês + contas fixas do próximo</p>
-            <Button variant="dark" href={route('expenses.index', { ...monthParams, new: 'settlement' })} className="self-start">
-                Registrar acerto
-            </Button>
+            {can('expenses.edit') && (
+                <Button variant="dark" href={route('expenses.index', { ...monthParams, new: 'settlement' })} className="self-start">
+                    Registrar acerto
+                </Button>
+            )}
         </Card>
     );
 }
@@ -471,6 +478,7 @@ function Bill({ item }) {
 
 // ---------- Meta ----------
 function GoalCard({ goal }) {
+    const can = useCan();
     return (
         <Card className="flex flex-1 flex-col gap-3" aria-labelledby="goal-title">
             <CardHead>
@@ -498,9 +506,11 @@ function GoalCard({ goal }) {
                     <p className="m-0 max-w-[46ch] text-[13px] leading-[1.5] text-muted">
                         Defina quanto vocês querem juntar — o progresso usa o saldo investido no banco.
                     </p>
-                    <Button variant="secondary" href={route('goals.index', { new: 1 })} className="mt-1 self-start">
-                        <Plus size={14} strokeWidth={2} /> Criar meta
-                    </Button>
+                    {can('goals.edit') && (
+                        <Button variant="secondary" href={route('goals.index', { new: 1 })} className="mt-1 self-start">
+                            <Plus size={14} strokeWidth={2} /> Criar meta
+                        </Button>
+                    )}
                 </>
             )}
         </Card>

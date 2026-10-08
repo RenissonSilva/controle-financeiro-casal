@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Invite;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
@@ -19,9 +20,15 @@ class RegisteredUserController extends Controller
     /**
      * Display the registration view.
      */
-    public function create(): Response
+    public function create(Request $request): Response
     {
-        return Inertia::render('Auth/Register');
+        $invite = Invite::findValid($request->session()->get(Invite::SESSION_KEY));
+
+        return Inertia::render('Auth/Register', [
+            // Depois da primeira conta (a principal), só entra quem tem link de convite.
+            'inviteOnly' => ! $invite && User::owner() !== null,
+            'invitedBy' => $invite?->creator?->name,
+        ]);
     }
 
     /**
@@ -31,6 +38,12 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        $invite = Invite::findValid($request->session()->get(Invite::SESSION_KEY));
+
+        if (! $invite && User::owner() !== null) {
+            return redirect()->route('register');
+        }
+
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
@@ -42,6 +55,14 @@ class RegisteredUserController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);
+
+        // Primeira conta do sistema = conta principal; as outras entram pelo convite.
+        if (User::owner() === null) {
+            $user->forceFill(['role' => User::ROLE_OWNER, 'linked_at' => now()])->save();
+        } else {
+            $invite->accept($user);
+            $request->session()->forget(Invite::SESSION_KEY);
+        }
 
         event(new Registered($user));
 

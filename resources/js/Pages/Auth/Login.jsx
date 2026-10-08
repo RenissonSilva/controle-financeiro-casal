@@ -6,7 +6,7 @@ import TextInput from '@/Components/TextInput';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
 
-export default function Login({ status, canResetPassword }) {
+export default function Login({ status, canResetPassword, invitedBy = null }) {
     const { data, setData, post, processing, errors, reset } = useForm({
         email: '',
         password: '',
@@ -26,6 +26,11 @@ export default function Login({ status, canResetPassword }) {
             <Head title="Entrar" />
 
             {status && <div className="mb-4 text-[13px] font-medium text-green">{status}</div>}
+            {invitedBy && (
+                <div className="mb-4 rounded-[10px] border border-line bg-bg/40 px-3.5 py-2.5 text-[13px] text-secondary">
+                    Entre para aceitar o convite de {invitedBy}.
+                </div>
+            )}
 
             <form onSubmit={submit} className="flex flex-col gap-4">
                 <div>

@@ -29,6 +29,7 @@ class SettlementController extends Controller
             'id' => $item['id'],
             'name' => $item['description'],
             'category' => $item['category'],
+            'merchant' => $item['merchant'],
             'due_date' => $item['due_date'],
             'amount' => $item['amount'],
             'ownership' => $item['ownership'],

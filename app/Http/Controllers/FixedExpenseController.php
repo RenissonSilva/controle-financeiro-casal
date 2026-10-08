@@ -9,6 +9,7 @@ use App\Models\FixedExpenseOverride;
 use App\Models\Setting;
 use App\Services\Finance\CycleReport;
 use App\Services\Finance\FixedExpenseMatcher;
+use App\Support\Activity;
 use App\Support\ExpensePresenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -46,6 +47,7 @@ class FixedExpenseController extends Controller
                     'description' => $expense->description,
                     'amount' => $expense->amount,
                     'variable_amount' => $expense->variable_amount,
+                    'previous_cycle' => $expense->previous_cycle,
                     'due_day' => $expense->due_day,
                     'start_date' => $expense->start_date?->toDateString(),
                     'end_date' => $expense->end_date?->toDateString(),
@@ -94,6 +96,9 @@ class FixedExpenseController extends Controller
             $fixedExpense->occurrences()->where('skip_auto_match', false)->whereNotNull('expense_id')->update(['expense_id' => null]);
         }
 
+        // Antes de reconhecer de novo: os pagamentos voltam/vão para o mês certo (desvinculados ou
+        // conta marcada/desmarcada como do mês anterior).
+        Expense::syncCompetenceShifts();
         $linked = $this->rematch($fixedExpense);
 
         return back()->with('success', 'Conta fixa atualizada.'.($linked ? " {$linked} pagamento(s) reconhecido(s)." : ''));
@@ -102,6 +107,7 @@ class FixedExpenseController extends Controller
     public function destroy(FixedExpense $fixedExpense): RedirectResponse
     {
         $fixedExpense->delete();
+        Expense::syncCompetenceShifts();
 
         return back()->with('success', 'Conta fixa removida. Os pagamentos continuam em Lançamentos.');
     }
@@ -142,10 +148,11 @@ class FixedExpenseController extends Controller
     {
         $month = $request->validate(['month' => ['required', 'regex:/^\d{4}-\d{2}$/']])['month'];
 
+        // Conta do mês anterior é paga no ciclo seguinte (pagamento ainda sem vínculo = mês da data).
         $rows = Expense::with('category')
             ->ofKind(Expense::KIND_EXPENSE)
             ->where('direction', 'out')
-            ->inCompetence($month)
+            ->inCompetence($fixedExpense->previous_cycle ? Setting::shiftCycle($month, 1) : $month)
             ->whereDoesntHave('fixedOccurrence')
             ->get()
             ->sortBy(fn (Expense $e) => [FixedExpenseMatcher::matches($fixedExpense, $e) ? 0 : 1, abs($e->amount - $fixedExpense->amount)])
@@ -184,8 +191,7 @@ class FixedExpenseController extends Controller
 
     private function occurrenceFor(FixedExpense $fixedExpense, string $month): FixedExpenseOverride
     {
-        [$start, $end] = Setting::current()->billingCycleRange($month);
-        $dueDate = $fixedExpense->dueDateInRange($start, $end);
+        $dueDate = $fixedExpense->dueDateForCycle($month, Setting::current());
 
         abort_unless($dueDate, 422, 'Essa conta fixa não tem cobrança nesse mês.');
 
@@ -196,6 +202,7 @@ class FixedExpenseController extends Controller
     }
 
     // Vincula pagamentos de todo o histórico (desde a data inicial da conta, se houver).
+    // No histórico de mudanças entra só o resumo, não cada vínculo automático.
     private function rematch(FixedExpense $fixedExpense): int
     {
         if (! $fixedExpense->active || ! $fixedExpense->hasPaymentMatcher()) {
@@ -205,7 +212,13 @@ class FixedExpenseController extends Controller
         $from = $fixedExpense->start_date ?? Carbon::parse(Expense::min('date') ?? now());
         $to = $fixedExpense->end_date && $fixedExpense->end_date->lt(now()) ? $fixedExpense->end_date : Carbon::today()->addMonth();
 
-        return FixedExpenseMatcher::make()->matchBetween(Carbon::parse($from), Carbon::parse($to));
+        $linked = Activity::withoutRecording(fn () => FixedExpenseMatcher::make()->matchBetween(Carbon::parse($from), Carbon::parse($to)));
+
+        if ($linked > 0) {
+            Activity::record('fixed', 'matched', "reconheceu {$linked} ".($linked === 1 ? 'pagamento' : 'pagamentos').' da conta fixa', $fixedExpense->description, $fixedExpense);
+        }
+
+        return $linked;
     }
 
     /**
@@ -246,6 +259,7 @@ class FixedExpenseController extends Controller
             'description' => ['required', 'string', 'max:255'],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'variable_amount' => ['boolean'],
+            'previous_cycle' => ['boolean'],
             'due_day' => ['required', 'integer', 'min:1', 'max:31'],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],

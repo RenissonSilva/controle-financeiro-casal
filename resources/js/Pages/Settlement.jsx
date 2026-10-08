@@ -4,7 +4,10 @@ import PageHeader from '@/Components/ui/PageHeader';
 import SectionHeader from '@/Components/ui/SectionHeader';
 import CycleSwitcher from '@/Components/ui/CycleSwitcher';
 import Button from '@/Components/ui/Button';
+import MerchantLogo from '@/Components/ui/MerchantLogo';
+import ExpenseIcon from '@/Components/expenses/ExpenseIcon';
 import { Link, usePage } from '@inertiajs/react';
+import { useCan } from '@/lib/access';
 import { ArrowLeftRight, CalendarClock, ChevronLeft, UserRound, Users } from 'lucide-react';
 import { dayMonth, dayMonthLabel, firstName, money, percent } from '@/lib/format';
 
@@ -18,6 +21,7 @@ function impactLabel(impact) {
 
 export default function Settlement({ cycle, summary, lines, fixed }) {
     const { couple } = usePage().props;
+    const can = useCan();
     const partner = firstName(couple?.payer2_name);
     const me = firstName(couple?.payer1_name);
     const due = summary.due;
@@ -33,6 +37,10 @@ export default function Settlement({ cycle, summary, lines, fixed }) {
         line.installment && !line.name.includes(line.installment) && `parcela ${line.installment}`,
         line.direction === 'in' && 'estorno',
     ].filter(Boolean).join(' · ');
+
+    const lineRow = (line, value) => ({
+        key: line.id, icon: <ExpenseIcon row={line} />, date: line.date, name: line.name, details: details(line), value, note: impactLabel(line.impact),
+    });
 
     return (
         <AppLayout title={`Acerto com ${partner}`}>
@@ -62,9 +70,11 @@ export default function Settlement({ cycle, summary, lines, fixed }) {
                         </span>
                     </div>
                     <p className="text-[13px] leading-[1.45] text-on-accent-2">Lançamentos do mês + contas fixas do próximo</p>
-                    <Button variant="dark" href={route('expenses.index', { ...(cycle.is_current ? {} : { month: cycle.month }), new: 'settlement' })} className="self-start">
-                        Registrar acerto
-                    </Button>
+                    {can('expenses.edit') && (
+                        <Button variant="dark" href={route('expenses.index', { ...(cycle.is_current ? {} : { month: cycle.month }), new: 'settlement' })} className="self-start">
+                            Registrar acerto
+                        </Button>
+                    )}
                 </Card>
             </section>
 
@@ -76,7 +86,7 @@ export default function Settlement({ cycle, summary, lines, fixed }) {
                     subtitle="100% dela"
                     total={sum(own, 'payer2_share')}
                     empty={`Nenhum gasto só de ${partner} neste mês.`}
-                    rows={own.map((l) => ({ key: l.id, date: l.date, name: l.name, details: details(l), value: l.payer2_share, note: impactLabel(l.impact) }))}
+                    rows={own.map((l) => lineRow(l, l.payer2_share))}
                 />
 
                 <LineGroup
@@ -85,7 +95,7 @@ export default function Settlement({ cycle, summary, lines, fixed }) {
                     subtitle={`Parte de ${partner}: ${percent(couple?.payer2_percent, 0)}`}
                     total={sum(shared, 'payer2_share')}
                     empty="Nenhum gasto compartilhado neste mês."
-                    rows={shared.map((l) => ({ key: l.id, date: l.date, name: l.name, details: details(l), value: l.payer2_share, note: impactLabel(l.impact) }))}
+                    rows={shared.map((l) => lineRow(l, l.payer2_share))}
                 />
 
                 <LineGroup
@@ -96,6 +106,7 @@ export default function Settlement({ cycle, summary, lines, fixed }) {
                     empty={`Nenhuma conta fixa com parte de ${partner} no próximo mês.`}
                     rows={fixed.map((f) => ({
                         key: `fixed-${f.id}`,
+                        icon: <FixedIcon item={f} />,
                         date: f.due_date,
                         name: f.name,
                         details: [
@@ -116,12 +127,23 @@ export default function Settlement({ cycle, summary, lines, fixed }) {
                         title={`Gastos de ${me} pagos por ${partner}`}
                         subtitle="Abatem do acerto"
                         total={-sum(paidForMe, 'payer1_share')}
-                        rows={paidForMe.map((l) => ({ key: l.id, date: l.date, name: l.name, details: details(l), value: -l.payer1_share, note: impactLabel(l.impact) }))}
+                        rows={paidForMe.map((l) => lineRow(l, -l.payer1_share))}
                     />
                 )}
 
             </section>
         </AppLayout>
+    );
+}
+
+// Logo da empresa da conta fixa; senão o ícone de conta fixa.
+function FixedIcon({ item }) {
+    if (item.merchant) return <MerchantLogo merchant={item.merchant} />;
+
+    return (
+        <span className="grid h-8 w-8 flex-none place-items-center rounded-lg bg-inset text-secondary">
+            <CalendarClock size={13} strokeWidth={2.2} />
+        </span>
     );
 }
 
@@ -142,6 +164,7 @@ function LineGroup({ icon, title, subtitle, total, rows, empty }) {
                     {rows.map((row) => (
                         <div key={row.key} className={`flex items-center gap-3 border-t border-line-row py-3 first:border-t-0 ${row.muted ? 'opacity-70' : ''}`}>
                             <span className="w-[48px] flex-none font-mono text-[13px] text-secondary">{dayMonthLabel(row.date)}</span>
+                            {row.icon}
                             <div className="min-w-0 flex-1">
                                 <span className="block truncate text-[14px] font-medium">{row.name}</span>
                                 <span className="block truncate text-[12px] text-muted">{row.details}</span>

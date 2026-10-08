@@ -25,6 +25,7 @@ Breakpoints da referência: `max-[1280px]` (KPIs 2×2), `max-[1100px]` (cards em
 - `PageHeader` (título 26/600 + descrição + ações), `SectionHeader` (título de card 15/600), `SectionLabel` (separador entre blocos), `IconBadge` (ícone cinza do título).
 - `CycleSwitcher` — ‹ Set 2026 › (mês financeiro; intervalo do ciclo no `title`). `Segmented`, `OwnershipToggle` (cores das pessoas), `Field`/`Select`/`MoneyInput` (campo 44px, fundo `bg`, borda `line-strong`, foco limão), `Modal`, `Toast`, `SaveBar`.
 - `GaugeArc` — meio-arco 96×56 da saúde financeira (`tone` = classe de stroke). `ProgressBar` — trilho `track` + limão. `MerchantLogo` — logo 32px raio 8, mesmo formato do monograma.
+- `ReadOnlyBadge` — selo "Só visualização" no `PageHeader` quando a conta vinculada não pode editar a área. Permissões no front: `useCan()` de `lib/access.js` (`can('expenses.edit')`, `can('owner')`...) — só esconde botões; as rotas barram com `can:`.
 - **Todo campo de valor usa `MoneyInput`** (`<Field money … />`) — nada de `type="number"` para dinheiro. Não use `text-red-400`/`text-green-600`: `colors.red`/`green` customizados substituem a escala padrão (classe não é gerada).
 
 ### Quarta pegadinha: cor de token sem triplet não aceita opacidade

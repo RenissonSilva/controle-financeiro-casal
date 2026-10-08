@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\RecordsActivity;
+use App\Support\MerchantLogo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,14 +12,17 @@ use Illuminate\Support\Collection;
 
 class FixedExpense extends Model
 {
+    use RecordsActivity;
+
     protected $fillable = [
-        'description', 'amount', 'variable_amount', 'due_day', 'start_date', 'end_date', 'category_id',
+        'description', 'amount', 'variable_amount', 'previous_cycle', 'due_day', 'start_date', 'end_date', 'category_id',
         'ownership', 'match_document', 'match_pattern', 'active',
     ];
 
     protected $casts = [
         'amount' => 'float',
         'variable_amount' => 'boolean',
+        'previous_cycle' => 'boolean',
         'due_day' => 'integer',
         'start_date' => 'date',
         'end_date' => 'date',
@@ -75,19 +80,48 @@ class FixedExpense extends Model
         return null;
     }
 
+    /**
+     * Cobrança desta conta que pertence ao mês financeiro informado. Conta do mês anterior
+     * (energia: o consumo de setembro é pago no começo de outubro) é a que vence no ciclo
+     * seguinte. Com $byDueDate, é sempre a que vence dentro do próprio ciclo.
+     */
+    public function dueDateForCycle(string $month, Setting $settings, bool $byDueDate = false): ?Carbon
+    {
+        $dueCycle = $this->previous_cycle && ! $byDueDate ? Setting::shiftCycle($month, 1) : $month;
+
+        return $this->dueDateInRange(...$settings->billingCycleRange($dueCycle));
+    }
+
     public function hasPaymentMatcher(): bool
     {
         return filled($this->match_document) || filled($this->match_pattern);
     }
 
     /**
-     * Projeta as contas fixas ativas para dentro do ciclo de fatura informado: data de
-     * cobrança, valor (real do mês, se ajustado) e se já foi paga — paga = existe um
-     * lançamento vinculado à ocorrência (ver FixedExpenseMatcher).
+     * Empresa da conta, para a logo: pelo que reconhece o pagamento (documento ou padrão) ou pelo
+     * nome; senão, pelo pagamento já vinculado.
+     *
+     * @return array{slug: string, name: string, logo: string}|null
      */
-    public static function projectForCycle(Carbon $rangeStart, Carbon $rangeEnd): Collection
+    public function merchant(?Expense $payment = null): ?array
+    {
+        return MerchantLogo::forDocument($this->match_document)
+            ?? MerchantLogo::match($this->match_pattern, $this->description)
+            ?? ($payment ? MerchantLogo::for($payment) : null);
+    }
+
+    /**
+     * Projeta as contas fixas ativas para dentro do mês financeiro informado: data de
+     * cobrança, valor (real do mês, se ajustado) e se já foi paga — paga = existe um
+     * lançamento vinculado à ocorrência (ver FixedExpenseMatcher). Com $byDueDate, pega as
+     * cobranças que vencem no ciclo mesmo quando são do mês anterior (visão do caixa).
+     */
+    public static function projectForCycle(string $month, Setting $settings, bool $byDueDate = false): Collection
     {
         $today = Carbon::today();
+        // Cobranças do mês anterior vencem no ciclo seguinte: busca as dos dois.
+        [$rangeStart] = $settings->billingCycleRange($month);
+        [, $rangeEnd] = $settings->billingCycleRange(Setting::shiftCycle($month, 1));
 
         $occurrences = FixedExpenseOverride::with('expense')
             ->whereBetween('due_date', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
@@ -97,8 +131,8 @@ class FixedExpense extends Model
         return static::with('category')
             ->where('active', true)
             ->get()
-            ->map(function (FixedExpense $fixedExpense) use ($rangeStart, $rangeEnd, $today, $occurrences) {
-                $dueDate = $fixedExpense->dueDateInRange($rangeStart, $rangeEnd);
+            ->map(function (FixedExpense $fixedExpense) use ($month, $settings, $byDueDate, $today, $occurrences) {
+                $dueDate = $fixedExpense->dueDateForCycle($month, $settings, $byDueDate);
 
                 if (! $dueDate) {
                     return null;
@@ -131,6 +165,7 @@ class FixedExpense extends Model
                     'is_upcoming' => $dueDate->greaterThanOrEqualTo($today),
                     'status' => $status,
                     'has_matcher' => $fixedExpense->hasPaymentMatcher(),
+                    'merchant' => $fixedExpense->merchant($payment),
                     'payment' => $payment ? [
                         'id' => $payment->id,
                         'date' => $payment->date->toDateString(),
@@ -142,5 +177,40 @@ class FixedExpense extends Model
             ->filter()
             ->sortBy('due_date')
             ->values();
+    }
+
+    // ---- Histórico de mudanças ----
+
+    public function activityArea(): string
+    {
+        return 'fixed';
+    }
+
+    public function activityNoun(): string
+    {
+        return 'a conta fixa';
+    }
+
+    public function activityLabel(): string
+    {
+        return $this->description;
+    }
+
+    public function activityFields(): array
+    {
+        return [
+            'description' => 'Descrição',
+            'amount' => ['Valor', 'money'],
+            'variable_amount' => ['Valor variável', 'bool'],
+            'previous_cycle' => ['Paga o consumo do mês anterior', 'bool'],
+            'due_day' => 'Dia da cobrança',
+            'start_date' => ['Começa em', 'date'],
+            'end_date' => ['Termina em', 'date'],
+            'category_id' => ['Categoria', 'category'],
+            'ownership' => ['De quem é', 'payer'],
+            'match_document' => 'Reconhece Pix para (CPF/CNPJ)',
+            'match_pattern' => 'Reconhece descrição com',
+            'active' => ['Ativa', 'bool'],
+        ];
     }
 }

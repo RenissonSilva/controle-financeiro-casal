@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Models\Invite;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,11 +17,12 @@ class AuthenticatedSessionController extends Controller
     /**
      * Display the login view.
      */
-    public function create(): Response
+    public function create(Request $request): Response
     {
         return Inertia::render('Auth/Login', [
             'canResetPassword' => Route::has('password.request'),
             'status' => session('status'),
+            'invitedBy' => Invite::findValid($request->session()->get(Invite::SESSION_KEY))?->creator?->name,
         ]);
     }
 
@@ -32,6 +34,11 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
 
         $request->session()->regenerate();
+
+        // Abriu um link de convite antes de entrar: vincula esta conta (se ainda não for vinculada).
+        if ($token = $request->session()->pull(Invite::SESSION_KEY)) {
+            Invite::findValid($token)?->accept($request->user());
+        }
 
         return redirect()->intended(route('dashboard', absolute: false));
     }

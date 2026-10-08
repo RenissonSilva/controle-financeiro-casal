@@ -14,7 +14,7 @@ export default function OwnershipToggle({ value, onChange, couple, size = 'sm', 
                     onClick={() => onChange(option.value)}
                     aria-pressed={value === option.value}
                     className={`font-medium transition-colors ${sm ? 'rounded-full px-2.5 py-[3px] text-[12px]' : 'h-9 flex-1 rounded-[8px] px-3 text-[13px]'} ${
-                        value === option.value ? OWNERSHIP_BADGE[option.value] : 'text-muted hover:text-text'
+                        value === option.value ? OWNERSHIP_BADGE[option.value] : disabled ? 'cursor-default text-muted' : 'text-muted hover:text-text'
                     }`}
                 >
                     {option.label}

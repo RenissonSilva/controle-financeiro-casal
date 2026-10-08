@@ -14,6 +14,7 @@ use App\Services\Categorization\Categorizer;
 use App\Services\Finance\CycleReport;
 use App\Services\Finance\FixedExpenseMatcher;
 use App\Services\OpenFinance\TransactionClassifier;
+use App\Support\Activity;
 use App\Support\ExpensePresenter;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
@@ -174,6 +175,9 @@ class ExpenseController extends Controller
 
         if ($ownershipForAll && ($count = $this->applyOwnershipToSimilar($expense)) > 0) {
             $messages[] = "dono aplicado a mais {$count} ".($count === 1 ? 'lançamento' : 'lançamentos');
+            Activity::record('expenses', 'propagated', "repetiu \"de quem é\" em mais {$count} ".($count === 1 ? 'lançamento' : 'lançamentos').' do mesmo estabelecimento', Activity::expenseLabel($expense), $expense, [
+                Activity::change('ownership', 'De quem é', null, Activity::format('payer', $expense->ownership)),
+            ]);
         }
 
         return back()->with('success', 'Lançamento atualizado'.($messages ? ' — '.implode('; ', $messages) : '').'.');
@@ -233,7 +237,7 @@ class ExpenseController extends Controller
 
         if ($expense->kind === Expense::KIND_EXPENSE && ! $expense->category_id) {
             $expense->update(['status' => 'pending']);
-            app(Categorizer::class)->applyLocal([$expense->id]);
+            Activity::withoutRecording(fn () => app(Categorizer::class)->applyLocal([$expense->id]));
         }
 
         return back()->with('success', 'Lançamento voltou a contar nos cálculos.');
@@ -252,8 +256,11 @@ class ExpenseController extends Controller
             'expenses.*.ownership'   => ['required', 'in:payer1,payer2,both'],
         ]);
 
+        // Um a um (e não update em massa) para cada mudança entrar no histórico.
+        $expenses = Expense::findMany(collect($data['expenses'])->pluck('id'))->keyBy('id');
+
         foreach ($data['expenses'] as $item) {
-            Expense::whereKey($item['id'])->update([
+            $expenses[$item['id']]->update([
                 'category_id' => $item['category_id'] ?? null,
                 'ownership' => $item['ownership'],
                 'category_source' => 'user',
@@ -286,7 +293,8 @@ class ExpenseController extends Controller
 
         // Pedido explícito: a IA pode revisar inclusive o que foi escolhido à mão.
         Expense::whereIn('id', $ids)->update(['status' => 'pending', 'category_source' => null]);
-        $categorizer->applyAi($categorizer->applyLocal($ids));
+        Activity::withoutRecording(fn () => $categorizer->applyAi($categorizer->applyLocal($ids)));
+        Activity::record('expenses', 'categorized', 'categorizou com IA '.count($ids).' '.(count($ids) === 1 ? 'lançamento' : 'lançamentos'));
 
         return response()->json(['message' => count($ids).' lançamento(s) categorizados.']);
     }
@@ -419,8 +427,9 @@ class ExpenseController extends Controller
             return;
         }
 
+        // A cobrança é a que vence no ciclo da data do pagamento (sem o deslocamento de conta do mês anterior).
         $fixedExpense = FixedExpense::findOrFail($fixedExpenseId);
-        [$start, $end] = Setting::current()->billingCycleRange($expense->competence);
+        [$start, $end] = Setting::current()->billingCycleRange(Setting::shiftCycle($expense->competence, -$expense->competence_shift));
         $dueDate = $fixedExpense->dueDateInRange($start, $end) ?? $expense->date;
 
         $occurrence = FixedExpenseOverride::firstOrNew([

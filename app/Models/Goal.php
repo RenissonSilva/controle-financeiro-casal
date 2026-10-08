@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\RecordsActivity;
 use Illuminate\Database\Eloquent\Model;
 
 class Goal extends Model
 {
+    use RecordsActivity;
+
     protected $fillable = ['name', 'target_amount', 'deadline', 'tracking', 'manual_amount', 'is_primary'];
 
     protected $casts = [
@@ -31,5 +34,34 @@ class Goal extends Model
         }
 
         return min(100, round($this->currentAmount($investedBalance) / $this->target_amount * 100, 1));
+    }
+
+    // ---- Histórico de mudanças ----
+
+    public function activityArea(): string
+    {
+        return 'goals';
+    }
+
+    public function activityNoun(): string
+    {
+        return 'a meta';
+    }
+
+    public function activityLabel(): string
+    {
+        return $this->name;
+    }
+
+    public function activityFields(): array
+    {
+        return [
+            'name' => 'Nome',
+            'target_amount' => ['Valor-alvo', 'money'],
+            'deadline' => ['Prazo', 'date'],
+            'tracking' => ['Progresso', 'tracking'],
+            'manual_amount' => ['Já juntado', 'money'],
+            'is_primary' => ['Aparece na Home', 'bool'],
+        ];
     }
 }

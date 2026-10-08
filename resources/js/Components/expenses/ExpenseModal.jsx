@@ -42,8 +42,8 @@ const fromRow = (row) => ({
 
 const truncate = (text, max) => (text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text);
 
-// Criar (row = null) ou editar um lançamento.
-export default function ExpenseModal({ show, row, initialKind, rows = [], onClose, couple, categories, fixedExpenses, defaultDate }) {
+// Criar (row = null) ou editar um lançamento. readOnly: conta vinculada sem permissão só vê os detalhes.
+export default function ExpenseModal({ show, row, initialKind, rows = [], onClose, couple, categories, fixedExpenses, defaultDate, readOnly = false }) {
     const isEditing = Boolean(row);
     const fromBank = row?.origin === 'open_finance';
     const partner = firstName(couple?.payer2_name);
@@ -60,6 +60,7 @@ export default function ExpenseModal({ show, row, initialKind, rows = [], onClos
 
     const submit = (e) => {
         e.preventDefault();
+        if (readOnly) return;
         const options = { preserveScroll: true, onSuccess: () => { reset(); onClose(); } };
 
         transform(({ custom_name, name_pattern, ...d }) => ({
@@ -91,162 +92,170 @@ export default function ExpenseModal({ show, row, initialKind, rows = [], onClos
     ];
 
     return (
-        <Modal show={show} onClose={onClose} title={isEditing ? 'Editar lançamento' : 'Novo lançamento'} maxWidth="lg">
+        <Modal show={show} onClose={onClose} title={readOnly ? 'Detalhes do lançamento' : isEditing ? 'Editar lançamento' : 'Novo lançamento'} maxWidth="lg">
             <form onSubmit={submit} className="flex flex-col gap-4">
-                {fromBank && (
-                    <div className="rounded-[12px] border border-line bg-bg/40 px-3.5 py-3">
-                        <div className="text-[14px] font-medium">{row.bank_name}</div>
-                        <div className="mt-0.5 font-mono text-[12px] text-secondary">
-                            {[row.prefix, fullDate(row.date), row.account_type === 'CREDIT' ? 'cartão de crédito' : 'conta', money(row.amount)].filter(Boolean).join(' · ')}
-                        </div>
-                        <div className="mt-1.5 text-[12px] text-muted">Descrição, valor e data vêm do banco e não podem ser alterados.</div>
-                    </div>
-                )}
-
-                {fromBank && (
-                    <div className="flex flex-col gap-3">
-                        <Field
-                            label="Nome personalizado"
-                            value={data.custom_name}
-                            onChange={(e) => setData('custom_name', e.target.value)}
-                            maxLength={255}
-                            error={errors.custom_name}
-                        />
-                        {data.custom_name?.trim() && (
-                            <div>
-                                <Field
-                                    label="Aplicar aos lançamentos com o nome"
-                                    value={data.name_pattern}
-                                    onChange={(e) => setData('name_pattern', e.target.value)}
-                                    placeholder={row.bank_name}
-                                    maxLength={255}
-                                    error={errors.name_pattern}
-                                />
-                                <p className="mt-1.5 text-[12px] leading-relaxed text-muted">
-                                    Use <code className="text-secondary">%</code> para qualquer texto.
-                                </p>
-                                {data.name_pattern?.trim() && (
-                                    <p className={`mt-1 text-[12px] ${matched.length ? 'text-secondary' : 'text-red'}`}>
-                                        {matched.length
-                                            ? `Neste mês: ${matched.length} ${matched.length === 1 ? 'lançamento' : 'lançamentos'} — ${matchedNames.slice(0, 4).join(', ')}${matchedNames.length > 4 ? '…' : ''}`
-                                            : 'Não pega nenhum lançamento deste mês.'}
-                                    </p>
-                                )}
+                <fieldset disabled={readOnly} className="m-0 flex min-w-0 flex-col gap-4 border-0 p-0">
+                    {fromBank && (
+                        <div className="rounded-[12px] border border-line bg-bg/40 px-3.5 py-3">
+                            <div className="text-[14px] font-medium">{row.bank_name}</div>
+                            <div className="mt-0.5 font-mono text-[12px] text-secondary">
+                                {[row.prefix, fullDate(row.date), row.account_type === 'CREDIT' ? 'cartão de crédito' : 'conta', money(row.amount)].filter(Boolean).join(' · ')}
                             </div>
-                        )}
-                    </div>
-                )}
-
-                <div>
-                    <span className="mb-1.5 block text-[13px] font-medium text-secondary">Tipo</span>
-                    <Segmented options={kinds} value={data.kind} onChange={(kind) => setData('kind', kind)} className="w-fit" />
-                    {data.kind === 'ignored' && <p className="mt-1.5 text-[12px] text-muted">Fica fora de todos os totais, do rateio e do acerto.</p>}
-                    {data.kind === 'settlement' && <p className="mt-1.5 text-[12px] text-muted">Dinheiro trocado entre vocês — não conta como receita nem despesa.</p>}
-                </div>
-
-                {!fromBank && (
-                    <>
-                        <Field
-                            label="Descrição"
-                            autoFocus={!isEditing}
-                            value={data.description}
-                            onChange={(e) => setData('description', e.target.value)}
-                            placeholder={data.kind === 'settlement' ? `Ex: ${partner} pagou em dinheiro` : 'Ex: Feira de sábado'}
-                            error={errors.description}
-                        />
-                        <div className="grid grid-cols-2 gap-3">
-                            <Field label="Valor" money value={data.amount} onChange={(e) => setData('amount', e.target.value)} error={errors.amount} />
-                            <Field label="Data" type="date" value={data.date} onChange={(e) => setData('date', e.target.value)} error={errors.date} />
+                            <div className="mt-1.5 text-[12px] text-muted">Descrição, valor e data vêm do banco e não podem ser alterados.</div>
                         </div>
-                    </>
-                )}
+                    )}
 
-                {data.kind === 'settlement' && !fromBank && (
-                    <div>
-                        <span className="mb-1.5 block text-[13px] font-medium text-secondary">Quem pagou quem</span>
-                        <Segmented
-                            options={[
-                                { value: 'in', label: `${partner} pagou ${me}` },
-                                { value: 'out', label: `${me} pagou ${partner}` },
-                            ]}
-                            value={data.settlement_direction}
-                            onChange={(value) => setData('settlement_direction', value)}
-                            className="w-fit"
-                        />
-                    </div>
-                )}
-
-                {data.kind === 'expense' && (
-                    <>
-                        <Select
-                            label="Categoria"
-                            value={data.category_id}
-                            onChange={(e) => setData('category_id', e.target.value)}
-                            options={[{ value: '', label: '— Sem categoria —' }, ...categories.map((c) => ({ value: c.id, label: c.name }))]}
-                            error={errors.category_id}
-                        />
-                        <div>
-                            <span className="mb-1.5 block text-[13px] font-medium text-secondary">De quem é o gasto</span>
-                            <OwnershipToggle size="md" value={data.ownership} onChange={(value) => setData('ownership', value)} couple={couple} />
-                            <p className="mt-1.5 text-[12px] text-muted">"Nós" é dividido pela proporção de renda ({couple?.payer1_percent}% / {couple?.payer2_percent}%).</p>
-                            {isEditing && (
-                                <div className="mt-3">
-                                    <span className="mb-1.5 block text-[13px] font-medium text-secondary">Vale para</span>
-                                    <Segmented
-                                        options={[
-                                            { value: 'one', label: 'Só este lançamento' },
-                                            { value: 'all', label: `Todos de ${truncate(row.custom_name || row.bank_name || row.description, 24)}` },
-                                        ]}
-                                        value={data.ownership_scope}
-                                        onChange={(value) => setData('ownership_scope', value)}
-                                        className="w-fit max-w-full"
+                    {fromBank && (
+                        <div className="flex flex-col gap-3">
+                            <Field
+                                label="Nome personalizado"
+                                value={data.custom_name}
+                                onChange={(e) => setData('custom_name', e.target.value)}
+                                maxLength={255}
+                                error={errors.custom_name}
+                            />
+                            {data.custom_name?.trim() && (
+                                <div>
+                                    <Field
+                                        label="Aplicar aos lançamentos com o nome"
+                                        value={data.name_pattern}
+                                        onChange={(e) => setData('name_pattern', e.target.value)}
+                                        placeholder={row.bank_name}
+                                        maxLength={255}
+                                        error={errors.name_pattern}
                                     />
-                                    <p className="mt-1.5 text-[12px] text-muted">
-                                        {data.ownership_scope === 'all'
-                                            ? 'Aplica às cobranças do mesmo estabelecimento deste mês em diante e às que ainda vão chegar. Meses anteriores não mudam.'
-                                            : 'As próximas cobranças do mesmo estabelecimento não seguem esta escolha.'}
+                                    <p className="mt-1.5 text-[12px] leading-relaxed text-muted">
+                                        Use <code className="text-secondary">%</code> para qualquer texto.
                                     </p>
+                                    {data.name_pattern?.trim() && (
+                                        <p className={`mt-1 text-[12px] ${matched.length ? 'text-secondary' : 'text-red'}`}>
+                                            {matched.length
+                                                ? `Neste mês: ${matched.length} ${matched.length === 1 ? 'lançamento' : 'lançamentos'} — ${matchedNames.slice(0, 4).join(', ')}${matchedNames.length > 4 ? '…' : ''}`
+                                                : 'Não pega nenhum lançamento deste mês.'}
+                                        </p>
+                                    )}
                                 </div>
                             )}
                         </div>
-                    </>
-                )}
+                    )}
 
-                {!fromBank && data.kind !== 'settlement' && (
                     <div>
-                        <span className="mb-1.5 block text-[13px] font-medium text-secondary">{data.kind === 'income' ? 'Recebido por' : 'Pago por'}</span>
-                        <Segmented
-                            options={[
-                                { value: 'payer1', label: me },
-                                { value: 'payer2', label: partner },
-                            ]}
-                            value={data.source}
-                            onChange={(value) => setData('source', value)}
-                            className="w-fit"
-                        />
-                        {data.kind === 'expense' && data.source === 'payer2' && (
-                            <p className="mt-1.5 text-[12px] text-muted">Gasto pago por {partner} — a sua parte abate o que {partner} te deve.</p>
-                        )}
+                        <span className="mb-1.5 block text-[13px] font-medium text-secondary">Tipo</span>
+                        <Segmented options={kinds} value={data.kind} onChange={(kind) => setData('kind', kind)} className="w-fit" />
+                        {data.kind === 'ignored' && <p className="mt-1.5 text-[12px] text-muted">Fica fora de todos os totais, do rateio e do acerto.</p>}
+                        {data.kind === 'settlement' && <p className="mt-1.5 text-[12px] text-muted">Dinheiro trocado entre vocês — não conta como receita nem despesa.</p>}
                     </div>
-                )}
 
-                {data.kind === 'expense' && fixedExpenses.length > 0 && (
-                    <Select
-                        label="É o pagamento de uma conta fixa?"
-                        value={data.fixed_expense_id}
-                        onChange={(e) => setData('fixed_expense_id', e.target.value)}
-                        options={[{ value: '', label: 'Não' }, ...fixedExpenses.map((f) => ({ value: f.id, label: f.description }))]}
-                        error={errors.fixed_expense_id}
-                    />
-                )}
+                    {!fromBank && (
+                        <>
+                            <Field
+                                label="Descrição"
+                                autoFocus={!isEditing}
+                                value={data.description}
+                                onChange={(e) => setData('description', e.target.value)}
+                                placeholder={data.kind === 'settlement' ? `Ex: ${partner} pagou em dinheiro` : 'Ex: Feira de sábado'}
+                                error={errors.description}
+                            />
+                            <div className="grid grid-cols-2 gap-3">
+                                <Field label="Valor" money value={data.amount} onChange={(e) => setData('amount', e.target.value)} error={errors.amount} />
+                                <Field label="Data" type="date" value={data.date} onChange={(e) => setData('date', e.target.value)} error={errors.date} />
+                            </div>
+                        </>
+                    )}
 
-                <Field label="Observação" value={data.notes} onChange={(e) => setData('notes', e.target.value)} placeholder="Opcional" error={errors.notes} />
+                    {data.kind === 'settlement' && !fromBank && (
+                        <div>
+                            <span className="mb-1.5 block text-[13px] font-medium text-secondary">Quem pagou quem</span>
+                            <Segmented
+                                options={[
+                                    { value: 'in', label: `${partner} pagou ${me}` },
+                                    { value: 'out', label: `${me} pagou ${partner}` },
+                                ]}
+                                value={data.settlement_direction}
+                                onChange={(value) => setData('settlement_direction', value)}
+                                className="w-fit"
+                            />
+                        </div>
+                    )}
+
+                    {data.kind === 'expense' && (
+                        <>
+                            <Select
+                                label="Categoria"
+                                value={data.category_id}
+                                onChange={(e) => setData('category_id', e.target.value)}
+                                options={[{ value: '', label: '— Sem categoria —' }, ...categories.map((c) => ({ value: c.id, label: c.name }))]}
+                                error={errors.category_id}
+                            />
+                            <div>
+                                <span className="mb-1.5 block text-[13px] font-medium text-secondary">De quem é o gasto</span>
+                                <OwnershipToggle size="md" value={data.ownership} onChange={(value) => setData('ownership', value)} couple={couple} />
+                                <p className="mt-1.5 text-[12px] text-muted">"Nós" é dividido pela proporção de renda ({couple?.payer1_percent}% / {couple?.payer2_percent}%).</p>
+                                {isEditing && (
+                                    <div className="mt-3">
+                                        <span className="mb-1.5 block text-[13px] font-medium text-secondary">Vale para</span>
+                                        <Segmented
+                                            options={[
+                                                { value: 'one', label: 'Só este lançamento' },
+                                                { value: 'all', label: `Todos de ${truncate(row.custom_name || row.bank_name || row.description, 24)}` },
+                                            ]}
+                                            value={data.ownership_scope}
+                                            onChange={(value) => setData('ownership_scope', value)}
+                                            className="w-fit max-w-full"
+                                        />
+                                        <p className="mt-1.5 text-[12px] text-muted">
+                                            {data.ownership_scope === 'all'
+                                                ? 'Aplica às cobranças do mesmo estabelecimento deste mês em diante e às que ainda vão chegar. Meses anteriores não mudam.'
+                                                : 'As próximas cobranças do mesmo estabelecimento não seguem esta escolha.'}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </>
+                    )}
+
+                    {!fromBank && data.kind !== 'settlement' && (
+                        <div>
+                            <span className="mb-1.5 block text-[13px] font-medium text-secondary">{data.kind === 'income' ? 'Recebido por' : 'Pago por'}</span>
+                            <Segmented
+                                options={[
+                                    { value: 'payer1', label: me },
+                                    { value: 'payer2', label: partner },
+                                ]}
+                                value={data.source}
+                                onChange={(value) => setData('source', value)}
+                                className="w-fit"
+                            />
+                            {data.kind === 'expense' && data.source === 'payer2' && (
+                                <p className="mt-1.5 text-[12px] text-muted">Gasto pago por {partner} — a sua parte abate o que {partner} te deve.</p>
+                            )}
+                        </div>
+                    )}
+
+                    {data.kind === 'expense' && fixedExpenses.length > 0 && (
+                        <Select
+                            label="É o pagamento de uma conta fixa?"
+                            value={data.fixed_expense_id}
+                            onChange={(e) => setData('fixed_expense_id', e.target.value)}
+                            options={[{ value: '', label: 'Não' }, ...fixedExpenses.map((f) => ({ value: f.id, label: f.description }))]}
+                            error={errors.fixed_expense_id}
+                        />
+                    )}
+
+                    <Field label="Observação" value={data.notes} onChange={(e) => setData('notes', e.target.value)} placeholder={readOnly ? '' : 'Opcional'} error={errors.notes} />
+                </fieldset>
 
                 <div className="mt-1 flex justify-end gap-2.5">
-                    <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-                    <Button type="submit" variant="primary" disabled={processing}>
-                        {processing ? 'Salvando...' : isEditing ? 'Salvar' : 'Adicionar'}
-                    </Button>
+                    {readOnly ? (
+                        <Button type="button" variant="secondary" onClick={onClose}>Fechar</Button>
+                    ) : (
+                        <>
+                            <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
+                            <Button type="submit" variant="primary" disabled={processing}>
+                                {processing ? 'Salvando...' : isEditing ? 'Salvar' : 'Adicionar'}
+                            </Button>
+                        </>
+                    )}
                 </div>
             </form>
         </Modal>

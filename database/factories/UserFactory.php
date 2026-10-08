@@ -30,7 +30,28 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            'role' => User::ROLE_OWNER,
+            'linked_at' => now(),
         ];
+    }
+
+    // Conta vinculada por convite, com as permissões informadas (ex: ['expenses.edit']).
+    public function member(array $permissions = []): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => User::ROLE_MEMBER,
+            'permissions' => $permissions,
+        ]);
+    }
+
+    // Conta criada sem convite: ainda não vê nada.
+    public function unlinked(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => null,
+            'permissions' => null,
+            'linked_at' => null,
+        ]);
     }
 
     /**
