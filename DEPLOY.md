@@ -37,7 +37,9 @@ Pluggy leva poucos segundos.
 
 1. Suba o código para o GitHub e importe o repositório na Vercel (Framework Preset: **Other**).
    Build, saída, função PHP, rotas e cron já vêm do `vercel.json`. A versão do Node (22.x,
-   exigida pelo `vercel-php`) vem do `engines` do `package.json`.
+   exigida pelo `vercel-php`) vem do `engines` do `package.json`. A saída estática é `dist`,
+   uma cópia do `public/` sem `index.php` e `.htaccess`: com o `public/` direto, a Vercel
+   servia o `index.php` como texto em `/` em vez de cair no rewrite para a função.
 2. Monte um `.env.production` local (já está no `.gitignore` e no `.vercelignore`) neste formato:
 
    ```dotenv
