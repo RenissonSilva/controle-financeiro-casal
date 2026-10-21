@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Expense;
 use App\Models\OpenFinanceItem;
+use App\Models\PendingOwnership;
 use App\Services\Categorization\Categorizer;
 use App\Services\OpenFinance\PluggySynchronizer;
 use App\Services\PluggyService;
@@ -180,6 +181,10 @@ class OpenFinanceController extends Controller
         // Dados do banco chegando não são mudança de alguém: ficam fora do histórico.
         try {
             Activity::withoutRecording(fn () => $this->runSync($items, $synchronizer, $categorizer, $result));
+
+            // Pedidos do bot para compras que acabaram de chegar: fora do withoutRecording, para o
+            // histórico mostrar quem pediu (ver PendingOwnership::applyAll()).
+            PendingOwnership::applyAll();
         } finally {
             $lock->release();
         }

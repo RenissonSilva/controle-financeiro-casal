@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\CategorizationRule;
 use App\Models\Expense;
 use App\Models\OpenFinanceItem;
+use App\Models\PendingOwnership;
 use App\Services\Categorization\Categorizer;
 use App\Services\Finance\FixedExpenseMatcher;
 use App\Services\OpenFinance\PluggySynchronizer;
@@ -64,6 +65,11 @@ class SyncOpenFinance extends Command
         if ($remaining && ! $this->option('no-ai')) {
             $this->info('Categorizando '.count($remaining).' lançamentos com IA...');
             $categorizer->applyAi($remaining);
+        }
+
+        // Depois da categorização, senão regra/memória/IA trocariam de volta o dono pedido.
+        if ($applied = PendingOwnership::applyAll()) {
+            $this->line("Pedidos do WhatsApp aplicados: {$applied}");
         }
 
         $this->line('Sem categoria: '.Expense::where('kind', Expense::KIND_EXPENSE)->whereNull('category_id')->count());

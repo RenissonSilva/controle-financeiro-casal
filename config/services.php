@@ -40,4 +40,13 @@ return [
         'secret' => env('CRON_SECRET'),
     ],
 
+    // Bot do WhatsApp (Cloud API da Meta, ver DEPLOY.md). Sem token = rota /webhooks/whatsapp desligada.
+    'whatsapp' => [
+        'token' => env('WHATSAPP_TOKEN'),
+        'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),
+        'app_secret' => env('WHATSAPP_APP_SECRET'),
+        'verify_token' => env('WHATSAPP_VERIFY_TOKEN'),
+        'graph_version' => env('WHATSAPP_GRAPH_VERSION', 'v25.0'),
+    ],
+
 ];

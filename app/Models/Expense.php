@@ -223,6 +223,20 @@ class Expense extends Model
         return $this->nameRule;
     }
 
+    /**
+     * "De quem é" escolhido para este lançamento só — o "Só este" do formulário: a escolha do
+     * casal passa a valer sobre a categorização automática, sem virar padrão do estabelecimento.
+     */
+    public function assignOwner(string $ownership): void
+    {
+        $this->fill([
+            'ownership' => $ownership,
+            'ownership_scope' => 'one',
+            'category_source' => 'user',
+            'status' => 'categorized',
+        ])->save();
+    }
+
     // Nome amigável: tira o prefixo "Transferência enviada|" e afins que o banco coloca.
     public function displayName(): string
     {

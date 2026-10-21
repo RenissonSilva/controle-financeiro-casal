@@ -78,6 +78,12 @@ Pluggy leva poucos segundos.
 
    # ===== Cron =====
    CRON_SECRET=                   # aleatório: openssl rand -hex 32
+
+   # ===== Bot do WhatsApp (opcional, ver seção 5) =====
+   WHATSAPP_TOKEN=
+   WHATSAPP_PHONE_NUMBER_ID=
+   WHATSAPP_APP_SECRET=
+   WHATSAPP_VERIFY_TOKEN=         # aleatório: openssl rand -hex 16
    ```
 
    Na Vercel, em **Settings → Environment Variables**, cole o conteúdo do arquivo inteiro no
@@ -108,6 +114,42 @@ php artisan migrate --force
 ```
 
 Depois de cada deploy com migration nova, rode o `migrate` assim.
+
+## 5. Bot do WhatsApp
+
+Mensagens como "uber de ontem meu", "drogasil de hoje dela" ou "quanto a Lua deve?" mudam de
+quem é a cobrança ou respondem o acerto. Usa a WhatsApp Cloud API oficial da Meta: as
+mensagens que vocês mandam são grátis, e as respostas do bot têm 1.000 grátis por mês. O
+número de teste da Meta (+1 555…) não pede cartão nem chip e aceita até 5 destinatários.
+
+1. Em [developers.facebook.com](https://developers.facebook.com/apps), crie um app do tipo
+   **Business** e adicione o produto **WhatsApp**. Em **WhatsApp → API Setup** aparecem o número
+   de teste e o **Phone number ID** (`WHATSAPP_PHONE_NUMBER_ID`).
+2. Ainda em **API Setup**, no campo **To**, adicione o seu número e o da Lua. Cada um confirma
+   com o código que chega no WhatsApp.
+3. Token permanente: em [business.facebook.com](https://business.facebook.com/settings) →
+   **Usuários → Usuários do sistema**, crie um usuário **Admin**, atribua a ele o app e a conta
+   do WhatsApp (controle total) e gere um token sem validade com as permissões
+   `whatsapp_business_messaging` e `whatsapp_business_management` (`WHATSAPP_TOKEN`). O token
+   que aparece no API Setup expira em 24 h, então não use esse.
+4. Em **App settings → Basic**, copie o **App secret** (`WHATSAPP_APP_SECRET`).
+5. Coloque as quatro variáveis na Vercel (o `WHATSAPP_VERIFY_TOKEN` é qualquer texto
+   aleatório) e faça um redeploy.
+6. Em **WhatsApp → Configuration → Webhook**, use a Callback URL
+   `https://<projeto>.vercel.app/webhooks/whatsapp`, o mesmo verify token, clique em **Verify
+   and save** e, em **Webhook fields**, assine `messages`.
+7. Rode o `migrate` no TiDB (seção 4). Cada um salva o próprio número em **Perfil → WhatsApp**
+   e manda "oi" para o número de teste.
+
+Só números salvos no Perfil de uma conta vinculada são atendidos. "Meu" é de quem mandou: a
+conta principal é o pagador 1 e a vinculada, o pagador 2. A Lua precisa da permissão
+**Lançamentos → Criar e editar** para mudar cobranças, mas pode consultar o acerto sem ela.
+Compra que ainda não chegou do banco fica guardada por 5 dias e é aplicada na sincronização
+em que aparecer. Para testar sem WhatsApp, numa cópia do banco:
+
+```bash
+DB_DATABASE=controle_financeiro_e2e php artisan chat:simulate <email> "uber de ontem meu"
+```
 
 ## Limites
 

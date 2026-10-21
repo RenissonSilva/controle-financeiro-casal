@@ -13,6 +13,7 @@ export default function UpdateProfileInformation({ mustVerifyEmail, status, clas
     const { data, setData, patch, errors, processing, recentlySuccessful } = useForm({
         name: user.name,
         email: user.email,
+        whatsapp: user.whatsapp ?? '',
     });
 
     const submit = (e) => {
@@ -26,7 +27,7 @@ export default function UpdateProfileInformation({ mustVerifyEmail, status, clas
             <SectionHeader
                 icon={<UserRound size={16} strokeWidth={1.75} />}
                 title="Perfil"
-                subtitle="Nome e e-mail usados para entrar."
+                subtitle="Nome e e-mail usados para entrar, e o seu WhatsApp para o bot."
             />
 
             <form onSubmit={submit} className="mt-5 flex flex-col gap-4">
@@ -40,6 +41,15 @@ export default function UpdateProfileInformation({ mustVerifyEmail, status, clas
                     <InputLabel htmlFor="email" value="E-mail" />
                     <TextInput id="email" type="email" value={data.email} onChange={(e) => setData('email', e.target.value)} required autoComplete="username" />
                     <InputError className="mt-1.5" message={errors.email} />
+                </div>
+
+                <div>
+                    <InputLabel htmlFor="whatsapp" value="WhatsApp" />
+                    <TextInput id="whatsapp" type="tel" value={data.whatsapp} onChange={(e) => setData('whatsapp', e.target.value)} placeholder="(71) 99999-8888" autoComplete="tel" />
+                    <p className="mt-1.5 text-[12px] text-muted">
+                        Mensagens deste número para o bot mudam de quem é uma cobrança (ex: "uber de ontem meu"). Vazio = bot desligado para você.
+                    </p>
+                    <InputError className="mt-1.5" message={errors.whatsapp} />
                 </div>
 
                 {mustVerifyEmail && user.email_verified_at === null && (

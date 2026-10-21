@@ -14,6 +14,7 @@ use App\Http\Controllers\OpenFinanceController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\SettlementController;
+use App\Http\Controllers\WhatsAppWebhookController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -29,6 +30,10 @@ if (app()->environment('local')) {
 
 // Cron por HTTP (Vercel), protegido por CRON_SECRET.
 Route::get('/cron/openfinance-sync', [CronController::class, 'openFinanceSync'])->name('cron.openfinance-sync');
+
+// Bot do WhatsApp (Meta): desligado sem WHATSAPP_TOKEN; o POST vem assinado com o app secret.
+Route::get('/webhooks/whatsapp', [WhatsAppWebhookController::class, 'verify'])->name('webhooks.whatsapp.verify');
+Route::post('/webhooks/whatsapp', [WhatsAppWebhookController::class, 'receive'])->name('webhooks.whatsapp');
 
 // Convite para vincular uma conta à conta principal (funciona logado ou não).
 Route::get('/convite/{token}', [InviteController::class, 'show'])->name('invites.show');

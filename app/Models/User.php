@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Services\Chat\WhatsApp;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -15,7 +16,7 @@ use Illuminate\Notifications\Notifiable;
  * por convite (member), que veem tudo e só criam/editam/excluem nas áreas que o dono liberar.
  * Sem papel = conta criada mas ainda não vinculada (não vê nenhum dado).
  */
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['name', 'email', 'password', 'whatsapp'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -77,6 +78,23 @@ class User extends Authenticatable
     public function isLinked(): bool
     {
         return $this->isOwner() || $this->isMember();
+    }
+
+    /**
+     * Pagador desta conta nos cálculos: a conta principal é o pagador 1 e a vinculada, o pagador 2.
+     * Usado pelo bot do WhatsApp para entender "meu" e "dela/dele".
+     */
+    public function payer(): string
+    {
+        return $this->isMember() ? 'payer2' : 'payer1';
+    }
+
+    // Conta dona do número que mandou a mensagem (com ou sem o 9 do celular, ver WhatsApp::numberVariants).
+    public static function findByWhatsApp(string $number): ?self
+    {
+        $variants = WhatsApp::numberVariants($number);
+
+        return $variants ? static::whereIn('whatsapp', $variants)->first() : null;
     }
 
     public function hasPermission(string $permission): bool

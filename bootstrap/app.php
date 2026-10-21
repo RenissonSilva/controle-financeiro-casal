@@ -22,6 +22,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'linked' => \App\Http\Middleware\EnsureAccountIsLinked::class,
         ]);
 
+        // Webhooks vêm de fora (Meta), sem token CSRF: cada um valida a própria assinatura.
+        $middleware->preventRequestForgery(except: ['webhooks/*']);
+
         // Na Vercel tudo chega pelo proxy dela (HTTPS e IP real nos X-Forwarded-*).
         if (env('VERCEL')) {
             $middleware->trustProxies(at: '*');
