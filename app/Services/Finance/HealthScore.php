@@ -118,7 +118,7 @@ class HealthScore
 
         return $expenses->sum(fn (Expense $e) => match ($e->ownership) {
             'payer1' => $e->expenseAmount(),
-            'both' => $e->expenseAmount() * $ratio,
+            'both' => $e->customShares()[0] ?? $e->expenseAmount() * $ratio,
             default => 0,
         });
     }

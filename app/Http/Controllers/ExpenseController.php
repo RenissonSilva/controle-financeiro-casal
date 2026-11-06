@@ -13,6 +13,7 @@ use App\Models\Setting;
 use App\Services\Categorization\Categorizer;
 use App\Services\Finance\CycleReport;
 use App\Services\Finance\FixedExpenseMatcher;
+use App\Services\Finance\InstallmentPurchase;
 use App\Services\OpenFinance\TransactionClassifier;
 use App\Support\Activity;
 use App\Support\ExpensePresenter;
@@ -21,7 +22,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -38,6 +41,7 @@ class ExpenseController extends Controller
             ->inCompetence($month)
             ->newestFirst()
             ->get();
+        $purchases = InstallmentPurchase::groupsFor($rows);
 
         return Inertia::render('Expenses', [
             'cycle' => [
@@ -50,7 +54,7 @@ class ExpenseController extends Controller
                 'is_current' => $month === $settings->currentCycle(),
             ],
             'availableMonths' => $this->availableMonths($settings),
-            'rows' => $rows->map(fn (Expense $e) => ExpensePresenter::row($e)),
+            'rows' => $rows->map(fn (Expense $e) => ExpensePresenter::row($e, $purchases[$e->id] ?? null)),
             'summary' => [
                 'split' => $report->split(),
                 'cash_flow' => $report->cashFlow(),
@@ -69,9 +73,10 @@ class ExpenseController extends Controller
     {
         $data = $this->validateManual($request);
         $fixedExpenseId = $data['fixed_expense_id'] ?? null;
-        unset($data['fixed_expense_id']);
+        [$split, $payer1Share] = [$data['split'] ?? null, $data['payer1_share'] ?? null];
+        unset($data['fixed_expense_id'], $data['split'], $data['payer1_share']);
 
-        $expense = Expense::create([
+        $expense = new Expense([
             ...$data,
             'direction' => $this->directionFor($data['kind'], $request->input('settlement_direction')),
             'origin' => 'manual',
@@ -79,6 +84,13 @@ class ExpenseController extends Controller
             'category_source' => 'user',
             'kind_locked' => true,
         ]);
+
+        if ($split === 'custom' && $expense->kind === Expense::KIND_EXPENSE && $expense->ownership === 'both') {
+            $this->ensureShareFits($payer1Share, $expense->amount);
+            $expense->payer1_share = $payer1Share;
+        }
+
+        $expense->save();
 
         $this->linkFixed($expense, $fixedExpenseId);
 
@@ -99,6 +111,7 @@ class ExpenseController extends Controller
             'kind' => ['required', Rule::in(Expense::KINDS)],
             'fixed_expense_id' => ['nullable', 'integer', 'exists:fixed_expenses,id'],
             'ownership_scope' => ['nullable', 'in:one,all'],
+            ...self::SPLIT_RULES,
         ];
 
         if ($expense->isFromOpenFinance()) {
@@ -120,7 +133,8 @@ class ExpenseController extends Controller
         $data = $request->validate($rules);
         $fixedExpenseId = $data['fixed_expense_id'] ?? null;
         $scope = $data['ownership_scope'] ?? null;
-        unset($data['fixed_expense_id'], $data['ownership_scope']);
+        [$split, $payer1Share] = [$data['split'] ?? null, $data['payer1_share'] ?? null];
+        unset($data['fixed_expense_id'], $data['ownership_scope'], $data['split'], $data['payer1_share']);
 
         // O nome vale para todos os lançamentos que batem com o filtro, de agora e dos próximos meses.
         $renamed = null;
@@ -139,8 +153,9 @@ class ExpenseController extends Controller
 
         $kindChanged = $data['kind'] !== $expense->kind;
         $expense->fill($data);
+        $purchase = $this->applySplit($expense, $split, $payer1Share);
 
-        if ($expense->isDirty(['category_id', 'ownership'])) {
+        if ($expense->isDirty(['category_id', 'ownership', 'payer1_share'])) {
             $expense->category_source = 'user';
             $expense->status = 'categorized';
         }
@@ -168,6 +183,12 @@ class ExpenseController extends Controller
         $this->linkFixed($expense, $fixedExpenseId);
 
         $messages = [];
+
+        if ($purchase && ($count = $this->applySplitToPurchase($expense, $purchase)) > 0) {
+            $messages[] = $expense->hasCustomSplit()
+                ? "divisão aplicada às {$purchase['installments']->count()} parcelas da compra"
+                : "divisão pela renda de volta nas {$purchase['installments']->count()} parcelas da compra";
+        }
 
         if ($renamed && ($count = $renamed->expenses()->count()) > 1) {
             $messages[] = "nome aplicado a {$count} lançamentos";
@@ -201,7 +222,8 @@ class ExpenseController extends Controller
             ->filter(fn (Expense $e) => $e->ownership !== $expense->ownership || $e->ownership_scope !== 'all')
             ->pluck('id');
 
-        Expense::whereIn('id', $ids)->update(['ownership' => $expense->ownership, 'ownership_scope' => 'all']);
+        // Update em massa não passa pelo saving() do modelo: limpa aqui a divisão definida à mão.
+        Expense::whereIn('id', $ids)->update(['ownership' => $expense->ownership, 'ownership_scope' => 'all', 'payer1_share' => null]);
 
         return $ids->count();
     }
@@ -390,7 +412,111 @@ class ExpenseController extends Controller
             'source'           => ['required', 'in:payer1,payer2'],
             'notes'            => ['nullable', 'string', 'max:1000'],
             'fixed_expense_id' => ['nullable', 'integer', 'exists:fixed_expenses,id'],
+            ...self::SPLIT_RULES,
         ]);
+    }
+
+    /**
+     * Divisão de um gasto "Nós": 'income' = pela proporção de renda; 'custom' = `payer1_share` é a
+     * parte do pagador 1 (o pagador 2 fica com o resto). Em compra parcelada o valor é a parte no
+     * total da compra, e cada parcela recebe a mesma proporção. Ausente = não mexe na divisão.
+     */
+    private const SPLIT_RULES = [
+        'split' => ['nullable', 'in:income,custom'],
+        'payer1_share' => ['nullable', 'required_if:split,custom', 'numeric', 'min:0'],
+    ];
+
+    /**
+     * Aplica a divisão escolhida no formulário a este lançamento (ainda não salvo). Devolve a compra
+     * parcelada quando as outras parcelas também precisam mudar — ver applySplitToPurchase().
+     *
+     * @return array{installments: Collection<int, Expense>, shares: ?array<int, float>, payer1_total: ?float}|null
+     */
+    private function applySplit(Expense $expense, ?string $split, ?float $payer1Share): ?array
+    {
+        if ($split === null || $expense->kind !== Expense::KIND_EXPENSE || $expense->ownership !== 'both') {
+            return null;
+        }
+
+        // Parcela de compra no cartão: a divisão vale para a compra toda (mesmo que só esta parcela
+        // tenha chegado do banco — as outras herdam quando chegarem, ver inheritSplits()).
+        $installments = InstallmentPurchase::of($expense);
+        $isPurchase = InstallmentPurchase::isInstallment($expense);
+
+        if ($split === 'income') {
+            if ($expense->payer1_share === null) {
+                return null;
+            }
+
+            // Desligou a divisão própria: volta para a renda nesta e nas outras parcelas da compra.
+            $expense->payer1_share = null;
+
+            return $isPurchase ? ['installments' => $installments, 'shares' => null, 'payer1_total' => null] : null;
+        }
+
+        if (! $isPurchase) {
+            $this->ensureShareFits($payer1Share, $expense->amount);
+            $expense->payer1_share = $payer1Share;
+
+            return null;
+        }
+
+        $plan = InstallmentPurchase::plan($installments, $expense, $payer1Share);
+        $this->ensureShareFits($payer1Share, $plan['total']);
+        $expense->payer1_share = $plan['shares'][$expense->installment_number];
+
+        return ['installments' => $installments, 'shares' => $plan['shares'], 'payer1_total' => $payer1Share];
+    }
+
+    /**
+     * Repete nas outras parcelas da compra a divisão salva neste lançamento (shares = null: volta
+     * para a renda). Um resumo só no histórico, como no "Todos de...". Devolve quantas mudaram.
+     *
+     * @param  array{installments: Collection<int, Expense>, shares: ?array<int, float>, payer1_total: ?float}  $purchase
+     */
+    private function applySplitToPurchase(Expense $expense, array $purchase): int
+    {
+        $others = $purchase['installments']->reject(fn (Expense $other) => $other->id === $expense->id);
+        $changed = 0;
+
+        Activity::withoutRecording(function () use ($others, $purchase, &$changed) {
+            foreach ($others as $other) {
+                if ($purchase['shares'] === null) {
+                    $other->payer1_share = null;
+                } else {
+                    $other->fill([
+                        'ownership' => 'both',
+                        'payer1_share' => $purchase['shares'][$other->installment_number],
+                        'category_source' => 'user',
+                        'status' => 'categorized',
+                    ]);
+                }
+
+                if ($other->isDirty()) {
+                    $other->save();
+                    $changed++;
+                }
+            }
+        });
+
+        if ($changed > 0) {
+            $what = $purchase['shares'] === null ? 'voltou a divisão pela renda' : 'repetiu a divisão';
+            $label = str_replace(' (divisão)', ' na compra toda', $expense->activityFields()['payer1_share'][0]);
+            Activity::record('expenses', 'propagated', "{$what} em mais {$changed} ".($changed === 1 ? 'parcela' : 'parcelas').' da compra', Activity::expenseLabel($expense), $expense, [
+                Activity::change('payer1_share', $label, null, Activity::format('money', $purchase['payer1_total'])),
+            ]);
+        }
+
+        return $changed;
+    }
+
+    private function ensureShareFits(?float $payer1Share, float $total): void
+    {
+        if ($payer1Share === null || $payer1Share > round($total, 2) + 0.001) {
+            throw ValidationException::withMessages([
+                'payer1_share' => 'As partes precisam somar '.Activity::format('money', $total).'.',
+            ]);
+        }
     }
 
     /**

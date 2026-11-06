@@ -16,7 +16,7 @@ function Amount({ row }) {
     return <span className={`${base} text-text`}>−{value}</span>;
 }
 
-// Linha de detalhes: "14:32 · Transferência enviada · parcela 3/6 · US$ 21,49 · conta fixa: Aluguel".
+// Linha de detalhes: "14:32 · Transferência enviada · parcela 3/6 · US$ 21,49 · Reni R$ 30,00 · Lua R$ 70,00 · conta fixa: Aluguel".
 function Details({ row, couple }) {
     const bits = [];
 
@@ -30,6 +30,10 @@ function Details({ row, couple }) {
     if (row.currency_code) bits.push(`${row.currency_code} ${Number(row.original_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`);
     if (row.bank_status === 'PENDING') {
         bits.push(row.is_future ? 'parcela futura' : row.account_type === 'CREDIT' ? 'fatura em aberto' : 'pendente no banco');
+    }
+    if (row.ownership === 'both' && row.custom_payer1_share != null) {
+        const payer1 = Number(row.custom_payer1_share);
+        bits.push(`${firstName(couple?.payer1_name)} ${money(payer1)} · ${firstName(couple?.payer2_name)} ${money(Number(row.amount) - payer1)}`);
     }
     if (row.fixed_expense) bits.push(`conta fixa: ${row.fixed_expense}`);
     if (row.origin === 'manual') bits.push(`manual · pago por ${firstName(row.source === 'payer2' ? couple?.payer2_name : couple?.payer1_name)}`);

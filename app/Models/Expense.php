@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Str;
 
 /**
  * Qualquer movimentação do casal: despesa, receita, Pix de acerto ou lançamento ignorado.
@@ -43,6 +44,7 @@ class Expense extends Model
         'category_source',
         'ownership',
         'ownership_scope',
+        'payer1_share',
         'status',
         'bank_status',
         'bank_category',
@@ -63,6 +65,7 @@ class Expense extends Model
     protected $casts = [
         'amount' => 'float',
         'original_amount' => 'float',
+        'payer1_share' => 'float',
         'date' => 'date',
         'occurred_at' => 'datetime',
         'bill_due_date' => 'date',
@@ -80,6 +83,8 @@ class Expense extends Model
             if ($expense->isDirty(['date', 'bill_closing_date', 'bill_due_date', 'kind', 'competence_shift']) || ! $expense->competence) {
                 $expense->competence = $expense->computeCompetence(Setting::current());
             }
+
+            $expense->keepCustomSplitConsistent();
         });
     }
 
@@ -132,6 +137,52 @@ class Expense extends Model
         'status' => 'categorized',
         'source' => 'payer1',
     ];
+
+    /**
+     * A divisão definida à mão só existe em gasto "Nós": mudou o dono, ela some. Se o valor mudar
+     * (o banco ajusta compra pendente), a divisão acompanha na mesma proporção.
+     */
+    private function keepCustomSplitConsistent(): void
+    {
+        if ($this->payer1_share === null) {
+            return;
+        }
+
+        // Virar "Nós" de novo (ex: pelo atalho da lista) volta para a proporção de renda.
+        if ($this->ownership !== 'both' || ($this->isDirty('ownership') && ! $this->isDirty('payer1_share'))) {
+            $this->payer1_share = null;
+
+            return;
+        }
+
+        if ($this->isDirty('amount') && ! $this->isDirty('payer1_share') && $this->getOriginal('amount') > 0) {
+            $this->payer1_share = round($this->payer1_share * $this->amount / $this->getOriginal('amount'), 2);
+        }
+
+        $this->payer1_share = min(max(round($this->payer1_share, 2), 0.0), (float) $this->amount);
+    }
+
+    public function hasCustomSplit(): bool
+    {
+        return $this->ownership === 'both' && $this->payer1_share !== null;
+    }
+
+    /**
+     * Parte de cada um num gasto "Nós" com divisão definida à mão, com o sinal de expenseAmount()
+     * (estorno abate). Null quando o gasto segue a proporção de renda.
+     *
+     * @return array{0: float, 1: float}|null
+     */
+    public function customShares(): ?array
+    {
+        if (! $this->hasCustomSplit()) {
+            return null;
+        }
+
+        $payer1 = $this->direction === 'in' ? -$this->payer1_share : $this->payer1_share;
+
+        return [round($payer1, 2), round($this->expenseAmount() - $payer1, 2)];
+    }
 
     public function category(): BelongsTo
     {
@@ -280,6 +331,7 @@ class Expense extends Model
             'kind' => ['Tipo', 'kind'],
             'category_id' => ['Categoria', 'category'],
             'ownership' => ['De quem é', 'payer'],
+            'payer1_share' => ['Parte de '.Str::before(trim((string) Setting::current()->payer1_name).' ', ' ').' (divisão)', 'money'],
             'source' => ['Pago por', 'payer'],
             'notes' => 'Observação',
         ];

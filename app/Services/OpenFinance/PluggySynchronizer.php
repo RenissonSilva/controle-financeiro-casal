@@ -10,6 +10,7 @@ use App\Models\OpenFinanceInvestment;
 use App\Models\OpenFinanceItem;
 use App\Services\Categorization\Categorizer;
 use App\Services\Finance\FixedExpenseMatcher;
+use App\Services\Finance\InstallmentPurchase;
 use App\Services\PluggyService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -97,6 +98,9 @@ class PluggySynchronizer
 
             // Cobrança nova que bate com uma regra de nome (ex: "Amazon %") já chega com o nome dela.
             NameRule::apply($created->pluck('id'));
+
+            // Parcela que voltou do banco segue a divisão definida à mão nas outras parcelas da compra.
+            InstallmentPurchase::inheritSplits(Expense::whereIn('id', $created->pluck('id'))->get());
         });
 
         $this->syncInvestments($item);
@@ -227,6 +231,9 @@ class PluggySynchronizer
             'category_id' => $old->category_source === 'user' ? $old->category_id : null,
             'ownership' => $old->category_source === 'user' ? $old->ownership : null,
             'ownership_scope' => $old->ownership_scope,
+            'payer1_share' => $old->category_source === 'user' && $old->hasCustomSplit() && $old->amount > 0
+                ? round($old->payer1_share * $replacement->amount / $old->amount, 2)
+                : null,
             'category_source' => $old->category_source === 'user' ? 'user' : null,
             'status' => $old->category_source === 'user' ? 'categorized' : null,
             'notes' => $old->notes,

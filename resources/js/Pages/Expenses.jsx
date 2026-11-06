@@ -185,6 +185,8 @@ export default function Expenses({ cycle, availableMonths, rows, summary, catego
     const flow = summary.cash_flow;
     const settlement = summary.settlement;
     const shareTotal = split.payer1_total + split.payer2_total || 1;
+    // Com divisões definidas à mão, o % da renda não descreve mais o compartilhado: mostra o % efetivo.
+    const sharedPercent = (shared, incomePercent) => (split.custom_shared > 0 && split.shared_total ? (shared / split.shared_total) * 100 : incomePercent);
     const defaultDate = cycle.is_current ? new Date().toISOString().slice(0, 10) : cycle.start;
 
     return (
@@ -221,8 +223,8 @@ export default function Expenses({ cycle, availableMonths, rows, summary, catego
                     </div>
                     <div className="grid grid-cols-2 gap-3 text-[13px]">
                         {[
-                            { name: me, total: split.payer1_total, individual: split.payer1_individual, shared: split.payer1_shared, pct: couple?.payer1_percent, dot: 'bg-person1' },
-                            { name: partner, total: split.payer2_total, individual: split.payer2_individual, shared: split.payer2_shared, pct: couple?.payer2_percent, dot: 'bg-person2' },
+                            { name: me, total: split.payer1_total, individual: split.payer1_individual, shared: split.payer1_shared, pct: sharedPercent(split.payer1_shared, couple?.payer1_percent), dot: 'bg-person1' },
+                            { name: partner, total: split.payer2_total, individual: split.payer2_individual, shared: split.payer2_shared, pct: sharedPercent(split.payer2_shared, couple?.payer2_percent), dot: 'bg-person2' },
                         ].map((p) => (
                             <div key={p.name} className="min-w-0">
                                 <div className="flex items-center gap-2 text-muted"><span className={`h-2 w-2 rounded-[2px] ${p.dot}`} />{p.name}</div>

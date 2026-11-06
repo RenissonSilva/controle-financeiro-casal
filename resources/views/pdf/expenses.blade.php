@@ -153,14 +153,14 @@
                     <table class="split">
                         <tr>
                             <td><strong>{{ $settings->payer1_name }}</strong>: R$ {{ number_format($page['split']['payer1_total'], 2, ',', '.') }}</td>
-                            <td class="muted">individual R$ {{ number_format($page['split']['payer1_individual'], 2, ',', '.') }} + {{ number_format($settings->payer1_percent, 1, ',', '.') }}% do compartilhado</td>
+                            <td class="muted">individual R$ {{ number_format($page['split']['payer1_individual'], 2, ',', '.') }} + {{ $page['split']['custom_shared'] > 0 ? 'R$ '.number_format($page['split']['payer1_shared'], 2, ',', '.') : number_format($settings->payer1_percent, 1, ',', '.').'%' }} do compartilhado</td>
                         </tr>
                         <tr>
                             <td><strong>{{ $settings->payer2_name }}</strong>: R$ {{ number_format($page['split']['payer2_total'], 2, ',', '.') }}</td>
-                            <td class="muted">individual R$ {{ number_format($page['split']['payer2_individual'], 2, ',', '.') }} + {{ number_format($settings->payer2_percent, 1, ',', '.') }}% do compartilhado</td>
+                            <td class="muted">individual R$ {{ number_format($page['split']['payer2_individual'], 2, ',', '.') }} + {{ $page['split']['custom_shared'] > 0 ? 'R$ '.number_format($page['split']['payer2_shared'], 2, ',', '.') : number_format($settings->payer2_percent, 1, ',', '.').'%' }} do compartilhado</td>
                         </tr>
                         <tr>
-                            <td colspan="2" class="muted">Compartilhado no mês: R$ {{ number_format($page['split']['shared_total'], 2, ',', '.') }} · estornos já abatidos</td>
+                            <td colspan="2" class="muted">Compartilhado no mês: R$ {{ number_format($page['split']['shared_total'], 2, ',', '.') }}{{ $page['split']['custom_shared'] > 0 ? ' · pela renda ('.number_format($settings->payer1_percent, 1, ',', '.').'% / '.number_format($settings->payer2_percent, 1, ',', '.').'%), exceto '.$page['split']['custom_shared'].' com divisão definida' : '' }} · estornos já abatidos</td>
                         </tr>
                     </table>
                 @endif

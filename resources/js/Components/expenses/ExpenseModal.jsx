@@ -6,8 +6,9 @@ import Select from '@/Components/ui/Select';
 import Button from '@/Components/ui/Button';
 import Segmented from '@/Components/ui/Segmented';
 import OwnershipToggle from '@/Components/ui/OwnershipToggle';
-import { firstName, fullDate, money } from '@/lib/format';
+import { firstName, fullDate, money, monthShort, percent } from '@/lib/format';
 import { patternMatches } from '@/lib/nameRule';
+import { purchasePlan, round2, savedPayer1Total } from '@/lib/split';
 
 const blank = (defaultDate, kind = 'expense') => ({
     description: '',
@@ -19,6 +20,8 @@ const blank = (defaultDate, kind = 'expense') => ({
     settlement_direction: 'in',
     category_id: '',
     ownership: 'both',
+    split: 'income',
+    payer1_share: '',
     source: 'payer1',
     notes: '',
     fixed_expense_id: '',
@@ -35,6 +38,8 @@ const fromRow = (row) => ({
     category_id: row.category_id ?? '',
     ownership: row.ownership,
     ownership_scope: row.ownership_scope ?? 'one',
+    split: row.custom_payer1_share != null ? 'custom' : 'income',
+    payer1_share: row.custom_payer1_share != null ? savedPayer1Total(row).toFixed(2) : '',
     source: row.source,
     notes: row.notes ?? '',
     fixed_expense_id: row.fixed_expense_id ?? '',
@@ -63,12 +68,21 @@ export default function ExpenseModal({ show, row, initialKind, rows = [], onClos
         if (readOnly) return;
         const options = { preserveScroll: true, onSuccess: () => { reset(); onClose(); } };
 
-        transform(({ custom_name, name_pattern, ...d }) => ({
-            ...d,
-            ...(fromBank ? { custom_name: custom_name?.trim() || null, name_pattern: name_pattern?.trim() || null } : {}),
-            category_id: d.category_id || null,
-            fixed_expense_id: d.fixed_expense_id || null,
-        }));
+        transform(({ custom_name, name_pattern, ...d }) => {
+            // Divisão só existe em despesa "Nós"; a definida à mão não mexe no "Vale para".
+            const shared = d.kind === 'expense' && d.ownership === 'both';
+            const custom = shared && d.split === 'custom';
+
+            return {
+                ...d,
+                ...(fromBank ? { custom_name: custom_name?.trim() || null, name_pattern: name_pattern?.trim() || null } : {}),
+                category_id: d.category_id || null,
+                fixed_expense_id: d.fixed_expense_id || null,
+                split: shared ? d.split : null,
+                payer1_share: custom ? d.payer1_share || 0 : null,
+                ...(custom ? { ownership_scope: null } : {}),
+            };
+        });
 
         if (isEditing) {
             put(route('expenses.update', row.id), options);
@@ -83,6 +97,21 @@ export default function ExpenseModal({ show, row, initialKind, rows = [], onClos
         return rows.filter((r) => patternMatches(data.name_pattern, r));
     }, [fromBank, rows, data.name_pattern]);
     const matchedNames = [...new Set(matched.map((r) => r.bank_name))];
+
+    // Total que a divisão reparte: a compra toda (parcelada) ou o valor do lançamento.
+    const purchase = isEditing && row.purchase ? row.purchase : null;
+    const plan = purchase ? purchasePlan(purchase, row, data.payer1_share) : null;
+    const splitTotal = plan ? plan.total : Number(data.amount) || 0;
+    const incomeSplit = (total) => round2(total * (Number(couple?.payer1_percent) || 0) / 100).toFixed(2);
+
+    const chooseSplit = (split) => {
+        setData((d) => ({
+            ...d,
+            split,
+            // Começa da divisão pela renda, para só ajustar.
+            payer1_share: split === 'custom' && d.payer1_share === '' && splitTotal > 0 ? incomeSplit(splitTotal) : d.payer1_share,
+        }));
+    };
 
     const kinds = [
         { value: 'expense', label: 'Despesa' },
@@ -190,8 +219,35 @@ export default function ExpenseModal({ show, row, initialKind, rows = [], onClos
                             <div>
                                 <span className="mb-1.5 block text-[13px] font-medium text-secondary">De quem é o gasto</span>
                                 <OwnershipToggle size="md" value={data.ownership} onChange={(value) => setData('ownership', value)} couple={couple} />
-                                <p className="mt-1.5 text-[12px] text-muted">"Nós" é dividido pela proporção de renda ({couple?.payer1_percent}% / {couple?.payer2_percent}%).</p>
-                                {isEditing && (
+                                {data.ownership === 'both' && (
+                                    <div className="mt-3">
+                                        <span className="mb-1.5 block text-[13px] font-medium text-secondary">Como dividir</span>
+                                        <Segmented
+                                            options={[
+                                                { value: 'income', label: 'Pela renda' },
+                                                { value: 'custom', label: 'Valores definidos' },
+                                            ]}
+                                            value={data.split}
+                                            onChange={chooseSplit}
+                                            className="w-fit max-w-full"
+                                        />
+                                    </div>
+                                )}
+                                {data.ownership === 'both' && data.split === 'custom' ? (
+                                    <CustomSplit
+                                        data={data}
+                                        setData={setData}
+                                        error={errors.payer1_share}
+                                        total={splitTotal}
+                                        plan={plan}
+                                        row={row}
+                                        me={me}
+                                        partner={partner}
+                                    />
+                                ) : (
+                                    <p className="mt-1.5 text-[12px] text-muted">"Nós" é dividido pela proporção de renda ({couple?.payer1_percent}% / {couple?.payer2_percent}%).</p>
+                                )}
+                                {isEditing && !(data.ownership === 'both' && data.split === 'custom') && (
                                     <div className="mt-3">
                                         <span className="mb-1.5 block text-[13px] font-medium text-secondary">Vale para</span>
                                         <Segmented
@@ -259,5 +315,79 @@ export default function ExpenseModal({ show, row, initialKind, rows = [], onClos
                 </div>
             </form>
         </Modal>
+    );
+}
+
+// Quanto cada um paga, em reais. Editar um lado recalcula o outro (as partes somam o total). Em compra
+// parcelada o total é o da compra e a prévia mostra a parte de cada um em cada parcela.
+function CustomSplit({ data, setData, error, total, plan, row, me, partner }) {
+    const payer1 = Number(data.payer1_share) || 0;
+    const payer2 = round2(total - payer1);
+    const over = payer1 > total + 0.001;
+    const current = row?.purchase?.items.find((item) => item.id === row.id)?.number;
+    const pct = (value) => (total > 0 ? percent((value / total) * 100) : '—');
+
+    const setPayer1 = (value) => setData('payer1_share', value);
+    const setPayer2 = (value) => setData('payer1_share', value === '' ? total.toFixed(2) : Math.max(round2(total - Number(value)), 0).toFixed(2));
+
+    return (
+        <div className="mt-3 flex flex-col gap-2.5">
+            {plan && (
+                <p className="text-[12px] leading-relaxed text-muted">
+                    Compra em {row.purchase.count}× · total {plan.estimated ? 'estimado ' : ''}
+                    <span className="font-mono text-secondary">{money(total)}</span>. Informe quanto cada um paga na compra toda.
+                </p>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+                <Field
+                    label={<span className="flex items-center gap-2"><span className="h-2 w-2 rounded-[2px] bg-person1" />{me}</span>}
+                    money
+                    value={data.payer1_share}
+                    onChange={(e) => setPayer1(e.target.value)}
+                    aria-label={`Parte de ${me}`}
+                />
+                <Field
+                    label={<span className="flex items-center gap-2"><span className="h-2 w-2 rounded-[2px] bg-person2" />{partner}</span>}
+                    money
+                    value={over ? '' : payer2.toFixed(2)}
+                    onChange={(e) => setPayer2(e.target.value)}
+                    aria-label={`Parte de ${partner}`}
+                />
+            </div>
+            {over || error ? (
+                <p className="text-[12px] text-red">{error || `As partes precisam somar ${money(total)}.`}</p>
+            ) : (
+                <p className="text-[12px] text-muted">
+                    {me} {pct(payer1)} · {partner} {pct(payer2)} de {money(total)}
+                </p>
+            )}
+
+            {plan && !over && (
+                <div className="rounded-[12px] border border-line bg-bg/40 px-3.5 py-2">
+                    {plan.slots.map((slot) => (
+                        <div key={slot.number} className={`flex items-baseline justify-between gap-3 py-1 text-[12px] ${slot.item ? '' : 'text-muted'}`}>
+                            <span className={`whitespace-nowrap font-mono ${slot.number === current ? 'text-text' : 'text-secondary'}`}>
+                                {slot.number}/{row.purchase.count}
+                                {slot.item ? ` · ${monthShort(slot.item.competence)}` : ''}
+                                {slot.number === current && <span className="font-sans text-muted"> · esta</span>}
+                            </span>
+                            <span className="truncate text-right font-mono tabular-nums">
+                                {slot.item ? (
+                                    <><span className="text-person1">{money(slot.payer1)}</span> <span className="text-muted">·</span> <span className="text-person2">{money(slot.payer2)}</span></>
+                                ) : (
+                                    <span className="font-sans">ainda não chegou do banco — segue a mesma divisão</span>
+                                )}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            <p className="text-[12px] text-muted">
+                {plan
+                    ? `Vale para as ${row.purchase.count} parcelas desta compra.`
+                    : 'Vale só para este lançamento.'}
+            </p>
+        </div>
     );
 }

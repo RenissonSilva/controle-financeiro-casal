@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Expense;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Formato único de um lançamento para as telas (Home, Lançamentos, detalhes da conexão).
@@ -21,7 +22,11 @@ class ExpensePresenter
         'refund' => 'Estorno',
     ];
 
-    public static function row(Expense $expense): array
+    /**
+     * @param  Collection<int, Expense>|null  $installments  parcelas da mesma compra (InstallmentPurchase),
+     *                                                       para o formulário dividir a compra toda
+     */
+    public static function row(Expense $expense, ?Collection $installments = null): array
     {
         [$prefix, $name] = self::splitDescription($expense->description);
 
@@ -52,6 +57,18 @@ class ExpensePresenter
             'category_source' => $expense->category_source,
             'ownership' => $expense->ownership,
             'ownership_scope' => $expense->ownership_scope,
+            // Divisão definida à mão (só em "Nós"); null = pela proporção de renda.
+            'custom_payer1_share' => $expense->hasCustomSplit() ? $expense->payer1_share : null,
+            'purchase' => $installments?->isNotEmpty() ? [
+                'count' => $expense->installment_total,
+                'items' => $installments->map(fn (Expense $item) => [
+                    'id' => $item->id,
+                    'number' => $item->installment_number,
+                    'amount' => $item->amount,
+                    'competence' => $item->competence,
+                    'payer1_share' => $item->hasCustomSplit() ? $item->payer1_share : null,
+                ])->values()->all(),
+            ] : null,
             'source' => $expense->source,
             'origin' => $expense->origin,
             'account_type' => $expense->account_type,

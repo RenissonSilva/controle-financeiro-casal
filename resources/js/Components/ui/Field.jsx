@@ -1,4 +1,5 @@
 import MoneyInput from './MoneyInput';
+import DateInput from './DateInput';
 
 const INPUT_CLASSES =
     'w-full min-h-[44px] rounded-[10px] border border-line-strong bg-bg px-3 py-2 text-[14px] text-text placeholder:text-muted/70 transition-colors focus:border-accent focus:outline-none focus:ring-0 disabled:cursor-default disabled:border-line disabled:bg-transparent';
@@ -6,9 +7,10 @@ const INPUT_CLASSES =
 const LABEL_CLASSES = 'mb-1.5 block text-[13px] font-medium text-secondary';
 
 // label + input + mensagem de erro, para formulários das telas migradas (ver Components/ui/README.md).
-// `money` troca o input por MoneyInput (máscara de real).
+// `money` troca o input por MoneyInput (máscara de real); type="date" vira DateInput (dd/mm/aaaa,
+// qualquer que seja o idioma do navegador).
 export default function Field({ label, error, money = false, className = '', inputClassName = '', ...props }) {
-    const Input = money ? MoneyInput : 'input';
+    const Input = money ? MoneyInput : props.type === 'date' ? DateInput : 'input';
     return (
         <div className={className}>
             {label && <label className={LABEL_CLASSES}>{label}</label>}

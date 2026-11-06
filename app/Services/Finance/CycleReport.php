@@ -53,16 +53,21 @@ class CycleReport
     }
 
     /**
-     * Total do casal e quanto cabe a cada um.
+     * Total do casal e quanto cabe a cada um. Compartilhado com divisão definida à mão entra com
+     * as partes informadas; o resto é dividido pela renda.
      */
     public function split(): array
     {
-        $sum = fn (string $ownership) => round($this->expenses()->where('ownership', $ownership)->sum(fn (Expense $e) => $e->expenseAmount()), 2);
+        $expenses = $this->expenses();
+        $sum = fn (string $ownership) => round($expenses->where('ownership', $ownership)->sum(fn (Expense $e) => $e->expenseAmount()), 2);
+        $custom = $expenses->filter(fn (Expense $e) => $e->hasCustomSplit());
 
         $payer1 = $sum('payer1');
         $payer2 = $sum('payer2');
         $shared = $sum('both');
-        [$payer1Shared, $payer2Shared] = $this->settings->splitShared($shared);
+        $byIncome = round($shared - $custom->sum(fn (Expense $e) => $e->expenseAmount()), 2);
+        $payer1Shared = round($this->settings->splitShared($byIncome)[0] + $custom->sum(fn (Expense $e) => $e->customShares()[0]), 2);
+        $payer2Shared = round($shared - $payer1Shared, 2);
 
         return [
             'total' => round($payer1 + $payer2 + $shared, 2),
@@ -73,6 +78,8 @@ class CycleReport
             'payer2_shared' => $payer2Shared,
             'payer1_total' => round($payer1 + $payer1Shared, 2),
             'payer2_total' => round($payer2 + $payer2Shared, 2),
+            // Quantos compartilhados têm divisão própria (aí o % da renda não descreve o total).
+            'custom_shared' => $custom->count(),
         ];
     }
 
@@ -103,15 +110,17 @@ class CycleReport
                 $value = $group->sum(function (Expense $e) use ($perspective, $ratio) {
                     $amount = $e->expenseAmount();
 
+                    $custom = $e->customShares();
+
                     return match ($perspective) {
                         'payer1' => match ($e->ownership) {
                             'payer1' => $amount,
-                            'both' => $amount * $ratio,
+                            'both' => $custom[0] ?? $amount * $ratio,
                             default => 0,
                         },
                         'payer2' => match ($e->ownership) {
                             'payer2' => $amount,
-                            'both' => $amount * (1 - $ratio),
+                            'both' => $custom[1] ?? $amount * (1 - $ratio),
                             default => 0,
                         },
                         default => $amount,
@@ -181,12 +190,18 @@ class CycleReport
         $sum = fn (string $source, string $ownership) => round($expenses
             ->where('source', $source)
             ->where('ownership', $ownership)
+            ->reject(fn (Expense $e) => $e->hasCustomSplit())
             ->sum(fn (Expense $e) => $e->expenseAmount()), 2);
+        // Compartilhados com divisão definida à mão: a parte de cada um já vem pronta.
+        $custom = fn (string $source, int $payer) => $expenses
+            ->where('source', $source)
+            ->filter(fn (Expense $e) => $e->hasCustomSplit())
+            ->sum(fn (Expense $e) => $e->customShares()[$payer]);
 
         // Parte do pagador 2 no que o pagador 1 pagou.
-        $owedToPayer1 = $sum('payer1', 'payer2') + $this->settings->splitShared($sum('payer1', 'both'))[1];
+        $owedToPayer1 = $sum('payer1', 'payer2') + $this->settings->splitShared($sum('payer1', 'both'))[1] + $custom('payer1', 1);
         // Parte do pagador 1 no que o pagador 2 pagou.
-        $owedToPayer2 = $sum('payer2', 'payer1') + $this->settings->splitShared($sum('payer2', 'both'))[0];
+        $owedToPayer2 = $sum('payer2', 'payer1') + $this->settings->splitShared($sum('payer2', 'both'))[0] + $custom('payer2', 0);
 
         return round($owedToPayer1 + $this->settlementFixed()->sum('payer2_share') - $owedToPayer2, 2);
     }
@@ -232,11 +247,11 @@ class CycleReport
             ->filter(fn (Expense $e) => $e->ownership !== 'payer1' || $e->source === 'payer2')
             ->values();
 
-        // Parte do pagador 1 em cada compartilhado, arredondada por quem pagou para somar o
-        // mesmo que a divisão do total feita no settlementDue().
+        // Parte do pagador 1 em cada compartilhado pela renda, arredondada por quem pagou para somar
+        // o mesmo que a divisão do total feita no settlementDue(). Divisão à mão vale como está.
         $payer1Shares = [];
         foreach (['payer1', 'payer2'] as $source) {
-            $shared = $expenses->where('source', $source)->where('ownership', 'both');
+            $shared = $expenses->where('source', $source)->where('ownership', 'both')->reject(fn (Expense $e) => $e->hasCustomSplit());
 
             if ($shared->isNotEmpty()) {
                 $total = round($shared->sum(fn (Expense $e) => $e->expenseAmount()), 2);
@@ -251,7 +266,7 @@ class CycleReport
             $amount = $e->expenseAmount();
             $payer1Share = match ($e->ownership) {
                 'payer1' => $amount,
-                'both' => $payer1Shares[$e->id],
+                'both' => $e->customShares()[0] ?? $payer1Shares[$e->id],
                 default => 0.0,
             };
             $payer2Share = round($amount - $payer1Share, 2);

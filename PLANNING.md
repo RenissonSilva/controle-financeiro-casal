@@ -40,6 +40,14 @@ seguinte entram pelo valor real, se já pagas, ou pela estimativa. Pix trocados 
 abatem nada (sem saldo corrido, sem mês inicial, sem saldo inicial manual). Lançamentos
 marcados como "Acerto" só ficam fora de receitas e despesas.
 
+**Divisão definida à mão (2026-11-06):** um gasto "Nós" pode ter a parte de cada um em reais
+(`expenses.payer1_share` = parte do Reni; a Lua fica com o resto) em vez da proporção de renda.
+Rateio, categorias, saúde financeira e acerto usam essas partes. Em compra parcelada no cartão o
+valor é informado sobre o total da compra e cada parcela recebe a mesma proporção, com os
+centavos ajustados para somar exatamente o informado (`InstallmentPurchase`); parcela que
+chega depois do banco herda a divisão. Mudar o dono (ou voltar para "Nós" pelo atalho da lista)
+desfaz a divisão.
+
 **Contas fixas:** reconhecem o pagamento pelo CPF/CNPJ do Pix (ou trecho da descrição) no
 mesmo mês financeiro; conta paga = vinculada ao lançamento e contada uma vez só. Vínculo
 manual e "desfazer vínculo" disponíveis. Conta marcada "paga o consumo do mês anterior"

@@ -32,7 +32,7 @@ export default function Settlement({ cycle, summary, lines, fixed }) {
 
     const details = (line) => [
         line.category || 'Sem categoria',
-        line.ownership === 'both' && `${percent(couple?.payer2_percent, 0)} de ${money(line.amount)}`,
+        line.ownership === 'both' && (line.custom_payer1_share != null ? `divisão definida · total ${money(line.amount)}` : `${percent(couple?.payer2_percent, 0)} de ${money(line.amount)}`),
         line.source === 'payer2' && `pago por ${partner}`,
         line.installment && !line.name.includes(line.installment) && `parcela ${line.installment}`,
         line.direction === 'in' && 'estorno',
@@ -92,7 +92,7 @@ export default function Settlement({ cycle, summary, lines, fixed }) {
                 <LineGroup
                     icon={<Users size={16} strokeWidth={1.75} />}
                     title="Compartilhados"
-                    subtitle={`Parte de ${partner}: ${percent(couple?.payer2_percent, 0)}`}
+                    subtitle={`Parte de ${partner}: ${percent(couple?.payer2_percent, 0)}${shared.some((l) => l.custom_payer1_share != null) ? ' ou a divisão definida' : ''}`}
                     total={sum(shared, 'payer2_share')}
                     empty="Nenhum gasto compartilhado neste mês."
                     rows={shared.map((l) => lineRow(l, l.payer2_share))}
